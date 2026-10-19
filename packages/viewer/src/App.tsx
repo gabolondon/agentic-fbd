@@ -7,15 +7,27 @@ import {
   useReactFlow,
   useUpdateNodeInternals,
   type EdgeMouseHandler,
+  type NodeChange,
   type NodeMouseHandler,
 } from '@xyflow/react';
-import { buildView, initialPath, type Risk, type ViewModel, type ViewNode, type ViewPath } from '@logic-builder/core';
-import { layoutReadable, type Layout } from './layout/elk.ts';
+import {
+  buildView,
+  initialPath,
+  LAYOUT_VERSION,
+  levelKey,
+  layoutFileName,
+  type Risk,
+  type ViewModel,
+  type ViewNode,
+  type ViewPath,
+} from '@logic-builder/core';
+import { layoutReadable, type Box, type Layout } from './layout/elk.ts';
+import { applySaved, fitFrames, snapToWires, snapshot } from './layout/arrange.ts';
 import { nodeSize } from './layout/sizes.ts';
 import { readHash, writeHash, type Location } from './state/hash.ts';
 import { locateNode, riskTarget, type TreeItem } from './state/lookup.ts';
 import { NavPanel } from './components/NavPanel.tsx';
-import { useDocument, type DocState } from './state/useDocument.ts';
+import { useDocument, type DocHandle } from './state/useDocument.ts';
 import { flowType, nodeTypes, type LogicFlowNode } from './components/nodes.tsx';
 import { edgeTypes, type LogicFlowEdge } from './components/TypedEdge.tsx';
 import { SidePanel, type Panel } from './components/SidePanel.tsx';
@@ -33,14 +45,19 @@ export function App() {
 
 interface Flow {
   key: string;
+  /** The level's key in the layout file. */
+  level: string;
+  view: ViewModel | null;
+  /** Changes on every new layout, not while blocks are dragged. */
+  stamp: number;
   nodes: LogicFlowNode[];
   edges: LogicFlowEdge[];
 }
 
-const EMPTY_FLOW: Flow = { key: '', nodes: [], edges: [] };
+const EMPTY_FLOW: Flow = { key: '', level: '', view: null, stamp: 0, nodes: [], edges: [] };
 
 interface ViewerProps {
-  state: DocState;
+  state: DocHandle;
   loc: Location;
   setLoc: React.Dispatch<React.SetStateAction<Location>>;
 }
@@ -59,6 +76,13 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
   /** Block to show once a linked diagram has loaded. */
   const pendingLink = useRef<string | null>(null);
   const lastFit = useRef<string | null>(null);
+  // Read by the layout effect, which reruns on a new view or a reset, not on every save.
+  const layoutRef = useRef(state.layout);
+  layoutRef.current = state.layout;
+  const flowRef = useRef(flow);
+  flowRef.current = flow;
+  const stamp = useRef(0);
+  const [arranged, setArranged] = useState(0);
   const { fitView } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -125,23 +149,66 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
     let cancelled = false;
     const file = state.file;
     void layoutReadable(view, (labelEdges) => buildView(doc, view.path, view.mode, { labelEdges })).then((laid) => {
-      if (!cancelled) setFlow(toFlow(laid.view, laid.layout, file));
+      if (cancelled) return;
+      const saved = layoutRef.current?.levels[levelKey(laid.view.path)];
+      setFlow(toFlow(laid.view, applySaved(laid.view, laid.layout, saved), file, ++stamp.current));
     });
     return () => {
       cancelled = true;
     };
-  }, [view]);
+  }, [view, arranged]);
 
   // Re-measure handles after every layout; fit only when the level changes.
   useEffect(() => {
-    if (!flow.key) return;
-    for (const n of flow.nodes) updateNodeInternals(n.id);
-    if (lastFit.current !== flow.key) {
-      lastFit.current = flow.key;
+    const f = flowRef.current;
+    if (!f.key) return;
+    for (const n of f.nodes) updateNodeInternals(n.id);
+    if (lastFit.current !== f.key) {
+      lastFit.current = f.key;
       // Never fit so far out that labels are unreadable; pan to see the rest.
       requestAnimationFrame(() => void fitView({ padding: 0.12, duration: 180, maxZoom: 1.1, minZoom: 0.55 }));
     }
-  }, [flow, fitView, updateNodeInternals]);
+  }, [flow.stamp, fitView, updateNodeInternals]);
+
+  // Dragging: blocks snap level with a wire's other end, and frames grow to keep their children.
+  const onNodesChange = useCallback((changes: NodeChange<LogicFlowNode>[]) => {
+    const moves = changes.flatMap((c) => (c.type === 'position' && c.position ? [{ id: c.id, ...c.position }] : []));
+    if (!moves.length) return;
+    setFlow((f) => {
+      if (!f.view) return f;
+      const viewNodes = new Map(f.view.nodes.map((n) => [n.id, n]));
+      const boxes = boxesOf(f.nodes);
+      for (const m of moves) {
+        const box = boxes.get(m.id);
+        if (!box) continue;
+        // Whole pixels, as they are saved.
+        box.x = Math.round(m.x);
+        box.y = Math.round(moves.length === 1 ? snapToWires(viewNodes, boxes, f.view.edges, m.id, m.y) : m.y);
+      }
+      return { ...f, nodes: withBoxes(f.nodes, fitFrames(f.view.nodes, boxes, false)) };
+    });
+  }, []);
+
+  // Dropping: frames hug their children again, and the level's positions are saved.
+  const { saveLayout } = state;
+  const onNodeDragStop = useCallback(() => {
+    const f = flowRef.current;
+    if (!f.view) return;
+    const boxes = fitFrames(f.view.nodes, boxesOf(f.nodes), true);
+    setFlow({ ...f, nodes: withBoxes(f.nodes, boxes) });
+    const levels = { ...(layoutRef.current?.levels ?? {}) };
+    levels[f.level] = { ...levels[f.level], ...snapshot(boxes, f.nodes.map((n) => n.id)) };
+    saveLayout({ version: LAYOUT_VERSION, levels });
+  }, [saveLayout]);
+
+  const level = view ? levelKey(view.path) : '';
+  const arrangedByHand = !!state.layout?.levels[level];
+  const resetLayout = useCallback(() => {
+    const levels = { ...(layoutRef.current?.levels ?? {}) };
+    delete levels[level];
+    saveLayout({ version: LAYOUT_VERSION, levels });
+    setArranged((n) => n + 1);
+  }, [level, saveLayout]);
 
   const navigate = useCallback((path: ViewPath) => {
     setTip(null);
@@ -321,6 +388,20 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
         </div>
         <div className="lb-spacer" />
         {!state.connected && state.loaded && <span className="lb-chip lb-chip-offline">offline</span>}
+        {!state.layoutSaved && (
+          <span className="lb-chip lb-chip-offline" title="The arrangement is kept until you reload">
+            layout not saved
+          </span>
+        )}
+        {doc && arrangedByHand && (
+          <button
+            className="lb-pill"
+            onClick={resetLayout}
+            title={`Lay this level out automatically again (drops its positions from ${layoutFileName(state.file)})`}
+          >
+            Auto layout
+          </button>
+        )}
         {design && (
           <div className="lb-segmented" role="group" aria-label="View">
             {(['before', 'after'] as const).map((m) => (
@@ -360,8 +441,12 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
               edges={edges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
-              nodesDraggable={false}
               nodesConnectable={false}
+              // A small wobble while clicking is still a click, not a drag.
+              nodeDragThreshold={4}
+              nodeClickDistance={4}
+              onNodesChange={onNodesChange}
+              onNodeDragStop={onNodeDragStop}
               elementsSelectable={false}
               zoomOnDoubleClick={false}
               minZoom={0.15}
@@ -413,7 +498,27 @@ function flowKey(file: string, view: ViewModel): string {
   return `${file}|${view.path.join('/')}`;
 }
 
-function toFlow(view: ViewModel, layout: Layout, file: string): Flow {
+function boxesOf(nodes: readonly LogicFlowNode[]): Map<string, Box> {
+  return new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y, width: n.width ?? 0, height: n.height ?? 0 }]));
+}
+
+/** Writes positions and frame sizes back into the React Flow nodes. */
+function withBoxes(nodes: readonly LogicFlowNode[], boxes: ReadonlyMap<string, Box>): LogicFlowNode[] {
+  return nodes.map((n) => {
+    const b = boxes.get(n.id);
+    if (!b) return n;
+    const moved = b.x !== n.position.x || b.y !== n.position.y;
+    const resized = b.width !== n.width || b.height !== n.height;
+    if (!moved && !resized) return n;
+    return {
+      ...n,
+      position: moved ? { x: b.x, y: b.y } : n.position,
+      ...(resized ? { width: b.width, height: b.height, style: { ...n.style, width: b.width, height: b.height } } : {}),
+    };
+  });
+}
+
+function toFlow(view: ViewModel, layout: Layout, file: string, stamp: number): Flow {
   const nodes: LogicFlowNode[] = view.nodes.map((v) => {
     const box = layout.boxes.get(v.id);
     const size = v.type === 'frame' ? { width: box?.width ?? 200, height: box?.height ?? 120 } : nodeSize(v);
@@ -424,9 +529,10 @@ function toFlow(view: ViewModel, layout: Layout, file: string): Flow {
       parentId: v.parentFrame,
       width: size.width,
       height: size.height,
-      style: { width: size.width, height: size.height },
+      // A frame is dragged by its label; the rest of it lets clicks and pans through.
+      style: { width: size.width, height: size.height, ...(v.type === 'frame' ? { pointerEvents: 'none' as const } : {}) },
+      dragHandle: v.type === 'frame' ? '.lb-frame-label' : undefined,
       zIndex: v.type === 'frame' ? 0 : 2,
-      draggable: false,
       selectable: false,
       data: { view: v, selected: false, highlighted: false, showChanges: false },
     };
@@ -439,8 +545,8 @@ function toFlow(view: ViewModel, layout: Layout, file: string): Flow {
     targetHandle: `in:${e.targetHandle}`,
     type: 'typed',
     zIndex: 1,
-    data: { view: e, bends: layout.routes.get(e.id)?.slice(1, -1), highlighted: false, hovered: false, showChanges: false },
+    data: { view: e, route: layout.routes.get(e.id), highlighted: false, hovered: false, showChanges: false },
   }));
   // Fit the viewport when the level changes, not on reloads or mode switches.
-  return { key: flowKey(file, view), nodes, edges };
+  return { key: flowKey(file, view), level: levelKey(view.path), view, stamp, nodes, edges };
 }

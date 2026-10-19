@@ -1,12 +1,12 @@
 import { memo } from 'react';
-import { BaseEdge, getBezierPath, type Edge, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, getSmoothStepPath, type Edge, type EdgeProps } from '@xyflow/react';
 import type { ViewEdge } from '@logic-builder/core';
 import type { Point } from '../layout/elk.ts';
 
 export interface EdgeData extends Record<string, unknown> {
   view: ViewEdge;
-  /** ELK's orthogonal bend points; empty for a straight run, undefined before layout. */
-  bends?: Point[];
+  /** ELK's orthogonal route: start, bend points, end. Undefined before layout. */
+  route?: Point[];
   highlighted: boolean;
   hovered: boolean;
   showChanges: boolean;
@@ -29,6 +29,8 @@ export function edgeTone(data: EdgeData): string {
 const CORNER = 8;
 /** Bends this close to a handle's height are snapped to it, so routes leave ports level. */
 const SNAP = 4;
+/** Handles sit a few pixels outside the box ELK routed from. */
+const SLACK_X = 8;
 
 /** An orthogonal path through the bend points, with rounded corners. */
 export function orthogonalPath(points: Point[]): { path: string; mid: Point } {
@@ -68,6 +70,19 @@ function midpoint(points: Point[]): Point {
   return points[points.length - 1]!;
 }
 
+/** ELK's route still fits only if neither end has moved since layout (a block was dragged). */
+function routeFits(route: Point[] | undefined, source: Point, target: Point): route is Point[] {
+  if (!route || route.length < 2) return false;
+  const start = route[0]!;
+  const end = route[route.length - 1]!;
+  return (
+    Math.abs(start.x - source.x) <= SLACK_X &&
+    Math.abs(start.y - source.y) <= SNAP &&
+    Math.abs(end.x - target.x) <= SLACK_X &&
+    Math.abs(end.y - target.y) <= SNAP
+  );
+}
+
 /** Joins the handles to ELK's bends, snapping the first and last bends level with the handles. */
 function routePoints(source: Point, target: Point, bends: Point[]): Point[] {
   const inner = bends.map((p) => ({ ...p }));
@@ -82,14 +97,16 @@ function routePoints(source: Point, target: Point, bends: Point[]): Point[] {
 export const TypedEdge = memo(function TypedEdge(props: EdgeProps<LogicFlowEdge>) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data } = props;
   if (!data) return null;
+  const source = { x: sourceX, y: sourceY };
+  const target = { x: targetX, y: targetY };
   let path: string;
   let mid: Point;
-  // Before layout, or if the handles moved off ELK's straight run, fall back to a curve.
-  if (data.bends && (data.bends.length > 0 || Math.abs(sourceY - targetY) < 1)) {
-    ({ path, mid } = orthogonalPath(routePoints({ x: sourceX, y: sourceY }, { x: targetX, y: targetY }, data.bends)));
+  if (routeFits(data.route, source, target)) {
+    ({ path, mid } = orthogonalPath(routePoints(source, target, data.route.slice(1, -1))));
   } else {
-    const [bezier, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
-    path = bezier;
+    // Before layout, or after a block was moved by hand: a plain orthogonal step.
+    const [step, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, borderRadius: CORNER });
+    path = step;
     mid = { x: labelX, y: labelY };
   }
   const tone = edgeTone(data);

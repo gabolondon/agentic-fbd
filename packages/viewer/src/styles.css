@@ -1001,6 +1001,20 @@ code {
   white-space: nowrap;
 }
 
+/* The frame lets clicks and pans through (see toFlow); its label is the handle to drag it by. */
+.lb-frame-label,
+.lb-frame .lb-dot,
+.lb-frame .lb-see {
+  pointer-events: auto;
+}
+.lb-frame-label {
+  cursor: grab;
+}
+.react-flow__node.dragging,
+.react-flow__node.dragging .lb-frame-label {
+  cursor: grabbing;
+}
+
 .lb-frame.lb-mark-new {
   border-color: var(--new);
 }

@@ -42,6 +42,11 @@ export function nodeSize(n: ViewNode): Size {
   return { width, height };
 }
 
+/** A frame is never narrower than its label pill. */
+export function frameMinWidth(n: ViewNode): number {
+  return Math.ceil(n.label.length * SMALL_CHAR) + 60;
+}
+
 /** Y offset of the i-th port of a node, from its top edge. */
 export function portY(n: ViewNode, index: number): number {
   if (n.type === 'pin') return PIN_HEIGHT / 2;

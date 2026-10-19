@@ -140,6 +140,12 @@ Wires are checked by **name first** (nominal):
 Errors fail validation; warnings and notices don't. A warning is often exactly the risk worth
 writing down.
 
+## Layout file
+
+`<subject>.layout.json`, next to the diagram, holds the positions a person set by dragging blocks
+in the viewer. The viewer writes it; never edit it. Commit it with the diagram. Blocks it doesn't
+mention are laid out automatically, so editing the diagram needs no change to it.
+
 ## IDs
 
 - Node, wire, blockType and risk ids share one namespace per file.

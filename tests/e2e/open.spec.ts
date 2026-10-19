@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
@@ -148,6 +148,51 @@ test('lists the diagrams in the folder and follows a link to another one', async
     await expect(rendered(page).filter({ hasText: 'User signs in' })).toBeVisible();
     await expect(page).toHaveURL(/file=identity\.logic\.json/);
     await expect(page.locator('.lb-panel h3')).toHaveText('Issue session');
+    expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('drags a block, saves where it was put, and lays the level out again on request', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const layoutFile = opened.file.replace(/\.logic\.json$/, '.layout.json');
+  const errors = trackErrors(page);
+  const block = page.locator('.react-flow__node[data-id="proxy"]');
+  const position = () => block.evaluate((el) => (el as HTMLElement).style.transform);
+  try {
+    await page.goto(opened.url);
+    await expect(block).toBeVisible();
+    const start = await position();
+    // Wait for the viewport to finish fitting the level before grabbing the block.
+    const viewport = page.locator('.react-flow__viewport');
+    for (let prev = '', i = 0; i < 40; i++) {
+      await page.waitForTimeout(100);
+      const now = await viewport.evaluate((el) => (el as HTMLElement).style.transform);
+      if (now === prev) break;
+      prev = now;
+    }
+    const box = (await block.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 12);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + 160, { steps: 8 });
+    await page.mouse.up();
+    const moved = await position();
+    expect(moved).not.toBe(start);
+
+    await expect.poll(() => existsSync(layoutFile)).toBe(true);
+    expect(readFileSync(layoutFile, 'utf8')).toContain('"proxy": {');
+    // A drag is not a click: no side panel opened.
+    await expect(page.locator('.lb-panel h3')).toHaveCount(0);
+
+    await page.reload();
+    await expect(block).toBeVisible();
+    await expect.poll(position).toBe(moved);
+
+    await page.getByRole('button', { name: 'Auto layout' }).click();
+    await expect.poll(position).toBe(start);
+    await expect.poll(() => existsSync(layoutFile)).toBe(false);
+    await expect(page.getByRole('button', { name: 'Auto layout' })).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
     opened.child.kill();

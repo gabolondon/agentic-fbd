@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -128,5 +128,53 @@ describe('startServer — diagrams in the same folder', () => {
   it('refuses names outside the folder or that are not diagrams', async () => {
     expect((await fetch(`${running.url}api/doc?file=..%2Fgate.logic.json`)).status).toBe(400);
     expect((await fetch(`${running.url}api/doc?file=notes.json`)).status).toBe(400);
+  });
+});
+
+describe('startServer — layout', () => {
+  let running: RunningServer;
+  let dir: string;
+  const json = { 'content-type': 'application/json' };
+  const put = (body: unknown, headers: Record<string, string> = json, file = 'gate.logic.json') =>
+    fetch(`${running.url}api/layout?file=${file}`, { method: 'PUT', headers, body: typeof body === 'string' ? body : JSON.stringify(body) });
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'lb-layout-'));
+    const viewer = join(dir, 'viewer');
+    mkdirSync(viewer);
+    writeFileSync(join(viewer, 'index.html'), '<!doctype html>');
+    writeFileSync(join(dir, 'gate.logic.json'), readFileSync(example));
+    running = await startServer({ file: join(dir, 'gate.logic.json'), viewerDir: viewer });
+  });
+
+  afterAll(async () => {
+    await running.close();
+  });
+
+  it('serves no layout until one is saved', async () => {
+    const payload = (await (await fetch(`${running.url}api/doc`)).json()) as { layout: unknown };
+    expect(payload.layout).toBeNull();
+  });
+
+  it('saves a layout next to the diagram and serves it with the document', async () => {
+    const res = await put({ version: '0.1', levels: { '': { proxy: { x: 120.6, y: 40 } } } });
+    expect(res.status).toBe(200);
+    expect(readFileSync(join(dir, 'gate.layout.json'), 'utf8')).toContain('"proxy": { "x": 121, "y": 40 }');
+    const payload = (await (await fetch(`${running.url}api/doc`)).json()) as { layout: unknown };
+    expect(payload.layout).toEqual({ version: '0.1', levels: { '': { proxy: { x: 121, y: 40 } } } });
+  });
+
+  it('removes the file when no level is arranged any more', async () => {
+    expect((await put({ version: '0.1', levels: {} })).status).toBe(200);
+    expect(existsSync(join(dir, 'gate.layout.json'))).toBe(false);
+  });
+
+  it('refuses bad bodies, other methods, other pages and bad names', async () => {
+    expect((await put('{ nope')).status).toBe(400);
+    expect((await put({ levels: { '': { a: { x: 'far' } } } })).status).toBe(400);
+    expect((await put({ levels: {} }, { 'content-type': 'text/plain' })).status).toBe(403);
+    expect((await put({ levels: {} }, { ...json, origin: 'https://other.example' })).status).toBe(403);
+    expect((await put({ levels: {} }, json, '..%2Fgate.logic.json')).status).toBe(400);
+    expect((await fetch(`${running.url}api/layout`)).status).toBe(405);
   });
 });

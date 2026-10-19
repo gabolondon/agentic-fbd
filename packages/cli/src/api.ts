@@ -1,8 +1,17 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { basename, dirname, join, resolve } from 'node:path';
-import { validateText, type Issue, type LogicDoc, type Mode } from '@logic-builder/core';
+import {
+  formatLayout,
+  layoutFileName,
+  parseLayout,
+  validateText,
+  type Issue,
+  type LayoutFile,
+  type LogicDoc,
+  type Mode,
+} from '@logic-builder/core';
 
 // The endpoints the viewer talks to. Shared by `logic-builder open` and the Vite dev server.
 // Every *.logic.json next to the opened file is served, so diagrams can link to each other.
@@ -15,6 +24,8 @@ export interface DocPayload {
   doc: LogicDoc | null;
   valid: boolean;
   issues: Issue[];
+  /** The saved arrangement (`<name>.layout.json`), or null when there is none. */
+  layout: LayoutFile | null;
 }
 
 export interface FileEntry {
@@ -26,7 +37,7 @@ export interface FileEntry {
 }
 
 export interface DocApi {
-  /** Handles /api/doc, /api/files and /api/events; returns false for any other URL. */
+  /** Handles /api/doc, /api/files, /api/layout and /api/events; returns false for any other URL. */
   handle(req: IncomingMessage, res: ServerResponse): boolean;
   close(): void;
 }
@@ -34,6 +45,7 @@ export interface DocApi {
 const DEBOUNCE_MS = 120;
 const KEEPALIVE_MS = 20_000;
 const DIAGRAM = /^[^/\\]+\.logic\.json$/;
+const MAX_LAYOUT_BYTES = 1_000_000;
 
 export function isDiagramName(name: string): boolean {
   return DIAGRAM.test(name) && name !== '.' && name !== '..';
@@ -95,6 +107,24 @@ export function createDocApi(file: string, displayPath = file): DocApi {
         void load(join(dir, name), name, path).then((payload) => json(res, 200, payload));
         return true;
       }
+      if (url.pathname === '/api/layout') {
+        const name = url.searchParams.get('file') ?? opened;
+        if (req.method !== 'PUT') {
+          json(res, 405, { error: 'use PUT' });
+        } else if (!isDiagramName(name)) {
+          json(res, 400, { error: `not a diagram name: ${name}` });
+        } else if (!sameOrigin(req) || !String(req.headers['content-type'] ?? '').startsWith('application/json')) {
+          // A JSON content type forces a CORS preflight, which this server never answers, so
+          // other web pages cannot write here.
+          json(res, 403, { error: 'forbidden' });
+        } else {
+          void saveLayout(req, join(dir, layoutFileName(name))).then(
+            () => json(res, 200, { ok: true }),
+            (e: Error) => json(res, 400, { error: e.message }),
+          );
+        }
+        return true;
+      }
       if (url.pathname === '/api/files') {
         void listDiagrams(dir, opened).then((files) => json(res, 200, files));
         return true;
@@ -148,6 +178,53 @@ export async function listDiagrams(dir: string, opened: string): Promise<FileEnt
   return entries.sort((a, b) => Number(b.opened) - Number(a.opened) || a.title.localeCompare(b.title));
 }
 
+/** Writes the layout from a request body, atomically; an empty layout removes the file. */
+async function saveLayout(req: IncomingMessage, target: string): Promise<void> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req as AsyncIterable<Buffer>) {
+    size += chunk.length;
+    if (size > MAX_LAYOUT_BYTES) throw new Error('layout too large');
+    chunks.push(chunk);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    throw new Error('not JSON');
+  }
+  const layout = parseLayout(parsed);
+  if (!layout) throw new Error('not a layout');
+  if (Object.keys(layout.levels).length === 0) {
+    await unlink(target).catch(() => undefined);
+    return;
+  }
+  const temp = `${target}.${process.pid}.tmp`;
+  await writeFile(temp, formatLayout(layout));
+  await rename(temp, target);
+}
+
+/** Requests from the viewer itself carry no Origin, or the server's own. */
+function sameOrigin(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
+
+async function loadLayout(absolute: string): Promise<LayoutFile | null> {
+  const text = await readSafe(join(dirname(absolute), layoutFileName(basename(absolute))));
+  if (text === null) return null;
+  try {
+    return parseLayout(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
 async function load(absolute: string, file: string, displayPath: string): Promise<DocPayload> {
   let text = await readSafe(absolute);
   let result = text === null ? null : validateText(text);
@@ -164,9 +241,11 @@ async function load(absolute: string, file: string, displayPath: string): Promis
       doc: null,
       valid: false,
       issues: [{ level: 'error', code: 'read', path: '/', message: `cannot read ${displayPath}` }],
+      layout: null,
     };
   }
-  return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues };
+  const layout = await loadLayout(absolute);
+  return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues, layout };
 }
 
 async function readSafe(path: string): Promise<string | null> {

@@ -94,6 +94,10 @@ simple tasks it doesn't offer it at all.
 - **Linked diagrams:** a big subject can be split into one diagram per system, linked with
   `see`. The structure panel lists every diagram in the folder, and a ↗ block opens the one
   that explains it.
+- **Arrange by hand:** drag blocks (and frames by their label) to tidy a level. A block snaps
+  level with the other end of its wire, so wires can be made straight. Positions are saved in
+  `<subject>.layout.json` next to the diagram; commit it with the diagram. **Auto layout** goes
+  back to the automatic arrangement.
 - **Before / After** and **Risks:** clicking a risk navigates to it and highlights what it
   touches.
 
@@ -125,7 +129,8 @@ One JSON file per subject. The pieces are:
 - **Change marks**, with `before` for modified items.
 - **Risks** that point at blocks and wires.
 
-There are no coordinates; the viewer lays everything out.
+There are no coordinates; the viewer lays everything out. Positions you set by dragging live in
+a separate `<subject>.layout.json` that only the viewer writes.
 
 - Full reference: [`skills/logic-builder/references/format.md`](skills/logic-builder/references/format.md)
 - JSON Schema: [`skills/logic-builder/references/logic.schema.json`](skills/logic-builder/references/logic.schema.json)

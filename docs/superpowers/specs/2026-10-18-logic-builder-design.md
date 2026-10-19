@@ -303,8 +303,8 @@ Small and readable:
 ### 5.7 No coordinates
 
 The JSON has no positions; the app lays out automatically, so the agent spends no tokens on layout.
-In phase 1 layout is always automatic: users can pan and zoom but not drag blocks. Dragging and
-saving positions to a side `<subject>.layout.json` is phase 2.
+People can still arrange a level by dragging blocks; the viewer saves those positions in a side
+file, `<subject>.layout.json`, that the agent never writes (§6.6).
 
 ### 5.8 Language
 
@@ -378,7 +378,7 @@ the direction of the approved prototype.
 ### 6.4 Phase 2 (not in the first delivery)
 - Editing directly in the UI, saved back to the JSON: rename blocks and ports, change a port's type,
   edit descriptions. Then create and delete wires.
-- Dragging blocks and saving positions.
+- Dragging blocks and saving positions (done in phase 2b, §6.6).
 
 Claude sees UI edits by reading the file.
 
@@ -429,6 +429,33 @@ with `see` (§5.2):
 - Long wires between systems use `draw: "label"`.
 - A subject with more than about 40 blocks, or with several separately deployed systems, is split
   into one file per system, linked with `see`.
+
+### 6.6 Phase 2b: arranging blocks by hand
+
+Automatic layout stays the default; dragging only refines it. Calls made by Claude:
+
+- **Dragging.** Every block, flag and boundary pin can be dragged. An open frame is dragged by its
+  label; the rest of the frame lets clicks and pans through, so big frames don't get in the way.
+  Children move with their frame, and a frame grows while a child is dragged past its edge.
+- **Snap to wires.** A dragged block snaps level with the other end of one of its wires when it
+  comes within 10 px, so wires can be made straight by hand.
+- **Saving.** On drop, the level is saved in `<subject>.layout.json`, next to the diagram:
+  - `levels` maps a level (its path joined with `/`, `""` for the top) to view node ids and their
+    positions relative to their frame;
+  - the whole level is saved, so a later automatic layout can't move blocks that weren't dragged;
+  - keys are sorted and each position is on one line, so diffs stay small. The file is meant to
+    be committed with the diagram.
+- **Changes to the diagram.** Saved blocks keep their place. Blocks the save doesn't know yet go
+  where the automatic layout puts them, shifted as much as their saved neighbors moved and pushed
+  down until they cover nothing. Entries for blocks that no longer exist are ignored.
+- **Wires.** ELK's route is kept while both ends are where ELK put them. Otherwise the wire is a
+  plain orthogonal step between its ports.
+- **Auto layout.** A button on a level that has saved positions drops them and lays it out again;
+  the file is removed once no level has positions.
+- **Server.** `PUT /api/layout?file=<diagram>` writes the file atomically. It needs a JSON
+  content type and a same-origin request, so other web pages can't write it. If saving fails,
+  the viewer keeps the arrangement until reload and says it wasn't saved.
+- The agent never writes the layout file. Before and After share one arrangement per level.
 
 ## 7. CLI
 

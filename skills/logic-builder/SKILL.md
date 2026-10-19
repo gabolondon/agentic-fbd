@@ -43,6 +43,10 @@ node "<base>/../../dist/cli.mjs" open logic/<subject-id>.logic.json
 One file per subject at `logic/<subject-id>.logic.json` in the repo being worked on. A new change
 to the same area updates that file. Old versions live in git history, not as copies.
 
+A `logic/<subject-id>.layout.json` next to it holds positions the user set by dragging blocks in
+the viewer. Never write or edit it, and leave it in place when you change the diagram; commit it
+along with the diagram.
+
 Before writing a file for the first time in a session, read `<base>/references/format.md` (the
 full format) and one example: `<base>/examples/auth-gate.logic.json` (understand) or
 `<base>/examples/other-free-text.logic.json` (design). The JSON Schema is
@@ -142,5 +146,5 @@ Then run `validate --check-code .` and commit the file with the implementation.
 
 - 5–12 blocks per level (the viewer opens nested groups up to about 25 visible blocks). Beyond
   that, split the level into groups, or the subject into linked diagrams.
-- No coordinates: the viewer lays everything out.
+- No coordinates: the viewer lays everything out (and keeps what the user arranged by hand).
 - No exploring beyond the subject. The goal is understanding one thing well, not a repo map.

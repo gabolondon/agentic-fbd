@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Issue, LogicDoc, Mode } from '@logic-builder/core';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Issue, LayoutFile, LogicDoc, Mode } from '@logic-builder/core';
 
 export interface DiagramFile {
   file: string;
@@ -24,9 +24,30 @@ export interface DocState {
   loaded: boolean;
   /** Every diagram in the same folder. */
   files: DiagramFile[];
+  /** Positions arranged by hand, saved next to the diagram. */
+  layout: LayoutFile | null;
+  /** False when the last save of the layout failed. */
+  layoutSaved: boolean;
 }
 
-const INITIAL: DocState = { path: '', file: '', doc: null, valid: true, issues: [], revision: 0, connected: false, loaded: false, files: [] };
+export interface DocHandle extends DocState {
+  /** Shows a new arrangement at once and writes it next to the diagram. */
+  saveLayout(layout: LayoutFile): void;
+}
+
+const INITIAL: DocState = {
+  path: '',
+  file: '',
+  doc: null,
+  valid: true,
+  issues: [],
+  revision: 0,
+  connected: false,
+  loaded: false,
+  files: [],
+  layout: null,
+  layoutSaved: true,
+};
 
 interface Payload {
   path: string;
@@ -34,13 +55,14 @@ interface Payload {
   doc: LogicDoc | null;
   valid: boolean;
   issues: Issue[];
+  layout: LayoutFile | null;
 }
 
 /**
  * Loads one diagram from the local server (the opened file when `file` is undefined) and
  * refetches when it changes on disk. Also keeps the list of diagrams in the folder.
  */
-export function useDocument(file?: string): DocState {
+export function useDocument(file?: string): DocHandle {
   const [state, setState] = useState<DocState>(INITIAL);
   const inFlight = useRef(0);
   const current = useRef<string | undefined>(file);
@@ -66,6 +88,7 @@ export function useDocument(file?: string): DocState {
           doc: payload.doc ?? (same ? prev.doc : null),
           valid: payload.valid,
           issues: payload.issues,
+          layout: payload.layout ?? null,
           revision: prev.revision + 1,
           loaded: true,
         };
@@ -82,6 +105,19 @@ export function useDocument(file?: string): DocState {
     } catch {
       // The list is a convenience; the diagram itself still loads.
     }
+  }, []);
+
+  const saveLayout = useCallback((layout: LayoutFile) => {
+    const target = loadedFile.current;
+    setState((prev) => ({ ...prev, layout }));
+    void fetch(`api/layout?file=${encodeURIComponent(target)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(layout),
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .then((ok) => setState((prev) => ({ ...prev, layoutSaved: ok })));
   }, []);
 
   useEffect(() => {
@@ -111,5 +147,5 @@ export function useDocument(file?: string): DocState {
     return () => events.close();
   }, [refresh, refreshFiles]);
 
-  return state;
+  return useMemo(() => ({ ...state, saveLayout }), [state, saveLayout]);
 }

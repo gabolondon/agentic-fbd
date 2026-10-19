@@ -8509,6 +8509,52 @@ function validateText(text) {
   return { ...result, doc: result.issues.some((i) => i.code === "schema") ? null : parsed };
 }
 
+// packages/core/src/layoutFile.ts
+var LAYOUT_VERSION = "0.1";
+var DIAGRAM_SUFFIX = ".logic.json";
+function layoutFileName(diagram) {
+  const base = diagram.endsWith(DIAGRAM_SUFFIX) ? diagram.slice(0, -DIAGRAM_SUFFIX.length) : diagram;
+  return `${base}.layout.json`;
+}
+var MAX_COORD = 1e6;
+function parseLayout(value) {
+  if (!isObject(value) || !isObject(value.levels)) return null;
+  const levels = {};
+  for (const [key, entries] of Object.entries(value.levels)) {
+    if (!isObject(entries)) return null;
+    const level = {};
+    for (const [id, pos] of Object.entries(entries)) {
+      if (!isObject(pos) || !isCoord(pos.x) || !isCoord(pos.y)) return null;
+      level[id] = { x: Math.round(pos.x), y: Math.round(pos.y) };
+    }
+    if (Object.keys(level).length > 0) levels[key] = level;
+  }
+  return { version: LAYOUT_VERSION, levels };
+}
+function formatLayout(layout) {
+  const levels = Object.keys(layout.levels).sort().map((key) => {
+    const level = layout.levels[key];
+    const rows = Object.keys(level).sort().map((id) => `      ${JSON.stringify(id)}: { "x": ${level[id].x}, "y": ${level[id].y} }`);
+    return `    ${JSON.stringify(key)}: {
+${rows.join(",\n")}
+    }`;
+  });
+  const body = levels.length ? `{
+${levels.join(",\n")}
+  }` : "{}";
+  return `{
+  "version": ${JSON.stringify(LAYOUT_VERSION)},
+  "levels": ${body}
+}
+`;
+}
+function isObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isCoord(value) {
+  return typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= MAX_COORD;
+}
+
 // packages/cli/src/checkCode.ts
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -8603,12 +8649,13 @@ import { dirname as dirname3, extname, join as join4, normalize, resolve as reso
 import { fileURLToPath } from "node:url";
 
 // packages/cli/src/api.ts
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { watch } from "node:fs";
 import { basename as basename2, dirname as dirname2, join as join3, resolve } from "node:path";
 var DEBOUNCE_MS = 120;
 var KEEPALIVE_MS = 2e4;
 var DIAGRAM = /^[^/\\]+\.logic\.json$/;
+var MAX_LAYOUT_BYTES = 1e6;
 function isDiagramName(name) {
   return DIAGRAM.test(name) && name !== "." && name !== "..";
 }
@@ -8664,6 +8711,22 @@ data: ${data}
         void load(join3(dir, name), name, path).then((payload) => json(res, 200, payload));
         return true;
       }
+      if (url.pathname === "/api/layout") {
+        const name = url.searchParams.get("file") ?? opened;
+        if (req.method !== "PUT") {
+          json(res, 405, { error: "use PUT" });
+        } else if (!isDiagramName(name)) {
+          json(res, 400, { error: `not a diagram name: ${name}` });
+        } else if (!sameOrigin(req) || !String(req.headers["content-type"] ?? "").startsWith("application/json")) {
+          json(res, 403, { error: "forbidden" });
+        } else {
+          void saveLayout(req, join3(dir, layoutFileName(name))).then(
+            () => json(res, 200, { ok: true }),
+            (e) => json(res, 400, { error: e.message })
+          );
+        }
+        return true;
+      }
       if (url.pathname === "/api/files") {
         void listDiagrams(dir, opened).then((files) => json(res, 200, files));
         return true;
@@ -8713,6 +8776,48 @@ async function listDiagrams(dir, opened) {
   );
   return entries.sort((a, b) => Number(b.opened) - Number(a.opened) || a.title.localeCompare(b.title));
 }
+async function saveLayout(req, target) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_LAYOUT_BYTES) throw new Error("layout too large");
+    chunks.push(chunk);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new Error("not JSON");
+  }
+  const layout = parseLayout(parsed);
+  if (!layout) throw new Error("not a layout");
+  if (Object.keys(layout.levels).length === 0) {
+    await unlink(target).catch(() => void 0);
+    return;
+  }
+  const temp = `${target}.${process.pid}.tmp`;
+  await writeFile(temp, formatLayout(layout));
+  await rename(temp, target);
+}
+function sameOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
+async function loadLayout(absolute) {
+  const text = await readSafe(join3(dirname2(absolute), layoutFileName(basename2(absolute))));
+  if (text === null) return null;
+  try {
+    return parseLayout(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
 async function load(absolute, file, displayPath) {
   let text = await readSafe(absolute);
   let result = text === null ? null : validateText(text);
@@ -8727,10 +8832,12 @@ async function load(absolute, file, displayPath) {
       file,
       doc: null,
       valid: false,
-      issues: [{ level: "error", code: "read", path: "/", message: `cannot read ${displayPath}` }]
+      issues: [{ level: "error", code: "read", path: "/", message: `cannot read ${displayPath}` }],
+      layout: null
     };
   }
-  return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues };
+  const layout = await loadLayout(absolute);
+  return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues, layout };
 }
 async function readSafe(path) {
   try {
