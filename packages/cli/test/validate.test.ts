@@ -54,3 +54,22 @@ describe('logic-builder validate', () => {
     expect(stale.sort()).toEqual(['gone', 'renamed']);
   });
 });
+
+describe('logic-builder validate — links between diagrams', () => {
+  it('warns about links to missing diagrams or blocks, without failing', async () => {
+    const { mkdtempSync, readFileSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(join(tmpdir(), 'lb-links-'));
+    const doc = JSON.parse(readFileSync(join(examples, 'auth-gate.logic.json'), 'utf8'));
+    writeFileSync(join(dir, 'roles.logic.json'), JSON.stringify(doc));
+    doc.nodes[0].see = 'roles.logic.json#authz';
+    doc.nodes[1].see = 'roles.logic.json#nope';
+    doc.nodes[2].see = 'gone.logic.json';
+    writeFileSync(join(dir, 'gate.logic.json'), JSON.stringify(doc));
+    const { code, out } = await cli('validate', join(dir, 'gate.logic.json'));
+    expect(code).toBe(0);
+    expect(out).toContain('[link-missing-node]');
+    expect(out).toContain('[link-missing-file]');
+    expect(out.match(/\[link-/g)).toHaveLength(2);
+  });
+});

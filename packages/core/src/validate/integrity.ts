@@ -124,6 +124,10 @@ function checkNode(doc: LogicDoc, scope: Scope, node: LogicNode, issues: Issue[]
     err(issues, 'pin-outside-body', at, `pin "${at}" is only allowed inside a blockType body`);
   }
 
+  if (node.kind === 'pin' && node.see !== undefined) {
+    err(issues, 'pin-see', at, `pin "${at}" cannot link to another diagram ("see"); link the instance or a block instead`);
+  }
+
   if (node.kind === 'group') {
     const hasPorts = Object.keys(node.inputs ?? {}).length + Object.keys(node.outputs ?? {}).length > 0;
     const hasChildren = childrenOf(scope, node.id).length > 0;

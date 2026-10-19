@@ -70,6 +70,17 @@ export function buildTree(doc: LogicDoc): TreeItem[] {
   return walk('', doc.nodes, undefined, [], new Set());
 }
 
+/** Where a file-root node is shown: the tree item to open for a link like "file#id". */
+export function locateNode(doc: LogicDoc, id: string): TreeItem | undefined {
+  const stack = [...buildTree(doc)];
+  while (stack.length) {
+    const item = stack.shift()!;
+    if (item.key === `|${id}`) return item;
+    stack.push(...item.children);
+  }
+  return undefined;
+}
+
 // Lookups on the document that the panels and risk navigation need.
 
 /** A node from the file root ('' scope) or from a blockType body. */

@@ -1,9 +1,12 @@
 import { memo } from 'react';
 import { BaseEdge, getBezierPath, type Edge, type EdgeProps } from '@xyflow/react';
 import type { ViewEdge } from '@logic-builder/core';
+import type { Point } from '../layout/elk.ts';
 
 export interface EdgeData extends Record<string, unknown> {
   view: ViewEdge;
+  /** ELK's orthogonal bend points; empty for a straight run, undefined before layout. */
+  bends?: Point[];
   highlighted: boolean;
   hovered: boolean;
   showChanges: boolean;
@@ -23,16 +26,78 @@ export function edgeTone(data: EdgeData): string {
   return 'lb-edge-plain';
 }
 
+const CORNER = 8;
+/** Bends this close to a handle's height are snapped to it, so routes leave ports level. */
+const SNAP = 4;
+
+/** An orthogonal path through the bend points, with rounded corners. */
+export function orthogonalPath(points: Point[]): { path: string; mid: Point } {
+  const d: string[] = [`M ${points[0]!.x} ${points[0]!.y}`];
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1]!;
+    const cur = points[i]!;
+    const next = points[i + 1]!;
+    const r = Math.min(CORNER, dist(prev, cur) / 2, dist(cur, next) / 2);
+    const a = toward(cur, prev, r);
+    const b = toward(cur, next, r);
+    d.push(`L ${a.x} ${a.y}`, `Q ${cur.x} ${cur.y} ${b.x} ${b.y}`);
+  }
+  const last = points[points.length - 1]!;
+  d.push(`L ${last.x} ${last.y}`);
+  return { path: d.join(' '), mid: midpoint(points) };
+}
+
+function dist(a: Point, b: Point): number {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function toward(from: Point, to: Point, r: number): Point {
+  const len = dist(from, to) || 1;
+  return { x: from.x + ((to.x - from.x) / len) * r, y: from.y + ((to.y - from.y) / len) * r };
+}
+
+/** The point halfway along the polyline. */
+function midpoint(points: Point[]): Point {
+  const total = points.slice(1).reduce((sum, p, i) => sum + dist(points[i]!, p), 0);
+  let left = total / 2;
+  for (let i = 1; i < points.length; i++) {
+    const seg = dist(points[i - 1]!, points[i]!);
+    if (seg >= left) return toward(points[i - 1]!, points[i]!, left);
+    left -= seg;
+  }
+  return points[points.length - 1]!;
+}
+
+/** Joins the handles to ELK's bends, snapping the first and last bends level with the handles. */
+function routePoints(source: Point, target: Point, bends: Point[]): Point[] {
+  const inner = bends.map((p) => ({ ...p }));
+  if (inner.length >= 2) {
+    if (Math.abs(inner[0]!.y - source.y) <= SNAP) inner[0]!.y = source.y;
+    const end = inner[inner.length - 1]!;
+    if (Math.abs(end.y - target.y) <= SNAP) end.y = target.y;
+  }
+  return [source, ...inner, target];
+}
+
 export const TypedEdge = memo(function TypedEdge(props: EdgeProps<LogicFlowEdge>) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data } = props;
-  const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   if (!data) return null;
+  let path: string;
+  let mid: Point;
+  // Before layout, or if the handles moved off ELK's straight run, fall back to a curve.
+  if (data.bends && (data.bends.length > 0 || Math.abs(sourceY - targetY) < 1)) {
+    ({ path, mid } = orthogonalPath(routePoints({ x: sourceX, y: sourceY }, { x: targetX, y: targetY }, data.bends)));
+  } else {
+    const [bezier, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+    path = bezier;
+    mid = { x: labelX, y: labelY };
+  }
   const tone = edgeTone(data);
   return (
     <>
       <BaseEdge path={path} className={`lb-edge ${tone}${data.hovered ? ' lb-edge-hovered' : ''}`} interactionWidth={16} />
       {data.view.compat === 'warning' && !data.view.ghost && (
-        <g transform={`translate(${labelX}, ${labelY})`} className="lb-edge-flag">
+        <g transform={`translate(${mid.x}, ${mid.y})`} className="lb-edge-flag">
           <circle r={7} />
           <text textAnchor="middle" dy={3.5}>
             !

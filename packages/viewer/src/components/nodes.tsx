@@ -85,6 +85,11 @@ function Badges({ data }: { data: NodeData }) {
     <>
       {risk && <span className="lb-dot lb-dot-risk" title={v.openRisk ? 'Open risk' : 'Open risk inside'} />}
       {inner && <span className="lb-dot lb-dot-inner" title="Changes inside" />}
+      {v.see && (
+        <span className="lb-see" title={`Explained in ${v.see.replace('#', ' › ')}`}>
+          ↗
+        </span>
+      )}
     </>
   );
 }
@@ -149,15 +154,41 @@ export const FrameNode = memo(function FrameNode({ data }: NodeProps<LogicFlowNo
   );
 });
 
-export const PinNode = memo(function PinNode({ data }: NodeProps<LogicFlowNode>) {
-  const v = data.view;
+/** Flags draw their handles without port names. */
+function unlabeled(v: ViewNode): ViewNode {
+  return { ...v, inputs: v.inputs.map((p) => ({ ...p, label: '' })), outputs: v.outputs.map((p) => ({ ...p, label: '' })) };
+}
+
+/** An arrow-shaped flag, as a net label or off-page connector in a schematic. It points the way
+ *  the signal flows: away from an output ("goes to"), into an input ("comes from"). */
+function Flag({ data, side, icon, text, title }: { data: NodeData; side: 'out' | 'in'; icon?: string; text: string; title: string }) {
+  const v = unlabeled(data.view);
   return (
-    <div className={classes(data, 'lb-pin', `lb-pin-${v.pinSide ?? 'left'}`)} title={v.outsideRef}>
-      <span className="lb-pin-label">{v.label}</span>
-      <Ports view={{ ...v, inputs: v.inputs.map((p) => ({ ...p, label: '' })), outputs: v.outputs.map((p) => ({ ...p, label: '' })) }} side="in" />
-      <Ports view={{ ...v, inputs: v.inputs.map((p) => ({ ...p, label: '' })), outputs: v.outputs.map((p) => ({ ...p, label: '' })) }} side="out" />
+    <div className={classes(data, 'lb-flag', `lb-flag-${side}`)} title={title}>
+      <div className="lb-flag-shape">
+        {icon && <span className="lb-flag-icon">{icon}</span>}
+        <span className="lb-flag-label">{text}</span>
+      </div>
+      <Ports view={v} side="in" />
+      <Ports view={v} side="out" />
     </div>
   );
+}
+
+export const PinNode = memo(function PinNode({ data }: NodeProps<LogicFlowNode>) {
+  const v = data.view;
+  // A left pin feeds the level (comes from outside); a right pin leaves it.
+  const side = v.pinSide === 'right' ? 'out' : 'in';
+  return <Flag data={data} side={side} text={v.label} title={`${side === 'in' ? 'Comes from' : 'Goes to'} ${v.outsideRef ?? v.label} (outside this level)`} />;
+});
+
+export const ConnectorNode = memo(function ConnectorNode({ data }: NodeProps<LogicFlowNode>) {
+  const v = data.view;
+  const c = v.connector!;
+  const many = c.peers.length > 1;
+  const names = c.peerLabels.join(', ');
+  const title = `${c.side === 'out' ? 'Goes to' : 'Comes from'} ${names}. Click to show ${many ? 'them' : 'it'}.`;
+  return <Flag data={data} side={c.side} icon={many ? '⋯' : KIND_ICON[v.kind]} text={v.label} title={title} />;
 });
 
 export const nodeTypes = {
@@ -166,6 +197,7 @@ export const nodeTypes = {
   box: BoxNode,
   frame: FrameNode,
   pin: PinNode,
+  connector: ConnectorNode,
 };
 
 export function flowType(v: ViewNode): keyof typeof nodeTypes {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { LogicDoc, ViewPath } from '@logic-builder/core';
 import { buildTree, type TreeItem } from '../state/lookup.ts';
+import type { DiagramFile } from '../state/useDocument.ts';
 import { KIND_ICON, KIND_LABEL } from './nodes.tsx';
 
 interface Props {
@@ -9,11 +10,15 @@ interface Props {
   selectedKey: string | null;
   showChanges: boolean;
   onOpen: (item: TreeItem) => void;
+  /** The diagrams in the same folder, and the one on screen. */
+  files: DiagramFile[];
+  currentFile: string;
+  onOpenFile: (file: string) => void;
 }
 
 const samePath = (a: ViewPath, b: ViewPath): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
 
-export function NavPanel({ doc, path, selectedKey, showChanges, onOpen }: Props) {
+export function NavPanel({ doc, path, selectedKey, showChanges, onOpen, files, currentFile, onOpenFile }: Props) {
   const tree = useMemo(() => buildTree(doc), [doc]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -84,6 +89,26 @@ export function NavPanel({ doc, path, selectedKey, showChanges, onOpen }: Props)
         <p>{doc.subject.intent}</p>
         {doc.subject.scope && <div className="lb-nav-scope">Scope · {doc.subject.scope}</div>}
       </div>
+      {files.length > 1 && (
+        <>
+          <div className="lb-nav-section">Diagrams</div>
+          <ul className="lb-files">
+            {files.map((f) => (
+              <li key={f.file}>
+                <button
+                  className={`lb-file${f.file === currentFile ? ' lb-file-current' : ''}`}
+                  onClick={() => onOpenFile(f.file)}
+                  title={f.file}
+                  aria-current={f.file === currentFile ? 'page' : undefined}
+                >
+                  <span className="lb-file-icon">{f.file === currentFile ? '◉' : '○'}</span>
+                  <span className="lb-file-title">{f.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <div className="lb-nav-section">Structure</div>
       <ul className="lb-tree">
         <li>

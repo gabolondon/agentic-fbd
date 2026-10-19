@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { validateText, type Issue } from '@logic-builder/core';
 import { checkCode } from './checkCode.ts';
+import { checkLinks } from './checkLinks.ts';
 import { openBrowser } from './openBrowser.ts';
 import { findViewerDir, startServer, type RunningServer } from './server.ts';
 
@@ -155,6 +156,7 @@ export function validateFile(file: string, repoRoot?: string): FileReport {
   }
   const result = validateText(text);
   const issues = [...result.issues];
+  if (result.doc) issues.push(...checkLinks(result.doc, resolve(file)));
   if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve(repoRoot)));
   return { file, valid: result.valid, issues };
 }

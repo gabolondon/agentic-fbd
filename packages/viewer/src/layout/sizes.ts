@@ -9,6 +9,9 @@ export const PORT_FIRST = HEADER + 12;
 export const FOOTER = 10;
 export const BOX_FOOTER = 18;
 export const PIN_HEIGHT = 36;
+export const FLAG_HEIGHT = 26;
+/** Longer connector labels are cut with an ellipsis; the full name is in the tooltip. */
+export const MAX_FLAG_CHARS = 28;
 export const STATE_HEIGHT = 46;
 export const FRAME_PADDING = { top: 34, left: 18, bottom: 18, right: 18 };
 
@@ -22,7 +25,10 @@ export interface Size {
 
 export function nodeSize(n: ViewNode): Size {
   if (n.type === 'pin') {
-    return { width: Math.max(110, Math.ceil(n.label.length * SMALL_CHAR) + 36), height: PIN_HEIGHT };
+    return { width: Math.max(110, Math.ceil(n.label.length * SMALL_CHAR) + 44), height: PIN_HEIGHT };
+  }
+  if (n.type === 'connector') {
+    return { width: Math.max(72, Math.ceil(Math.min(n.label.length, MAX_FLAG_CHARS) * SMALL_CHAR) + 46), height: FLAG_HEIGHT };
   }
   if (n.kind === 'state') {
     return { width: Math.max(140, Math.ceil(n.label.length * CHAR) + 52), height: STATE_HEIGHT };
@@ -39,6 +45,7 @@ export function nodeSize(n: ViewNode): Size {
 /** Y offset of the i-th port of a node, from its top edge. */
 export function portY(n: ViewNode, index: number): number {
   if (n.type === 'pin') return PIN_HEIGHT / 2;
+  if (n.type === 'connector') return FLAG_HEIGHT / 2;
   if (n.kind === 'state') return STATE_HEIGHT / 2;
   return PORT_FIRST + index * PORT_GAP;
 }

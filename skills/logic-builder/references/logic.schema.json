@@ -266,6 +266,11 @@
         },
         "explored": {
           "type": "boolean"
+        },
+        "see": {
+          "type": "string",
+          "pattern": "^[^/\\\\#]+\\.logic\\.json(#[^./#]+)?$",
+          "description": "Another diagram in the same folder that explains this block: file.logic.json or file.logic.json#node-id."
         }
       },
       "allOf": [
@@ -325,6 +330,13 @@
             "read",
             "write"
           ]
+        },
+        "draw": {
+          "enum": [
+            "line",
+            "label"
+          ],
+          "description": "How the viewer draws the wire: a line, or labeled connectors. Omitted: automatic."
         },
         "before": {
           "type": "object",

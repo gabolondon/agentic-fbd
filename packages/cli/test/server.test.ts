@@ -90,3 +90,43 @@ describe('startServer', () => {
     expect(payload.issues[0]?.code).toBe('json');
   });
 });
+
+describe('startServer — diagrams in the same folder', () => {
+  let running: RunningServer;
+
+  beforeAll(async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lb-siblings-'));
+    const viewer = join(dir, 'viewer');
+    mkdirSync(viewer);
+    writeFileSync(join(viewer, 'index.html'), '<!doctype html>');
+    writeFileSync(join(dir, 'gate.logic.json'), readFileSync(example));
+    const other = JSON.parse(readFileSync(example, 'utf8'));
+    other.subject.id = 'other';
+    other.subject.title = 'Another system';
+    writeFileSync(join(dir, 'other.logic.json'), JSON.stringify(other));
+    writeFileSync(join(dir, 'notes.json'), '{}');
+    running = await startServer({ file: join(dir, 'gate.logic.json'), viewerDir: viewer });
+  });
+
+  afterAll(async () => {
+    await running.close();
+  });
+
+  it('lists the folder diagrams, the opened one first', async () => {
+    const files = (await (await fetch(`${running.url}api/files`)).json()) as { file: string; title: string; opened: boolean }[];
+    expect(files.map((f) => f.file)).toEqual(['gate.logic.json', 'other.logic.json']);
+    expect(files[0]!.opened).toBe(true);
+    expect(files[1]!.title).toBe('Another system');
+  });
+
+  it('serves a sibling diagram by name', async () => {
+    const payload = (await (await fetch(`${running.url}api/doc?file=other.logic.json`)).json()) as Payload & { file: string };
+    expect(payload.file).toBe('other.logic.json');
+    expect(payload.doc.subject.id).toBe('other');
+  });
+
+  it('refuses names outside the folder or that are not diagrams', async () => {
+    expect((await fetch(`${running.url}api/doc?file=..%2Fgate.logic.json`)).status).toBe(400);
+    expect((await fetch(`${running.url}api/doc?file=notes.json`)).status).toBe(400);
+  });
+});

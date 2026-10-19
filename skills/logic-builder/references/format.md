@@ -27,7 +27,7 @@ Validate with `node "<base>/../../dist/cli.mjs" validate <file>`. Schema: `logic
 ## Nodes
 
 Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outputs`, `code`,
-`ref`, `change`, `changeNote`, `before`.
+`ref`, `see`, `change`, `changeNote`, `before`.
 
 | kind | Use for | Extra fields |
 |---|---|---|
@@ -47,6 +47,9 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
 - `desc` (**what it does**, 1–2 sentences) on every block except pins.
 - `logic` (**how it works**): a string, or an array of ordered steps. Required on `function`,
   `decision` and blockTypes.
+- `see`: another diagram in the same folder that explains this block, `"other.logic.json"` or
+  `"other.logic.json#node-id"` (a block at that file's root level). The viewer shows a ↗ badge and
+  opens the other diagram on double-click. Not allowed on pins.
 
 ### Groups and layers
 
@@ -64,6 +67,10 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
 - `from` is an output port, `to` is an input port. A `state` node is referenced by its id alone
   (`"to": "answers"`, `"op": "write"`; `"from": "answers"`, `"op": "read"`).
 - Several wires may feed one input.
+- `draw`: `"label"` draws the wire as a pair of labeled flags (a net label: "goes to X" at the
+  output, "comes from Y" at the input) instead of a line; `"line"` forces a line. Omitted, the
+  viewer decides: wires touching a `state`/`external` hub (3+ connections) and wires that would be
+  routed very long become flags.
 
 ## Reusable blocks (`blockTypes`)
 

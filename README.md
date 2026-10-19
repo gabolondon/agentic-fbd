@@ -87,6 +87,13 @@ simple tasks it doesn't offer it at all.
   it maps to, what changes, and where a reusable block is used.
 - **Double-click** a group or reusable block to go inside it. **Esc** goes back up.
 - **Unexplored groups** offer a *Copy request for Claude* button to expand them.
+- **Labeled connectors:** as in a schematic, a wire can be drawn as a pair of arrow flags
+  ("goes to X", "comes from Y") instead of a line across the sheet. Shared stores and services,
+  long wires, and wires marked `draw: "label"` are drawn this way. Click a flag to see the other
+  end.
+- **Linked diagrams:** a big subject can be split into one diagram per system, linked with
+  `see`. The structure panel lists every diagram in the folder, and a ↗ block opens the one
+  that explains it.
 - **Before / After** and **Risks:** clicking a risk navigates to it and highlights what it
   touches.
 
@@ -101,7 +108,9 @@ node dist/cli.mjs open logic/auth-gate.logic.json [--port 0] [--no-open]
 
 - `validate` checks the schema, the references and the wire types. It exits 1 on errors.
   `--check-code` also warns about code references that no longer exist.
-- `open` serves the viewer on `127.0.0.1` and reloads it live when the file changes.
+- `open` serves the viewer on `127.0.0.1` and reloads it live when the file changes. Other
+  `*.logic.json` files in the same folder are served too, so links between diagrams work.
+- `validate` also warns about `see` links to diagrams or blocks that don't exist.
 
 ## The format
 
@@ -111,6 +120,8 @@ One JSON file per subject. The pieces are:
   `instance` of a reusable block type.
 - **Typed ports**, and **wires** written as `"node.port"`.
 - **Explanations:** `desc` (what a block does) and `logic` (how it works).
+- **Links:** `see` on a block points at another diagram, and `draw` on a wire picks a line or
+  labeled connectors.
 - **Change marks**, with `before` for modified items.
 - **Risks** that point at blocks and wires.
 

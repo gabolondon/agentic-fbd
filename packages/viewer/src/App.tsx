@@ -10,10 +10,10 @@ import {
   type NodeMouseHandler,
 } from '@xyflow/react';
 import { buildView, initialPath, type Risk, type ViewModel, type ViewNode, type ViewPath } from '@logic-builder/core';
-import { layoutView, type Layout } from './layout/elk.ts';
+import { layoutReadable, type Layout } from './layout/elk.ts';
 import { nodeSize } from './layout/sizes.ts';
 import { readHash, writeHash, type Location } from './state/hash.ts';
-import { riskTarget, type TreeItem } from './state/lookup.ts';
+import { locateNode, riskTarget, type TreeItem } from './state/lookup.ts';
 import { NavPanel } from './components/NavPanel.tsx';
 import { useDocument, type DocState } from './state/useDocument.ts';
 import { flowType, nodeTypes, type LogicFlowNode } from './components/nodes.tsx';
@@ -22,10 +22,11 @@ import { SidePanel, type Panel } from './components/SidePanel.tsx';
 import { EdgeTooltip, type TooltipState } from './components/Tooltip.tsx';
 
 export function App() {
-  const state = useDocument();
+  const [loc, setLoc] = useState<Location>(() => readHash());
+  const state = useDocument(loc.file);
   return (
     <ReactFlowProvider>
-      <Viewer state={state} />
+      <Viewer state={state} loc={loc} setLoc={setLoc} />
     </ReactFlowProvider>
   );
 }
@@ -38,25 +39,68 @@ interface Flow {
 
 const EMPTY_FLOW: Flow = { key: '', nodes: [], edges: [] };
 
-function Viewer({ state }: { state: DocState }) {
+interface ViewerProps {
+  state: DocState;
+  loc: Location;
+  setLoc: React.Dispatch<React.SetStateAction<Location>>;
+}
+
+function Viewer({ state, loc, setLoc }: ViewerProps) {
   const { doc } = state;
-  const [loc, setLoc] = useState<Location>(() => readHash());
   const [panel, setPanel] = useState<Panel>(null);
   const [highlight, setHighlight] = useState<Set<string>>(new Set());
   const [activeRisk, setActiveRisk] = useState<string | null>(null);
   const [tip, setTip] = useState<TooltipState | null>(null);
   const [flow, setFlow] = useState<Flow>(EMPTY_FLOW);
-  const started = useRef(false);
+  // Tree clicks and links: open a level, then select a node once that level is laid out.
+  const [pendingSelect, setPendingSelect] = useState<{ scope: string; id: string } | null>(null);
+  /** The diagram the view was set up for; null until the first one loads. */
+  const startedFor = useRef<string | null>(null);
+  /** Block to show once a linked diagram has loaded. */
+  const pendingLink = useRef<string | null>(null);
   const lastFit = useRef<string | null>(null);
   const { fitView } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
-  // Open on subject.focus the first time, unless the URL already says where to go.
+  // When a diagram loads: go to a linked block, or open on subject.focus unless the URL (on the
+  // very first load) already says where to go.
   useEffect(() => {
-    if (!doc || started.current) return;
-    started.current = true;
-    if (!loc.explicit) setLoc({ path: initialPath(doc), mode: 'after', explicit: true });
-  }, [doc, loc.explicit]);
+    if (!doc || startedFor.current === state.file) return;
+    const first = startedFor.current === null;
+    startedFor.current = state.file;
+    const target = pendingLink.current;
+    pendingLink.current = null;
+    const item = target ? locateNode(doc, target) : undefined;
+    if (item) {
+      setPendingSelect(item.select ?? null);
+      setLoc((l) => ({ ...l, path: item.path, explicit: true }));
+    } else if (!first || !loc.explicit) {
+      setLoc((l) => ({ ...l, path: initialPath(doc), mode: 'after', explicit: true }));
+    }
+  }, [doc, state.file, loc.explicit, setLoc]);
+
+  const openedFile = state.files.find((f) => f.opened)?.file;
+  /** Follows a `see` link: "file.logic.json" or "file.logic.json#node". */
+  const openLink = useCallback(
+    (see: string) => {
+      const [name = '', node] = see.split('#');
+      setPanel(null);
+      setHighlight(new Set());
+      setActiveRisk(null);
+      setTip(null);
+      if (name === state.file) {
+        const item = node && doc ? locateNode(doc, node) : undefined;
+        if (item) {
+          setPendingSelect(item.select ?? null);
+          setLoc((l) => ({ ...l, path: item.path, explicit: true }));
+        }
+        return;
+      }
+      pendingLink.current = node ?? null;
+      setLoc({ path: [], mode: 'after', file: name === openedFile ? undefined : name, explicit: true });
+    },
+    [state.file, doc, openedFile, setLoc],
+  );
 
   const design = doc?.subject.mode === 'design';
   const mode = design ? loc.mode : 'after';
@@ -70,17 +114,18 @@ function Viewer({ state }: { state: DocState }) {
   // After a reload the level may be gone: follow the trimmed path.
   useEffect(() => {
     if (view && view.path.join('/') !== loc.path.join('/')) setLoc((l) => ({ ...l, path: view.path }));
-  }, [view, loc.path]);
+  }, [view, loc.path, setLoc]);
 
   useEffect(() => {
-    if (started.current) writeHash(loc.path, loc.mode);
+    if (startedFor.current !== null) writeHash(loc.path, loc.mode, loc.file);
   }, [loc]);
 
   useEffect(() => {
-    if (!view) return;
+    if (!view || !doc) return;
     let cancelled = false;
-    void layoutView(view).then((layout) => {
-      if (!cancelled) setFlow(toFlow(view, layout));
+    const file = state.file;
+    void layoutReadable(view, (labelEdges) => buildView(doc, view.path, view.mode, { labelEdges })).then((laid) => {
+      if (!cancelled) setFlow(toFlow(laid.view, laid.layout, file));
     });
     return () => {
       cancelled = true;
@@ -93,7 +138,8 @@ function Viewer({ state }: { state: DocState }) {
     for (const n of flow.nodes) updateNodeInternals(n.id);
     if (lastFit.current !== flow.key) {
       lastFit.current = flow.key;
-      requestAnimationFrame(() => void fitView({ padding: 0.12, duration: 180, maxZoom: 1.1 }));
+      // Never fit so far out that labels are unreadable; pan to see the rest.
+      requestAnimationFrame(() => void fitView({ padding: 0.12, duration: 180, maxZoom: 1.1, minZoom: 0.55 }));
     }
   }, [flow, fitView, updateNodeInternals]);
 
@@ -124,6 +170,10 @@ function Viewer({ state }: { state: DocState }) {
         setPanel({ type: 'unexplored', node });
         return;
       }
+      if (!node.enterable && node.see) {
+        openLink(node.see);
+        return;
+      }
       if (!node.enterable || !node.ref) return;
       // The last path element is a group root (same scope) or an instance (whose body we are in).
       const base = view.rootGroup !== undefined ? view.path.slice(0, -1) : view.path;
@@ -131,13 +181,24 @@ function Viewer({ state }: { state: DocState }) {
       setHighlight(new Set());
       navigate([...base, node.ref.id]);
     },
-    [view, navigate],
+    [view, navigate, openLink],
   );
 
-  const onNodeClick: NodeMouseHandler<LogicFlowNode> = useCallback((_e, n) => {
-    const v = n.data.view;
-    setPanel(v.unexplored ? { type: 'unexplored', node: v } : { type: 'node', node: v });
-  }, []);
+  const onNodeClick: NodeMouseHandler<LogicFlowNode> = useCallback(
+    (_e, n) => {
+      const v = n.data.view;
+      if (v.connector) {
+        // A flag points at the other end of its wire: show it.
+        setPanel(null);
+        setActiveRisk(null);
+        setHighlight(new Set(v.connector.peers));
+        void fitView({ nodes: [{ id: v.id }, ...v.connector.peers.map((id) => ({ id }))], padding: 0.3, maxZoom: 1.1, duration: 250 });
+        return;
+      }
+      setPanel(v.unexplored ? { type: 'unexplored', node: v } : { type: 'node', node: v });
+    },
+    [fitView],
+  );
 
   const onNodeDoubleClick: NodeMouseHandler<LogicFlowNode> = useCallback((_e, n) => enter(n.data.view), [enter]);
 
@@ -168,8 +229,6 @@ function Viewer({ state }: { state: DocState }) {
     }
   }, [panel]);
 
-  // Tree clicks: open the item's level, then select the node once that level is laid out.
-  const [pendingSelect, setPendingSelect] = useState<{ scope: string; id: string } | null>(null);
   const [navOpen, setNavOpen] = useState(true);
 
   const onTreeOpen = useCallback(
@@ -184,7 +243,7 @@ function Viewer({ state }: { state: DocState }) {
   );
 
   useEffect(() => {
-    if (!pendingSelect || !view || flow.key !== (view.path.join('/') || '/')) return;
+    if (!pendingSelect || !view || flow.key !== flowKey(state.file, view)) return;
     const match = flow.nodes.find((n) => n.data.view.ref?.scope === pendingSelect.scope && n.data.view.ref.id === pendingSelect.id);
     if (match) {
       const v = match.data.view;
@@ -193,11 +252,11 @@ function Viewer({ state }: { state: DocState }) {
       setTimeout(() => void fitView({ nodes: [{ id: match.id }], padding: 0.6, maxZoom: 1.2, duration: 250 }), 260);
     }
     setPendingSelect(null);
-  }, [pendingSelect, flow, view, fitView]);
+  }, [pendingSelect, flow, view, fitView, state.file]);
 
   const selectedId = panel && panel.type !== 'risks' ? panel.node.id : null;
   const selectedKey = panel && panel.type !== 'risks' && panel.node.ref ? `${panel.node.ref.scope}/${panel.node.ref.id}` : null;
-  const hoveredEdge = tip ? `e:${tip.edge.wireIds[0]}` : null;
+  const hoveredEdge = tip ? tip.edge.id : null;
 
   const nodes = useMemo(
     () =>
@@ -230,7 +289,16 @@ function Viewer({ state }: { state: DocState }) {
   return (
     <div className={`lb-app${navOpen && doc ? ' lb-with-nav' : ''}`}>
       {doc && navOpen && (
-        <NavPanel doc={doc} path={view?.path ?? []} selectedKey={selectedKey} showChanges={showChanges} onOpen={onTreeOpen} />
+        <NavPanel
+          doc={doc}
+          path={view?.path ?? []}
+          selectedKey={selectedKey}
+          showChanges={showChanges}
+          onOpen={onTreeOpen}
+          files={state.files}
+          currentFile={state.file}
+          onOpenFile={openLink}
+        />
       )}
       <div className="lb-main">
       <header className="lb-bar">
@@ -328,6 +396,7 @@ function Viewer({ state }: { state: DocState }) {
               setActiveRisk(null);
             }}
             onNavigate={navigate}
+            onOpenLink={openLink}
             onRisk={onRisk}
             activeRisk={activeRisk}
           />
@@ -339,9 +408,14 @@ function Viewer({ state }: { state: DocState }) {
   );
 }
 
-function toFlow(view: ViewModel, layout: Layout): Flow {
+/** Identifies a level in a diagram: the viewport is fitted again when it changes. */
+function flowKey(file: string, view: ViewModel): string {
+  return `${file}|${view.path.join('/')}`;
+}
+
+function toFlow(view: ViewModel, layout: Layout, file: string): Flow {
   const nodes: LogicFlowNode[] = view.nodes.map((v) => {
-    const box = layout.get(v.id);
+    const box = layout.boxes.get(v.id);
     const size = v.type === 'frame' ? { width: box?.width ?? 200, height: box?.height ?? 120 } : nodeSize(v);
     return {
       id: v.id,
@@ -365,8 +439,8 @@ function toFlow(view: ViewModel, layout: Layout): Flow {
     targetHandle: `in:${e.targetHandle}`,
     type: 'typed',
     zIndex: 1,
-    data: { view: e, highlighted: false, hovered: false, showChanges: false },
+    data: { view: e, bends: layout.routes.get(e.id)?.slice(1, -1), highlighted: false, hovered: false, showChanges: false },
   }));
   // Fit the viewport when the level changes, not on reloads or mode switches.
-  return { key: view.path.join('/') || '/', nodes, edges };
+  return { key: flowKey(file, view), nodes, edges };
 }

@@ -239,6 +239,9 @@ across it. Each blockType `body` is its own scope. A risk refers to something in
   - A change of `kind` is modeled as one `removed` node plus one `new` node.
   - The Before view uses these fields, and `removed` wires may point to ports that exist only in
     `before` (on the node or on its blockType).
+- `see?` (added in phase 2a): another diagram in the same folder that explains this block, as
+  `"<file>.logic.json"` or `"<file>.logic.json#<node-id>"`. Used to link diagrams of several
+  systems (an off-page connector, see §6.5). Not allowed on pins.
 
 **Group ports.** Wires connect nodes directly, even across group boundaries. Group ports are not
 declared; the app computes a group's boundary ports from the wires that cross it. The one exception
@@ -266,6 +269,8 @@ When a `blockType` changes (`change: modified`), all its instances are marked as
 `{ id, from: "node.port", to: "node.port", change?, op? }`.
 - A `state` node is referenced by its id alone, without a port.
 - `op`: `read` \| `write`, for wires touching a `state`.
+- `draw?` (added in phase 2a): `line` \| `label`. How the viewer draws the wire: as a line, or as
+  a pair of labeled connectors (§6.5). Omitted means automatic.
 
 ### 5.5 Risks
 
@@ -376,6 +381,54 @@ the direction of the approved prototype.
 - Dragging blocks and saving positions.
 
 Claude sees UI edits by reading the file.
+
+### 6.5 Phase 2a: readability and connectors
+
+The first real Understand run (a 33-block ingestion pipeline across a web app, a worker and
+cloud services) was valid but hard to read. The causes, and what this phase does about each:
+
+| Cause | Fix |
+|---|---|
+| A closed box got one port per inner port that crossed its edge (about 25 per side) | **Bundled box ports:** one port per box side and outside endpoint. The label is the inner port name when there is one, otherwise `first +N` |
+| Shared stores and services (a database read and written by ten blocks) pulled long wires across the whole diagram | **Labeled connectors**, as in schematics and FBD |
+| The top level had 20 blocks, so nothing could open within the budget | **Structure rules in the skill** |
+| Free curves crossed each other | **Orthogonal routes** from ELK, drawn with rounded corners |
+
+**Labeled connectors (net labels / off-page connectors).** Gabriel's call, from electronics
+schematics and FBD:
+- Instead of a long line, a wire can be drawn as a short stub to a **flag** with the name of the
+  other end. The flag is an arrow pointing in the direction of the flow:
+  - at an output, it points away ("goes to");
+  - at an input, it points into the block ("comes from").
+- Clicking a flag highlights the other end and brings it into view.
+- Hover shows the same tooltip as a wire.
+- A wire is drawn with connectors when:
+  - it says `draw: "label"`; or
+  - it touches a **hub**: a `state` or `external` block connected to 3 or more other blocks in the
+    view.
+- A hub keeps its block, with one flag per port listing how many blocks it connects to. Each
+  block on the other side gets its own flag with the hub's name.
+- `draw: "line"` forces a line.
+- Boundary pins inside a group use the same flag look, since they are off-page connectors to the
+  level above.
+
+**Links between diagrams.** One subject can be split into several files, one per system, linked
+with `see` (§5.2):
+- The viewer serves every `*.logic.json` in the folder of the opened file.
+- The structure panel lists them.
+- A block with `see` shows a link badge, and its side panel has an "Open diagram" button.
+  Double-clicking a block that has `see` and cannot be entered opens the linked diagram, on the
+  linked block when one is named.
+- The hash carries the file.
+- `validate` warns when a linked file or block does not exist.
+
+**Skill structure rules:**
+- About 5–12 blocks per level.
+- The top level tells the story in a few groups, one per system or stage.
+- A store or service used by one area lives inside that area's group.
+- Long wires between systems use `draw: "label"`.
+- A subject with more than about 40 blocks, or with several separately deployed systems, is split
+  into one file per system, linked with `see`.
 
 ## 7. CLI
 

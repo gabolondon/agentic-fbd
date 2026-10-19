@@ -7456,8 +7456,8 @@ var require__ = __commonJS({
 });
 
 // packages/cli/src/main.ts
-import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
-import { basename as basename2, resolve as resolve3 } from "node:path";
+import { existsSync as existsSync3, readFileSync as readFileSync4 } from "node:fs";
+import { basename as basename3, resolve as resolve3 } from "node:path";
 
 // skills/logic-builder/references/logic.schema.json
 var logic_schema_default = {
@@ -7728,6 +7728,11 @@ var logic_schema_default = {
         },
         explored: {
           type: "boolean"
+        },
+        see: {
+          type: "string",
+          pattern: "^[^/\\\\#]+\\.logic\\.json(#[^./#]+)?$",
+          description: "Another diagram in the same folder that explains this block: file.logic.json or file.logic.json#node-id."
         }
       },
       allOf: [
@@ -7787,6 +7792,13 @@ var logic_schema_default = {
             "read",
             "write"
           ]
+        },
+        draw: {
+          enum: [
+            "line",
+            "label"
+          ],
+          description: "How the viewer draws the wire: a line, or labeled connectors. Omitted: automatic."
         },
         before: {
           type: "object",
@@ -8309,6 +8321,9 @@ function checkNode(doc, scope, node, issues) {
   if (node.kind === "pin" && !scope.name) {
     err(issues, "pin-outside-body", at, `pin "${at}" is only allowed inside a blockType body`);
   }
+  if (node.kind === "pin" && node.see !== void 0) {
+    err(issues, "pin-see", at, `pin "${at}" cannot link to another diagram ("see"); link the instance or a block instead`);
+  }
   if (node.kind === "group") {
     const hasPorts = Object.keys(node.inputs ?? {}).length + Object.keys(node.outputs ?? {}).length > 0;
     const hasChildren = childrenOf(scope, node.id).length > 0;
@@ -8530,6 +8545,45 @@ function checkCode(doc, repoRoot) {
   return issues;
 }
 
+// packages/cli/src/checkLinks.ts
+import { readFileSync as readFileSync2 } from "node:fs";
+import { basename, dirname, join as join2 } from "node:path";
+function checkLinks(doc, file) {
+  const issues = [];
+  const dir = dirname(file);
+  const cache = /* @__PURE__ */ new Map();
+  const load2 = (name) => {
+    if (!cache.has(name)) {
+      try {
+        cache.set(name, JSON.parse(readFileSync2(join2(dir, name), "utf8")));
+      } catch {
+        cache.set(name, null);
+      }
+    }
+    return cache.get(name);
+  };
+  const visit = (nodes, prefix) => {
+    for (const n of nodes) {
+      if (!n.see) continue;
+      const [name = "", target] = n.see.split("#");
+      const at = prefix + n.id;
+      if (name === basename(file)) {
+        issues.push({ level: "warning", code: "link-self", path: at, message: `"${at}" links to its own file (${n.see}); link to another diagram` });
+        continue;
+      }
+      const other = load2(name);
+      if (!other) {
+        issues.push({ level: "warning", code: "link-missing-file", path: at, message: `"${at}" links to ${name}, which is missing or unreadable next to this file` });
+      } else if (target && !(other.nodes ?? []).some((o) => o.id === target)) {
+        issues.push({ level: "warning", code: "link-missing-node", path: at, message: `"${at}" links to ${n.see}, but ${name} has no block "${target}"` });
+      }
+    }
+  };
+  visit(doc.nodes, "");
+  for (const [name, type] of Object.entries(doc.blockTypes ?? {})) visit(type.body?.nodes ?? [], `${name}/`);
+  return issues;
+}
+
 // packages/cli/src/openBrowser.ts
 import { spawn } from "node:child_process";
 function openBrowser(url) {
@@ -8543,31 +8597,47 @@ function openBrowser(url) {
 }
 
 // packages/cli/src/server.ts
-import { existsSync as existsSync2, readFileSync as readFileSync2, statSync } from "node:fs";
+import { existsSync as existsSync2, readFileSync as readFileSync3, statSync } from "node:fs";
 import { createServer } from "node:http";
-import { dirname as dirname2, extname, join as join2, normalize, resolve as resolve2, sep } from "node:path";
+import { dirname as dirname3, extname, join as join4, normalize, resolve as resolve2, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // packages/cli/src/api.ts
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { watch } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { basename as basename2, dirname as dirname2, join as join3, resolve } from "node:path";
 var DEBOUNCE_MS = 120;
 var KEEPALIVE_MS = 2e4;
+var DIAGRAM = /^[^/\\]+\.logic\.json$/;
+function isDiagramName(name) {
+  return DIAGRAM.test(name) && name !== "." && name !== "..";
+}
 function createDocApi(file, displayPath = file) {
   const absolute = resolve(file);
+  const dir = dirname2(absolute);
+  const opened = basename2(absolute);
   const clients = /* @__PURE__ */ new Set();
   let timer;
   let watcher;
-  const notify = () => {
+  let pending = /* @__PURE__ */ new Set();
+  const notify = (name) => {
+    if (name === null) pending = null;
+    else pending?.add(name);
     clearTimeout(timer);
     timer = setTimeout(() => {
-      for (const res of clients) res.write("event: change\ndata: {}\n\n");
+      const files = pending === null ? null : [...pending];
+      pending = /* @__PURE__ */ new Set();
+      const data = JSON.stringify(files === null ? {} : { files });
+      for (const res of clients) res.write(`event: change
+data: ${data}
+
+`);
     }, DEBOUNCE_MS);
   };
   try {
-    watcher = watch(dirname(absolute), (_event, name) => {
-      if (name === null || name === basename(absolute)) notify();
+    watcher = watch(dir, (_event, name) => {
+      const changed = name === null ? null : name.toString();
+      if (changed === null || isDiagramName(changed)) notify(changed);
     });
     watcher.on("error", () => void 0);
   } catch {
@@ -8577,17 +8647,28 @@ function createDocApi(file, displayPath = file) {
     for (const res of clients) res.write(": keepalive\n\n");
   }, KEEPALIVE_MS);
   keepalive.unref?.();
+  const json = (res, status, body) => {
+    res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end(JSON.stringify(body));
+  };
   return {
     handle(req, res) {
-      const url = (req.url ?? "").split("?")[0];
-      if (url === "/api/doc") {
-        void load(absolute, displayPath).then((payload) => {
-          res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-          res.end(JSON.stringify(payload));
-        });
+      const url = new URL(req.url ?? "/", "http://localhost");
+      if (url.pathname === "/api/doc") {
+        const name = url.searchParams.get("file") ?? opened;
+        if (!isDiagramName(name)) {
+          json(res, 400, { error: `not a diagram name: ${name}` });
+          return true;
+        }
+        const path = name === opened ? displayPath : name;
+        void load(join3(dir, name), name, path).then((payload) => json(res, 200, payload));
         return true;
       }
-      if (url === "/api/events") {
+      if (url.pathname === "/api/files") {
+        void listDiagrams(dir, opened).then((files) => json(res, 200, files));
+        return true;
+      }
+      if (url.pathname === "/api/events") {
         res.writeHead(200, {
           "content-type": "text/event-stream",
           "cache-control": "no-store",
@@ -8609,7 +8690,30 @@ function createDocApi(file, displayPath = file) {
     }
   };
 }
-async function load(absolute, displayPath) {
+async function listDiagrams(dir, opened) {
+  let names;
+  try {
+    names = (await readdir(dir)).filter(isDiagramName);
+  } catch {
+    names = [];
+  }
+  const entries = await Promise.all(
+    names.map(async (file) => {
+      const text = await readSafe(join3(dir, file));
+      let title = file;
+      let mode;
+      try {
+        const subject = JSON.parse(text ?? "").subject;
+        if (subject?.title) title = subject.title;
+        mode = subject?.mode;
+      } catch {
+      }
+      return { file, title, mode, opened: file === opened };
+    })
+  );
+  return entries.sort((a, b) => Number(b.opened) - Number(a.opened) || a.title.localeCompare(b.title));
+}
+async function load(absolute, file, displayPath) {
   let text = await readSafe(absolute);
   let result = text === null ? null : validateText(text);
   if (text === null || result?.issues.some((i) => i.code === "json")) {
@@ -8620,12 +8724,13 @@ async function load(absolute, displayPath) {
   if (text === null || result === null) {
     return {
       path: displayPath,
+      file,
       doc: null,
       valid: false,
       issues: [{ level: "error", code: "read", path: "/", message: `cannot read ${displayPath}` }]
     };
   }
-  return { path: displayPath, doc: result.doc, valid: result.valid, issues: result.issues };
+  return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues };
 }
 async function readSafe(path) {
   try {
@@ -8649,9 +8754,9 @@ var CONTENT_TYPES = {
   ".map": "application/json; charset=utf-8"
 };
 function findViewerDir() {
-  const here = dirname2(fileURLToPath(import.meta.url));
-  const candidates = [join2(here, "viewer"), resolve2(here, "../../../dist/viewer")];
-  return candidates.find((dir) => existsSync2(join2(dir, "index.html"))) ?? null;
+  const here = dirname3(fileURLToPath(import.meta.url));
+  const candidates = [join4(here, "viewer"), resolve2(here, "../../../dist/viewer")];
+  return candidates.find((dir) => existsSync2(join4(dir, "index.html"))) ?? null;
 }
 function startServer({ file, port = 0, viewerDir }) {
   const api = createDocApi(file);
@@ -8671,7 +8776,7 @@ function startServer({ file, port = 0, viewerDir }) {
       "content-type": CONTENT_TYPES[extname(target)] ?? "application/octet-stream",
       "cache-control": "no-store"
     });
-    res.end(req.method === "HEAD" ? void 0 : readFileSync2(target));
+    res.end(req.method === "HEAD" ? void 0 : readFileSync3(target));
   });
   return new Promise((resolvePromise, reject) => {
     server.once("error", reject);
@@ -8699,7 +8804,7 @@ function staticPath(root, url) {
   }
   if (pathname.includes("\0")) return null;
   const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const target = normalize(join2(root, relative));
+  const target = normalize(join4(root, relative));
   if (target !== root && !target.startsWith(root + sep)) return null;
   try {
     return statSync(target).isFile() ? target : null;
@@ -8827,13 +8932,14 @@ ${USAGE}`);
 function validateFile(file, repoRoot) {
   let text;
   try {
-    text = readFileSync3(file, "utf8");
+    text = readFileSync4(file, "utf8");
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return { file, valid: false, issues: [{ level: "error", code: "read", path: "/", message: `cannot read file: ${message}` }] };
   }
   const result = validateText(text);
   const issues = [...result.issues];
+  if (result.doc) issues.push(...checkLinks(result.doc, resolve3(file)));
   if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve3(repoRoot)));
   return { file, valid: result.valid, issues };
 }
@@ -8841,7 +8947,7 @@ function printReport(report, io) {
   const count = (level) => report.issues.filter((i) => i.level === level).length;
   const parts = [plural(count("error"), "error"), plural(count("warning"), "warning"), plural(count("notice"), "notice")];
   const summary = parts.filter((p) => !p.startsWith("0 ")).join(", ") || "no issues";
-  io.out(`${report.valid ? "ok  " : "FAIL"} ${basename2(report.file)}: ${summary}`);
+  io.out(`${report.valid ? "ok  " : "FAIL"} ${basename3(report.file)}: ${summary}`);
   for (const issue of report.issues) io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
 }
 function plural(n, word) {

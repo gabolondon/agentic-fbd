@@ -64,9 +64,14 @@ export interface LogicNode {
   of?: string;
   /** group only; false marks an unexplored group */
   explored?: boolean;
+  /** Another diagram in the same folder that explains this block: "file.logic.json[#node-id]". */
+  see?: string;
 }
 
 export type WireOp = 'read' | 'write';
+
+/** How the viewer draws a wire: a line, or a pair of labeled connectors. Omitted: automatic. */
+export type WireDraw = 'line' | 'label';
 
 export interface WireBefore {
   from?: string;
@@ -80,6 +85,7 @@ export interface Wire {
   to: string;
   change?: Change;
   op?: WireOp;
+  draw?: WireDraw;
   before?: WireBefore;
 }
 

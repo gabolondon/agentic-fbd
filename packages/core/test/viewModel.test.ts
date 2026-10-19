@@ -181,15 +181,84 @@ describe('buildView — budget and propagation', () => {
   it('synthesizes stable box ports and merges duplicate edges', () => {
     const v = buildView(doc, [], 'after');
     const big = node(v, 'big');
-    expect(big.outputs.map((p) => p.id)).toEqual(['out:big-5.v']);
+    expect(big.outputs.map((p) => p.id)).toEqual(['out:x.v']);
+    expect(big.outputs[0]!.label).toBe('v');
     const edges = v.edges.filter((e) => e.source === 'big');
     expect(edges).toHaveLength(1);
     expect(edges[0]!.wireIds).toEqual(['w1', 'w2']);
+  });
+
+  it('bundles inner ports that reach the same outside endpoint into one box port', () => {
+    const bundled: LogicDoc = {
+      ...doc,
+      nodes: doc.nodes.map((n) => (n.id === 'big-6' ? { ...n, outputs: { w: 'number' } } : n)),
+      wires: [...doc.wires, { id: 'w3', from: 'big-6.w', to: 'x.v' }],
+    };
+    const big = node(buildView(bundled, [], 'after'), 'big');
+    expect(big.outputs).toHaveLength(1);
+    expect(big.outputs[0]!.label).toBe('v +1');
+    expect(big.outputs[0]!.type).toBe('number');
   });
 
   it('shows all direct children of the root even beyond the budget', () => {
     const v = buildView(doc, ['big'], 'after');
     expect(v.nodes.filter((n) => n.type === 'block')).toHaveLength(30);
     expect(node(v, 'pin:out:x.v').pinSide).toBe('right');
+  });
+});
+
+describe('buildView — connectors', () => {
+  const fn = (id: string, extra: object = {}) => ({ id, kind: 'function' as const, label: id.toUpperCase(), ...extra });
+  const doc: LogicDoc = {
+    version: '0.1',
+    subject: { id: 'c', title: 'Connectors', intent: 'Test', mode: 'understand' },
+    nodes: [
+      { id: 'db', kind: 'state', label: 'Database', valueType: 'string' },
+      fn('a', { outputs: { s: 'string' } }),
+      fn('b', { outputs: { s: 'string' } }),
+      fn('c', { inputs: { s: 'string' } }),
+      fn('d', { outputs: { s: 'string' } }),
+      fn('e', { inputs: { s: 'string' } }),
+    ],
+    wires: [
+      { id: 'w1', from: 'a.s', to: 'db', op: 'write' },
+      { id: 'w2', from: 'b.s', to: 'db', op: 'write' },
+      { id: 'w3', from: 'db', to: 'c.s', op: 'read' },
+      { id: 'w4', from: 'd.s', to: 'e.s', draw: 'label' },
+    ],
+  };
+  const v = buildView(doc, [], 'after');
+  const flags = v.nodes.filter((n) => n.type === 'connector');
+
+  it('draws wires touching a hub as flags: one per block, one per hub port', () => {
+    const toDb = node(v, 'c:out:e:w1');
+    expect(toDb.label).toBe('Database');
+    expect(toDb.connector).toEqual({ side: 'out', peers: ['db'], peerLabels: ['Database'] });
+    const dbIn = node(v, 'c:in:db.in');
+    expect(dbIn.connector!.peers).toEqual(['a', 'b']);
+    expect(dbIn.label).toBe('2 blocks');
+    expect(node(v, 'c:out:db.out').label).toBe('C');
+    expect(v.edges.some((e) => e.source === 'a' && e.target === 'db')).toBe(false);
+  });
+
+  it('merges stubs into a hub flag and keeps every wire id', () => {
+    const intoDb = v.edges.filter((e) => e.target === 'db');
+    expect(intoDb).toHaveLength(1);
+    expect(intoDb[0]!.wireIds).toEqual(['w1', 'w2']);
+    expect(intoDb[0]!.stub).toBe(true);
+  });
+
+  it('honors draw: "label" between ordinary blocks with a flag at each end', () => {
+    expect(node(v, 'c:out:e:w4').label).toBe('E');
+    expect(node(v, 'c:in:e:w4').label).toBe('D');
+    // a, b, c each get one; the hub gets one per port; w4 gets two.
+    expect(flags).toHaveLength(7);
+  });
+
+  it('keeps a line when draw is "line", and below the hub threshold', () => {
+    const lines = buildView({ ...doc, wires: doc.wires.map((w) => (w.id === 'w1' ? { ...w, draw: 'line' as const } : w)) }, [], 'after');
+    expect(lines.edges.find((e) => e.wireIds.includes('w1'))!.target).toBe('db');
+    const small = buildView({ ...doc, wires: doc.wires.filter((w) => w.id !== 'w3' && w.id !== 'w4') }, [], 'after');
+    expect(small.nodes.some((n) => n.type === 'connector')).toBe(false);
   });
 });

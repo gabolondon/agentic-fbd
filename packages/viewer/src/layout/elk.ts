@@ -11,7 +11,50 @@ export interface Box {
   height: number;
 }
 
-export type Layout = Map<string, Box>;
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Layout {
+  boxes: Map<string, Box>;
+  /** Orthogonal route per edge in canvas coordinates: start, bend points, end. */
+  routes: Map<string, Point[]>;
+}
+
+/** A wire routed longer than this is drawn with connectors instead (spec §6.5). */
+export const LONG_WIRE = 1100;
+/** A wire that runs backwards (a loop) is drawn with connectors past this length. */
+export const LONG_LOOP = 500;
+
+/** Edges whose route is too long to follow by eye. Stubs to flags are never long. */
+export function longEdges(view: ViewModel, layout: Layout): Set<string> {
+  const out = new Set<string>();
+  for (const e of view.edges) {
+    const points = layout.routes.get(e.id);
+    if (e.stub || !points || points.length < 2) continue;
+    let length = 0;
+    for (let i = 1; i < points.length; i++) length += Math.abs(points[i]!.x - points[i - 1]!.x) + Math.abs(points[i]!.y - points[i - 1]!.y);
+    const backwards = points[points.length - 1]!.x < points[0]!.x;
+    if (length > LONG_WIRE || (backwards && length > LONG_LOOP)) out.add(e.id);
+  }
+  return out;
+}
+
+/**
+ * Lays out a view; if some wires come out too long, draws those with connectors and lays out
+ * again. `rebuild` builds the same view with a set of edges forced to connectors.
+ */
+export async function layoutReadable(
+  view: ViewModel,
+  rebuild: (labelEdges: Set<string>) => ViewModel,
+): Promise<{ view: ViewModel; layout: Layout }> {
+  const first = await layoutView(view);
+  const long = longEdges(view, first);
+  if (long.size === 0) return { view, layout: first };
+  const next = rebuild(long);
+  return { view: next, layout: await layoutView(next) };
+}
 
 const elk = new ELK();
 
@@ -19,7 +62,12 @@ const ROOT_OPTIONS: Record<string, string> = {
   'elk.algorithm': 'layered',
   'elk.direction': 'RIGHT',
   'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
+  'elk.edgeRouting': 'ORTHOGONAL',
+  // Edge routes come back in canvas coordinates, whatever frame the edge crosses.
+  'elk.json.edgeCoords': 'ROOT',
   'elk.layered.spacing.nodeNodeBetweenLayers': '64',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '20',
+  'elk.spacing.edgeEdge': '12',
   'elk.spacing.nodeNode': '28',
   'elk.spacing.componentComponent': '48',
   'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
@@ -62,15 +110,20 @@ export async function layoutView(view: ViewModel): Promise<Layout> {
   );
 
   const result = await elk.layout(root);
-  const layout: Layout = new Map();
+  const boxes = new Map<string, Box>();
+  const routes = new Map<string, Point[]>();
   const collect = (node: ElkNode): void => {
     for (const child of node.children ?? []) {
-      layout.set(child.id, { x: child.x ?? 0, y: child.y ?? 0, width: child.width ?? 0, height: child.height ?? 0 });
+      boxes.set(child.id, { x: child.x ?? 0, y: child.y ?? 0, width: child.width ?? 0, height: child.height ?? 0 });
       collect(child);
+    }
+    for (const edge of node.edges ?? []) {
+      const section = edge.sections?.[0];
+      if (section) routes.set(edge.id, [section.startPoint, ...(section.bendPoints ?? []), section.endPoint].map((p) => ({ x: p.x, y: p.y })));
     }
   };
   collect(result);
-  return layout;
+  return { boxes, routes };
 }
 
 function ports(n: ViewNode): ElkPort[] {

@@ -57,8 +57,9 @@ Explain how an existing feature, section, flow, tool or pipeline works.
 2. **Read only that code**, in one focused pass.
 3. **Find the state and the triggers.** Every trigger gets its `source` and a `context` (where it
    comes from, which step or depth, create or edit mode).
-4. **Draw the top level** with about 25 blocks or fewer. Each block is a real piece of code (a
-   handler, function, component, store, endpoint, tool) with `code: { file, symbol }`.
+4. **Draw the top level as a short story** (see "Structure" below): a few triggers and one group
+   per system or stage. Each block is a real piece of code (a handler, function, component,
+   store, endpoint, tool) with `code: { file, symbol }`.
 5. **Explain every block** (see below).
 6. **Leave sub-areas as unexplored groups**: `kind: "group"`, `explored: false`, a `desc`, and
    declared `inputs`/`outputs` so wires can reach them.
@@ -85,6 +86,26 @@ run Understand first or reuse the existing file.
    `number` flowing into `OptionId` is the kind of bug this catches.
 6. When the user approves the diagram, **ask** whether to continue to the implementation plan
    using the diagram as its basis.
+
+## Structure: keep every level readable
+
+A level is read at a glance, like one sheet of a schematic. Before you validate, check each one:
+
+- **5–12 blocks per level.** The top level holds the triggers, one group per system or stage
+  (web app, worker, scheduled job, pipeline step), and the final results. Push detail down.
+- **Put each store or service where it is used.** A database, bucket or API used by one area is a
+  child of that area's group. Only things shared by several areas stay on the shared level.
+- **Shared hubs become labels by themselves.** A `state` or `external` wired to 3 or more blocks
+  is drawn as labeled flags (net labels) instead of long wires. You don't need to do anything.
+- **Use `draw: "label"`** on a wire that links two distant systems (a web app starting a worker
+  job, a callback into another service), so it shows as a pair of flags, not a line across the
+  sheet. Long wires are also turned into flags by the viewer.
+- **Split big subjects into linked diagrams.** Past about 40 blocks, or when the subject spans
+  separately deployed systems, write one file per system (`logic/<subject>-<system>.logic.json`)
+  plus an overview file. In the overview, each system is a block with
+  `see: "<subject>-<system>.logic.json"`. In a system file, the block that stands for another
+  system has a `see` pointing at it, using `#<node-id>` to land on a specific block. `validate`
+  warns about broken links; one `open` serves every diagram in the folder.
 
 ## Explaining blocks
 
@@ -119,6 +140,7 @@ Then run `validate --check-code .` and commit the file with the implementation.
 
 ## Keep it cheap
 
-- About 25 blocks per level. Beyond that, split the level into groups.
+- 5–12 blocks per level (the viewer opens nested groups up to about 25 visible blocks). Beyond
+  that, split the level into groups, or the subject into linked diagrams.
 - No coordinates: the viewer lays everything out.
 - No exploring beyond the subject. The goal is understanding one thing well, not a repo map.

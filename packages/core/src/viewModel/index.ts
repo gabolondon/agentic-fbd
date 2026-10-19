@@ -1,4 +1,4 @@
-import type { LogicDoc, NodeKind, TypeExpr, WireOp } from '../format.ts';
+import type { LogicDoc, NodeKind, TypeExpr, WireDraw, WireOp } from '../format.ts';
 import { parseEndpoint } from '../model.ts';
 import { compat, type Compat } from '../types/compat.ts';
 import { effectiveScope, type EffNode, type EffScope, type Mark, type ViewMode } from './effective.ts';
@@ -22,7 +22,19 @@ export interface ViewPort {
   ghost?: boolean;
 }
 
-export type ViewNodeType = 'block' | 'frame' | 'box' | 'pin';
+export type ViewNodeType = 'block' | 'frame' | 'box' | 'pin' | 'connector';
+
+/** A shared state or external connected to at least this many blocks is drawn with connectors. */
+export const HUB_MIN = 3;
+
+export interface Connector {
+  /** 'out' sits after an output ("goes to"); 'in' sits before an input ("comes from"). */
+  side: 'out' | 'in';
+  /** View node ids at the other end of the wire(s). */
+  peers: string[];
+  /** Their labels, in the same order. */
+  peerLabels: string[];
+}
 
 export interface ViewNode {
   /** Unique within the view. */
@@ -49,6 +61,10 @@ export interface ViewNode {
   ref: { scope: string; id: string } | null;
   /** For boundary pins: the outside endpoint, e.g. "save.answer". */
   outsideRef?: string;
+  /** For connector flags: which side and what is at the other end. */
+  connector?: Connector;
+  /** Another diagram that explains this block (`see`). */
+  see?: string;
 }
 
 export interface ViewEdge {
@@ -67,6 +83,9 @@ export interface ViewEdge {
   mark?: Mark;
   ghost?: boolean;
   op?: WireOp;
+  draw?: WireDraw;
+  /** Set on the short stubs that join a block to a connector flag. */
+  stub?: boolean;
 }
 
 export interface Crumb {
@@ -126,7 +145,12 @@ export function resolvePath(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'aft
   return { path: valid, scope, rootGroup };
 }
 
-export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after'): ViewModel {
+export interface BuildOptions {
+  /** View edge ids to draw with connectors, e.g. wires the layout found too long. */
+  labelEdges?: ReadonlySet<string>;
+}
+
+export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after', options: BuildOptions = {}): ViewModel {
   const resolved = resolvePath(doc, path, mode);
   const eff = effectiveScope(doc, resolved.scope, mode);
   const risks = openRiskRefs(doc);
@@ -187,7 +211,7 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
     return undefined;
   };
 
-  const boxPorts = new Map<string, { inputs: Map<string, ViewPort>; outputs: Map<string, ViewPort> }>();
+  const boxPorts = new Map<string, { inputs: Map<string, BoxPort>; outputs: Map<string, BoxPort> }>();
   const pins = new Map<string, ViewNode>();
   const edges = new Map<string, ViewEdge>();
 
@@ -200,11 +224,14 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
     const fromType = endType(eff, a.node, a.port, 'outputs');
     const toType = endType(eff, b.node, b.port, 'inputs');
 
-    const src = aIn ? attach(a, 'out', fromType, w.ghost) : pinFor(a, 'left', fromType, w.ghost);
-    const tgt = bIn ? attach(b, 'in', toType, w.ghost) : pinFor(b, 'right', toType, w.ghost);
+    const src = aIn ? locate(a, 'out') : pinFor(a, 'left', fromType, w.ghost);
+    const tgt = bIn ? locate(b, 'in') : pinFor(b, 'right', toType, w.ghost);
     if (!src || !tgt || src.node === tgt.node) continue;
+    // An end hidden inside a closed box gets one box port per outside endpoint it connects to.
+    const srcHandle = src.handle ?? boxPort(src.node, 'out', tgt, a, fromType, w.ghost);
+    const tgtHandle = tgt.handle ?? boxPort(tgt.node, 'in', src, b, toType, w.ghost);
 
-    const key = `${src.node}:${src.handle}->${tgt.node}:${tgt.handle}`;
+    const key = `${src.node}:${srcHandle}->${tgt.node}:${tgtHandle}`;
     const result: Compat | 'none' =
       w.ghost || fromType === undefined || toType === undefined ? 'none' : compat(fromType, toType, doc.types ?? {});
     const existing = edges.get(key);
@@ -213,13 +240,14 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
       existing.compat = worse(existing.compat, result);
       existing.ghost = existing.ghost && w.ghost;
       if (existing.mark !== w.mark) existing.mark = existing.mark ?? w.mark;
+      existing.draw = mergeDraw(existing.draw, w.wire.draw);
     } else {
       edges.set(key, {
         id: `e:${w.id}`,
         source: src.node,
-        sourceHandle: src.handle,
+        sourceHandle: srcHandle,
         target: tgt.node,
-        targetHandle: tgt.handle,
+        targetHandle: tgtHandle,
         wireIds: [w.id],
         from: w.from,
         to: w.to,
@@ -228,28 +256,40 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
         mark: w.mark,
         ghost: w.ghost,
         op: w.op,
+        draw: w.wire.draw,
       });
     }
   }
 
-  function attach(
-    end: { node: string; port?: string },
-    dir: 'in' | 'out',
-    type: TypeExpr | undefined,
-    ghost: boolean,
-  ): { node: string; handle: string } | undefined {
+  /** The visible node an end lands on; `handle` is undefined when it is hidden in a closed box. */
+  function locate(end: { node: string; port?: string }, dir: 'in' | 'out'): { node: string; handle?: string } | undefined {
     const rep = representative(end.node);
     if (!rep) return undefined;
-    if (rep.id === end.node) return { node: rep.id, handle: end.port ?? dir };
-    // The end is hidden inside a closed box: synthesize a stable boundary port on the box.
-    const handle = `${dir}:${end.node}.${end.port ?? dir}`;
-    const ports = boxPorts.get(rep.id) ?? { inputs: new Map(), outputs: new Map() };
-    boxPorts.set(rep.id, ports);
+    return rep.id === end.node ? { node: rep.id, handle: end.port ?? dir } : { node: rep.id };
+  }
+
+  function boxPort(
+    box: string,
+    dir: 'in' | 'out',
+    far: { node: string; handle?: string },
+    inner: { node: string; port?: string },
+    type: TypeExpr | undefined,
+    ghost: boolean,
+  ): string {
+    const handle = `${dir}:${far.handle === undefined ? far.node : `${far.node}.${far.handle}`}`;
+    const ports = boxPorts.get(box) ?? { inputs: new Map(), outputs: new Map() };
+    boxPorts.set(box, ports);
     const side = dir === 'in' ? ports.inputs : ports.outputs;
+    const name = inner.port ?? eff.byId.get(inner.node)?.label ?? inner.node;
     const existing = side.get(handle);
-    if (existing) existing.ghost = existing.ghost && ghost;
-    else side.set(handle, { id: handle, label: end.port ?? eff.byId.get(end.node)?.label ?? end.node, type, ghost });
-    return { node: rep.id, handle };
+    if (existing) {
+      existing.ghost = existing.ghost && ghost;
+      existing.names.add(name);
+      if (existing.type !== undefined && JSON.stringify(existing.type) !== JSON.stringify(type)) existing.type = undefined;
+    } else {
+      side.set(handle, { id: handle, names: new Set([name]), type, ghost });
+    }
+    return handle;
   }
 
   function pinFor(
@@ -318,6 +358,7 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
       ghost: n.ghost,
       openRisk: risks.has(riskKey(n.id)),
       ref: { scope: resolved.scope, id: n.id },
+      see: n.node.see,
     };
     if (n.kind === 'state') {
       const t = n.node.valueType;
@@ -326,12 +367,10 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
     } else if (isBox) {
       const declared = n.node.explored === false;
       const synth = boxPorts.get(n.id);
-      base.inputs = declared ? portList(n.inputs, n.ghostInputs) : [...(synth?.inputs.values() ?? [])];
-      base.outputs = declared ? portList(n.outputs, n.ghostOutputs) : [...(synth?.outputs.values() ?? [])];
-      if (declared && synth) {
-        base.inputs.push(...synth.inputs.values());
-        base.outputs.push(...synth.outputs.values());
-      }
+      const synthIn = [...(synth?.inputs.values() ?? [])].map(toViewPort);
+      const synthOut = [...(synth?.outputs.values() ?? [])].map(toViewPort);
+      base.inputs = declared ? [...portList(n.inputs, n.ghostInputs), ...synthIn] : synthIn;
+      base.outputs = declared ? [...portList(n.outputs, n.ghostOutputs), ...synthOut] : synthOut;
       base.unexplored = declared;
       base.enterable = true;
       const inner = descendantsOf(eff, n.id);
@@ -350,16 +389,128 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
     nodes.push(base);
   }
   nodes.push(...pins.values());
+  const drawn = withConnectors(nodes, [...edges.values()], options.labelEdges ?? new Set());
 
   return {
     path: resolved.path,
     scope: resolved.scope,
     rootGroup: resolved.rootGroup,
     mode,
-    nodes,
-    edges: [...edges.values()],
+    nodes: drawn.nodes,
+    edges: drawn.edges,
     breadcrumb: breadcrumb(doc, resolved.path, mode),
   };
+}
+
+/**
+ * Replaces long wires with labeled connector flags, as net labels in a schematic (spec §6.5):
+ * wires marked `draw: "label"`, and wires touching a hub (a state or external block connected to
+ * HUB_MIN or more blocks). A hub gets one flag per port; each block on the other side gets its own.
+ */
+function withConnectors(nodes: ViewNode[], edges: ViewEdge[], forced: ReadonlySet<string>): { nodes: ViewNode[]; edges: ViewEdge[] } {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const neighbors = new Map<string, Set<string>>();
+  const link = (a: string, b: string): void => {
+    neighbors.set(a, (neighbors.get(a) ?? new Set()).add(b));
+  };
+  for (const e of edges) {
+    link(e.source, e.target);
+    link(e.target, e.source);
+  }
+  const isHub = (id: string): boolean => {
+    const n = byId.get(id);
+    return !!n && n.type === 'block' && (n.kind === 'state' || n.kind === 'external') && (neighbors.get(id)?.size ?? 0) >= HUB_MIN;
+  };
+  const isPin = (id: string): boolean => byId.get(id)?.type === 'pin';
+
+  const flags = new Map<string, ViewNode>();
+  const out: ViewEdge[] = [];
+  const stubs = new Map<string, ViewEdge>();
+
+  const flag = (id: string, side: 'out' | 'in', at: ViewNode, peer: ViewNode, edge: ViewEdge): ViewNode => {
+    const existing = flags.get(id);
+    if (existing) {
+      if (!existing.connector!.peers.includes(peer.id)) {
+        existing.connector!.peers.push(peer.id);
+        existing.connector!.peerLabels.push(peer.label);
+      }
+      existing.ghost = existing.ghost && edge.ghost;
+      return existing;
+    }
+    const port: ViewPort = { id: 'c', label: '', type: edge.type };
+    const created: ViewNode = {
+      id,
+      type: 'connector',
+      kind: peer.kind,
+      label: peer.label,
+      parentFrame: at.parentFrame,
+      inputs: side === 'out' ? [port] : [],
+      outputs: side === 'in' ? [port] : [],
+      ghost: edge.ghost,
+      ref: null,
+      connector: { side, peers: [peer.id], peerLabels: [peer.label] },
+    };
+    flags.set(id, created);
+    return created;
+  };
+  // Stubs into the same flag merge, like duplicate wires.
+  const stub = (edge: ViewEdge, patch: Partial<ViewEdge>): void => {
+    const next = { ...edge, ...patch, stub: true };
+    const key = `${next.source}:${next.sourceHandle}->${next.target}:${next.targetHandle}`;
+    const existing = stubs.get(key);
+    if (existing) {
+      existing.wireIds.push(...edge.wireIds.filter((w) => !existing.wireIds.includes(w)));
+      existing.compat = worse(existing.compat, edge.compat);
+      existing.ghost = existing.ghost && edge.ghost;
+    } else {
+      next.wireIds = [...edge.wireIds];
+      stubs.set(key, next);
+      out.push(next);
+    }
+  };
+
+  for (const e of edges) {
+    const srcHub = isHub(e.source);
+    const tgtHub = isHub(e.target);
+    const wanted = e.draw === 'label' || ((srcHub || tgtHub || forced.has(e.id)) && e.draw !== 'line');
+    // Boundary pins already are connectors to the level above.
+    if (!wanted || isPin(e.source) || isPin(e.target)) {
+      out.push(e);
+      continue;
+    }
+    const src = byId.get(e.source)!;
+    const tgt = byId.get(e.target)!;
+    // A hub collects one flag per port; every other end gets a flag of its own.
+    const outFlag = srcHub && !tgtHub ? flag(`c:out:${e.source}.${e.sourceHandle}`, 'out', src, tgt, e) : flag(`c:out:${e.id}`, 'out', src, tgt, e);
+    const inFlag = tgtHub && !srcHub ? flag(`c:in:${e.target}.${e.targetHandle}`, 'in', tgt, src, e) : flag(`c:in:${e.id}`, 'in', tgt, src, e);
+    stub(e, { id: `${e.id}:out`, target: outFlag.id, targetHandle: 'c' });
+    stub(e, { id: `${e.id}:in`, source: inFlag.id, sourceHandle: 'c' });
+  }
+
+  // A hub's flag names its peer when there is one, otherwise how many blocks it reaches.
+  for (const f of flags.values()) {
+    const peers = f.connector!.peers;
+    if (peers.length > 1) f.label = `${peers.length} blocks`;
+  }
+  return { nodes: [...nodes, ...flags.values()], edges: out };
+}
+
+interface BoxPort {
+  id: string;
+  /** Inner port names bundled into this box port. */
+  names: Set<string>;
+  type?: TypeExpr;
+  ghost: boolean;
+}
+
+function toViewPort(p: BoxPort): ViewPort {
+  const [first = '', ...rest] = [...p.names];
+  return { id: p.id, label: rest.length ? `${first} +${rest.length}` : first, type: p.type, ghost: p.ghost || undefined };
+}
+
+function mergeDraw(a: WireDraw | undefined, b: WireDraw | undefined): WireDraw | undefined {
+  if (a === 'line' || b === 'line') return 'line';
+  return a ?? b;
 }
 
 function portList(ports: Record<string, TypeExpr>, ghosts: Set<string>): ViewPort[] {

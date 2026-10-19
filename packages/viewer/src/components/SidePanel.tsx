@@ -17,6 +17,8 @@ interface Props {
   showChanges: boolean;
   onClose: () => void;
   onNavigate: (path: ViewPath) => void;
+  /** Follows a `see` link to another diagram. */
+  onOpenLink: (see: string) => void;
   onRisk: (risk: Risk) => void;
   activeRisk: string | null;
 }
@@ -86,7 +88,7 @@ function Explanation({ desc, logic }: { desc?: string; logic?: LogicGuide }) {
 
 const CHANGE_TAG: Record<string, string> = { new: 'new', modified: 'modified', removed: 'removed', affected: 'affected' };
 
-function NodePanel({ node, doc, showChanges, onNavigate }: Props & { node: ViewNode }) {
+function NodePanel({ node, doc, showChanges, onNavigate, onOpenLink }: Props & { node: ViewNode }) {
   if (!node.ref) {
     return (
       <>
@@ -116,6 +118,14 @@ function NodePanel({ node, doc, showChanges, onNavigate }: Props & { node: ViewN
         {mark && <span className={`lb-tag lb-tag-${mark}`}>{CHANGE_TAG[mark]}</span>}
       </h3>
       <Explanation desc={source.desc ?? type?.desc} logic={source.logic ?? type?.logic} />
+      {source.see && (
+        <section>
+          <h4>Explained in another diagram</h4>
+          <button className="lb-button lb-open-link" onClick={() => onOpenLink(source.see!)}>
+            Open {source.see.replace('#', ' › ')} ↗
+          </button>
+        </section>
+      )}
       {source.kind === 'trigger' && (
         <section>
           <h4>Context</h4>

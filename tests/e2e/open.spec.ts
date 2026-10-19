@@ -121,3 +121,35 @@ test('opens an invalid file and explains why', async ({ page }) => {
     opened.child.kill();
   }
 });
+
+test('lists the diagrams in the folder and follows a link to another one', async ({ page }) => {
+  const doc = JSON.parse(readFileSync(join(examples, 'auth-gate.logic.json'), 'utf8'));
+  const provider = doc.nodes.find((n: { id: string }) => n.id === 'provider');
+  provider.see = 'identity.logic.json#issue';
+  const opened = await open(null, JSON.stringify(doc));
+  writeFileSync(
+    join(opened.file, '../identity.logic.json'),
+    JSON.stringify({
+      version: '0.1',
+      subject: { id: 'identity', title: 'Identity provider: issuing sessions', intent: 'Linked diagram', mode: 'understand' },
+      nodes: [
+        { id: 't-login', kind: 'trigger', source: 'user', label: 'User signs in', desc: 'The user submits the sign-in form.', outputs: { creds: 'string' } },
+        { id: 'issue', kind: 'function', label: 'Issue session', desc: 'Creates a session for valid credentials.', logic: ['Check the credentials.', 'Sign a session token.'], inputs: { creds: 'string' } },
+      ],
+      wires: [{ id: 'w1', from: 't-login.creds', to: 'issue.creds' }],
+    }),
+  );
+  const errors = trackErrors(page);
+  try {
+    await page.goto(opened.url);
+    await expect(page.locator('.lb-file')).toHaveCount(2);
+    await rendered(page).filter({ hasText: 'Identity provider' }).first().click();
+    await page.getByRole('button', { name: /Open identity\.logic\.json › issue/ }).click();
+    await expect(rendered(page).filter({ hasText: 'User signs in' })).toBeVisible();
+    await expect(page).toHaveURL(/file=identity\.logic\.json/);
+    await expect(page.locator('.lb-panel h3')).toHaveText('Issue session');
+    expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});
