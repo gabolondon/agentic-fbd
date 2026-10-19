@@ -77,6 +77,8 @@ export interface Crumb {
 export interface ViewModel {
   path: ViewPath;
   scope: string;
+  /** Group that roots the view inside its scope; undefined at the scope top. */
+  rootGroup?: string;
   mode: ViewMode;
   nodes: ViewNode[];
   edges: ViewEdge[];
@@ -352,6 +354,7 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
   return {
     path: resolved.path,
     scope: resolved.scope,
+    rootGroup: resolved.rootGroup,
     mode,
     nodes,
     edges: [...edges.values()],
