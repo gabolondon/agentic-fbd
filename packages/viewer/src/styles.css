@@ -204,10 +204,13 @@ code {
   font-size: 11px;
 }
 
+/* Diagram titles are long: up to two lines, then the tooltip has the rest. */
 .lb-file-title {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .lb-open-link {
@@ -360,6 +363,27 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.lb-legend-hint {
+  margin: 10px 16px 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #6b7385;
+}
+
+/* Blocks picked to move together. */
+.react-flow__node.selected > * {
+  outline: 2px solid #4c7cf0;
+  outline-offset: 3px;
+}
+.react-flow__node.selected > .lb-frame {
+  outline-style: dashed;
+}
+.react-flow__nodesselection-rect,
+.react-flow__selection {
+  background: rgba(76, 124, 240, 0.06);
+  border: 1px dashed #4c7cf0;
 }
 
 .lb-swatch {

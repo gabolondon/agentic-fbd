@@ -402,10 +402,9 @@ schematics and FBD:
   - at an input, it points into the block ("comes from").
 - Clicking a flag highlights the other end and brings it into view.
 - Hover shows the same tooltip as a wire.
-- A wire is drawn with connectors when:
-  - it says `draw: "label"`; or
-  - it touches a **hub**: a `state` or `external` block connected to 3 or more other blocks in the
-    view.
+- A wire is drawn with connectors when it says `draw: "label"`, or when the layout finds it hard
+  to follow (§6.7). The first version also flagged every wire of a **hub** (a `state` or `external`
+  block connected to 3 or more blocks); §6.7 dropped that rule.
 - A hub keeps its block, with one flag per port listing how many blocks it connects to. Each
   block on the other side gets its own flag with the hub's name.
 - `draw: "line"` forces a line.
@@ -426,7 +425,7 @@ with `see` (§5.2):
 - About 5–12 blocks per level.
 - The top level tells the story in a few groups, one per system or stage.
 - A store or service used by one area lives inside that area's group.
-- Long wires between systems use `draw: "label"`.
+- Wire drawing is left to the viewer: no `draw` unless the user asks (§6.7).
 - A subject with more than about 40 blocks, or with several separately deployed systems, is split
   into one file per system, linked with `see`.
 
@@ -456,6 +455,41 @@ Automatic layout stays the default; dragging only refines it. Calls made by Clau
   content type and a same-origin request, so other web pages can't write it. If saving fails,
   the viewer keeps the arrangement until reload and says it wasn't saved.
 - The agent never writes the layout file. Before and After share one arrangement per level.
+- **Selecting several blocks** (added after Gabriel tried it): click selects, Shift/Cmd/Ctrl-click
+  adds, Shift-drag draws a selection box, Cmd/Ctrl+A selects the level, Esc clears it. Dragging
+  any selected block moves them all; a block dragged alone still snaps to its wires.
+
+### 6.7 Phase 2c: lines first, connectors as the last resort
+
+Gabriel's feedback on phase 2a: on a software diagram, flags where a plain line would do make the
+flow harder to read, not easier. Flags are for real tangles: wires that overlap or cross several
+others, and wires that run from blocks far to the right back to blocks far to the left. The rules
+now:
+
+- **Lines by default.** No wire becomes flags because of what it connects (the hub rule is gone),
+  and the skill no longer sets `draw`.
+- **After a layout, a wire becomes flags when:**
+  - it crosses or runs on top of 3 or more other wires (wires sharing a block don't count). The
+    worst wire goes first, since flagging it also clears the crossings of the others;
+  - it is longer than 1400 px and crosses another wire, or longer than 2400 px;
+  - it runs backwards (a loop) and is longer than 900 px and crosses another wire, or is longer
+    than 1800 px.
+  Then the level is laid out again, up to three layouts in all.
+- **Cycle breaking is chosen per level.** Which wire of a loop runs backwards decides most of the
+  picture, and no single ELK strategy wins on every diagram. Each layout tries depth-first,
+  greedy, greedy by model order and model order (the order blocks are written in), and keeps
+  the cheapest. The cost is the length of the wires left as lines, with backward wires counted
+  double, plus 800 px for each wire that would become flags. The skill writes blocks in story
+  order so that model order means something.
+- **Triggers** at the top of a level are pinned to the first column.
+- **Flags sit next to their block** in the node order, so model-order layouts keep stubs short.
+- **One flag per pair of blocks**: several wires between the same two blocks share one flag at
+  each end.
+
+On the first real diagram (an ingestion pipeline in four linked files), the overview, web and
+stg diagrams went from 26 flags to 4 (two wires: the store reads that looped around everything).
+The stg diagram is all lines, in the order the flow runs. The worker level, which is very wide,
+went from 22 flags to 13, on its longest wires.
 
 ## 7. CLI
 

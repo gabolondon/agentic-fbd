@@ -227,11 +227,20 @@ describe('buildView — connectors', () => {
       { id: 'w4', from: 'd.s', to: 'e.s', draw: 'label' },
     ],
   };
-  const v = buildView(doc, [], 'after');
+  // The layout asks for the hub's wires as flags (they came out long or tangled).
+  const hubWires = new Set(['e:w1', 'e:w2', 'e:w3']);
+  const v = buildView(doc, [], 'after', { labelEdges: hubWires });
   const flags = v.nodes.filter((n) => n.type === 'connector');
 
-  it('draws wires touching a hub as flags: one per block, one per hub port', () => {
-    const toDb = node(v, 'c:out:e:w1');
+  it('keeps hub wires as lines unless the layout asks for flags', () => {
+    const plain = buildView(doc, [], 'after');
+    expect(plain.edges.filter((e) => e.source === 'db' || e.target === 'db').map((e) => e.wireIds[0])).toEqual(['w1', 'w2', 'w3']);
+    // Only the wire marked draw: "label" is drawn with flags.
+    expect(plain.nodes.filter((n) => n.type === 'connector').map((n) => n.id)).toEqual(['c:out:d->e', 'c:in:e<-d']);
+  });
+
+  it('draws forced hub wires as flags: one per block, one per hub port', () => {
+    const toDb = node(v, 'c:out:a->db');
     expect(toDb.label).toBe('Database');
     expect(toDb.connector).toEqual({ side: 'out', peers: ['db'], peerLabels: ['Database'] });
     const dbIn = node(v, 'c:in:db.in');
@@ -249,16 +258,29 @@ describe('buildView — connectors', () => {
   });
 
   it('honors draw: "label" between ordinary blocks with a flag at each end', () => {
-    expect(node(v, 'c:out:e:w4').label).toBe('E');
-    expect(node(v, 'c:in:e:w4').label).toBe('D');
+    expect(node(v, 'c:out:d->e').label).toBe('E');
+    expect(node(v, 'c:in:e<-d').label).toBe('D');
     // a, b, c each get one; the hub gets one per port; w4 gets two.
     expect(flags).toHaveLength(7);
   });
 
-  it('keeps a line when draw is "line", and below the hub threshold', () => {
-    const lines = buildView({ ...doc, wires: doc.wires.map((w) => (w.id === 'w1' ? { ...w, draw: 'line' as const } : w)) }, [], 'after');
+  it('gives a block one flag per block at the other end, however many wires run between them', () => {
+    const pair: LogicDoc = {
+      ...doc,
+      nodes: [fn('p', { outputs: { x: 'string', y: 'string' } }), fn('q', { inputs: { x: 'string', y: 'string' } })],
+      wires: [
+        { id: 'p1', from: 'p.x', to: 'q.x', draw: 'label' },
+        { id: 'p2', from: 'p.y', to: 'q.y', draw: 'label' },
+      ],
+    };
+    const view = buildView(pair, [], 'after');
+    expect(view.nodes.filter((n) => n.type === 'connector').map((n) => n.id)).toEqual(['c:out:p->q', 'c:in:q<-p']);
+    // Both wires still reach their own ports.
+    expect(view.edges.filter((e) => e.source === 'c:in:q<-p').map((e) => e.targetHandle).sort()).toEqual(['x', 'y']);
+  });
+
+  it('keeps a line when draw is "line", even if the layout asks for a flag', () => {
+    const lines = buildView({ ...doc, wires: doc.wires.map((w) => (w.id === 'w1' ? { ...w, draw: 'line' as const } : w)) }, [], 'after', { labelEdges: hubWires });
     expect(lines.edges.find((e) => e.wireIds.includes('w1'))!.target).toBe('db');
-    const small = buildView({ ...doc, wires: doc.wires.filter((w) => w.id !== 'w3' && w.id !== 'w4') }, [], 'after');
-    expect(small.nodes.some((n) => n.type === 'connector')).toBe(false);
   });
 });

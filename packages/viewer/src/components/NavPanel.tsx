@@ -68,7 +68,7 @@ export function NavPanel({ doc, path, selectedKey, showChanges, onOpen, files, c
             ) : (
               <span className="lb-tree-toggle" />
             )}
-            <button className="lb-tree-item" onClick={() => onOpen(item)} title={KIND_LABEL[item.kind]}>
+            <button className="lb-tree-item" onClick={() => onOpen(item)} title={`${item.label} · ${KIND_LABEL[item.kind]}`}>
               <span className={`lb-tree-icon lb-k-${item.kind}`}>{KIND_ICON[item.kind]}</span>
               <span className={`lb-tree-label${item.unexplored ? ' lb-tree-unexplored' : ''}`}>{item.label}</span>
               {showChanges && item.mark && <span className={`lb-tree-dot lb-tree-mark-${item.mark}`} title={item.mark} />}
@@ -98,7 +98,7 @@ export function NavPanel({ doc, path, selectedKey, showChanges, onOpen, files, c
                 <button
                   className={`lb-file${f.file === currentFile ? ' lb-file-current' : ''}`}
                   onClick={() => onOpenFile(f.file)}
-                  title={f.file}
+                  title={`${f.title}\n${f.file}`}
                   aria-current={f.file === currentFile ? 'page' : undefined}
                 >
                   <span className="lb-file-icon">{f.file === currentFile ? '◉' : '○'}</span>
@@ -151,6 +151,9 @@ function Legend({ design }: { design: boolean }) {
         <span><i className="lb-swatch lb-swatch-warn" />type meaning differs</span>
         <span><i className="lb-swatch lb-swatch-error" />type mismatch</span>
       </div>
+      <p className="lb-legend-hint">
+        Drag blocks to arrange them (a group by its label). Shift-drag a box or Shift-click to select several; ⌘/Ctrl+A selects all.
+      </p>
     </div>
   );
 }

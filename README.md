@@ -87,10 +87,10 @@ simple tasks it doesn't offer it at all.
   it maps to, what changes, and where a reusable block is used.
 - **Double-click** a group or reusable block to go inside it. **Esc** goes back up.
 - **Unexplored groups** offer a *Copy request for Claude* button to expand them.
-- **Labeled connectors:** as in a schematic, a wire can be drawn as a pair of arrow flags
-  ("goes to X", "comes from Y") instead of a line across the sheet. Shared stores and services,
-  long wires, and wires marked `draw: "label"` are drawn this way. Click a flag to see the other
-  end.
+- **Labeled connectors:** wires are lines, but as in a schematic, a wire that would be hard to
+  follow (very long, looping far back, or crossing several others) is drawn as a pair of arrow
+  flags ("goes to X", "comes from Y"). Click a flag to see the other end. `draw` on a wire
+  forces a line or flags.
 - **Linked diagrams:** a big subject can be split into one diagram per system, linked with
   `see`. The structure panel lists every diagram in the folder, and a ↗ block opens the one
   that explains it.

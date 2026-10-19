@@ -68,9 +68,9 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
   (`"to": "answers"`, `"op": "write"`; `"from": "answers"`, `"op": "read"`).
 - Several wires may feed one input.
 - `draw`: `"label"` draws the wire as a pair of labeled flags (a net label: "goes to X" at the
-  output, "comes from Y" at the input) instead of a line; `"line"` forces a line. Omitted, the
-  viewer decides: wires touching a `state`/`external` hub (3+ connections) and wires that would be
-  routed very long become flags.
+  output, "comes from Y" at the input) instead of a line; `"line"` forces a line. Leave it out:
+  the viewer draws lines and turns a wire into flags only when its route is very long, loops far
+  back, or crosses several other wires. Set it only when the user asks.
 
 ## Reusable blocks (`blockTypes`)
 

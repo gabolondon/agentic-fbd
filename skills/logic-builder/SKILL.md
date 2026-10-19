@@ -99,11 +99,12 @@ A level is read at a glance, like one sheet of a schematic. Before you validate,
   (web app, worker, scheduled job, pipeline step), and the final results. Push detail down.
 - **Put each store or service where it is used.** A database, bucket or API used by one area is a
   child of that area's group. Only things shared by several areas stay on the shared level.
-- **Shared hubs become labels by themselves.** A `state` or `external` wired to 3 or more blocks
-  is drawn as labeled flags (net labels) instead of long wires. You don't need to do anything.
-- **Use `draw: "label"`** on a wire that links two distant systems (a web app starting a worker
-  job, a callback into another service), so it shows as a pair of flags, not a line across the
-  sheet. Long wires are also turned into flags by the viewer.
+- **Leave wire drawing to the viewer.** It draws lines, and turns a wire into a pair of labeled
+  flags (net labels) only where a line would be hard to follow: very long, looping far back, or
+  crossing several other wires. Don't set `draw` unless the user asks for a specific wire to be a
+  flag (`"label"`) or a line (`"line"`).
+- **Write blocks in story order** (triggers, then each stage in the order the flow runs, then
+  results). The viewer uses that order to decide which way loops run.
 - **Split big subjects into linked diagrams.** Past about 40 blocks, or when the subject spans
   separately deployed systems, write one file per system (`logic/<subject>-<system>.logic.json`)
   plus an overview file. In the overview, each system is a block with
@@ -146,5 +147,6 @@ Then run `validate --check-code .` and commit the file with the implementation.
 
 - 5–12 blocks per level (the viewer opens nested groups up to about 25 visible blocks). Beyond
   that, split the level into groups, or the subject into linked diagrams.
+- No `draw` on wires unless the user asks for it.
 - No coordinates: the viewer lays everything out (and keeps what the user arranged by hand).
 - No exploring beyond the subject. The goal is understanding one thing well, not a repo map.

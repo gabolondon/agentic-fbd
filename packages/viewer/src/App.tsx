@@ -171,22 +171,32 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
   }, [flow.stamp, fitView, updateNodeInternals]);
 
   // Dragging: blocks snap level with a wire's other end, and frames grow to keep their children.
+  // Selecting: click, Shift/Cmd-click to add, Shift-drag a box, Cmd/Ctrl+A for the whole level.
   const onNodesChange = useCallback((changes: NodeChange<LogicFlowNode>[]) => {
     const moves = changes.flatMap((c) => (c.type === 'position' && c.position ? [{ id: c.id, ...c.position }] : []));
-    if (!moves.length) return;
+    const picks = new Map(changes.flatMap((c) => (c.type === 'select' ? [[c.id, c.selected] as const] : [])));
+    if (!moves.length && !picks.size) return;
     setFlow((f) => {
       if (!f.view) return f;
-      const viewNodes = new Map(f.view.nodes.map((n) => [n.id, n]));
-      const boxes = boxesOf(f.nodes);
-      for (const m of moves) {
-        const box = boxes.get(m.id);
-        if (!box) continue;
-        // Whole pixels, as they are saved.
-        box.x = Math.round(m.x);
-        box.y = Math.round(moves.length === 1 ? snapToWires(viewNodes, boxes, f.view.edges, m.id, m.y) : m.y);
+      let nodes = picks.size ? f.nodes.map((n) => (picks.has(n.id) && picks.get(n.id) !== !!n.selected ? { ...n, selected: picks.get(n.id) } : n)) : f.nodes;
+      if (moves.length) {
+        const viewNodes = new Map(f.view.nodes.map((n) => [n.id, n]));
+        const boxes = boxesOf(nodes);
+        for (const m of moves) {
+          const box = boxes.get(m.id);
+          if (!box) continue;
+          // Whole pixels, as they are saved. Only a block dragged alone snaps to its wires.
+          box.x = Math.round(m.x);
+          box.y = Math.round(moves.length === 1 ? snapToWires(viewNodes, boxes, f.view.edges, m.id, m.y) : m.y);
+        }
+        nodes = withBoxes(nodes, fitFrames(f.view.nodes, boxes, false));
       }
-      return { ...f, nodes: withBoxes(f.nodes, fitFrames(f.view.nodes, boxes, false)) };
+      return { ...f, nodes };
     });
+  }, []);
+
+  const selectAll = useCallback((selected: boolean) => {
+    setFlow((f) => ({ ...f, nodes: f.nodes.map((n) => (!!n.selected === selected ? n : { ...n, selected })) }));
   }, []);
 
   // Dropping: frames hug their children again, and the level's positions are saved.
@@ -222,13 +232,22 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName));
+      if (typing) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        selectAll(true);
+        return;
+      }
       if (e.key !== 'Escape') return;
-      if (panel && panel.type !== 'risks') setPanel(null);
+      // Esc steps back one thing at a time: the selection, the panel, then the level.
+      if (flowRef.current.nodes.some((n) => n.selected)) selectAll(false);
+      else if (panel && panel.type !== 'risks') setPanel(null);
       else goUp();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [panel, goUp]);
+  }, [panel, goUp, selectAll]);
 
   const enter = useCallback(
     (node: ViewNode) => {
@@ -447,14 +466,17 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
               nodeClickDistance={4}
               onNodesChange={onNodesChange}
               onNodeDragStop={onNodeDragStop}
-              elementsSelectable={false}
+              onSelectionDragStop={onNodeDragStop}
+              multiSelectionKeyCode={['Meta', 'Control', 'Shift']}
+              // Nothing in the diagram is deleted from the canvas.
+              deleteKeyCode={null}
               zoomOnDoubleClick={false}
               minZoom={0.15}
               maxZoom={2.5}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
               // An edge click handler also keeps React Flow from marking edges "inactive"
-              // (pointer-events: none) when elements are not selectable.
+              // (pointer-events: none) when they are not selectable.
               onEdgeClick={onEdgeEnter}
               onEdgeMouseEnter={onEdgeEnter}
               onEdgeMouseMove={onEdgeMove}
@@ -533,7 +555,6 @@ function toFlow(view: ViewModel, layout: Layout, file: string, stamp: number): F
       style: { width: size.width, height: size.height, ...(v.type === 'frame' ? { pointerEvents: 'none' as const } : {}) },
       dragHandle: v.type === 'frame' ? '.lb-frame-label' : undefined,
       zIndex: v.type === 'frame' ? 0 : 2,
-      selectable: false,
       data: { view: v, selected: false, highlighted: false, showChanges: false },
     };
   });
@@ -545,6 +566,7 @@ function toFlow(view: ViewModel, layout: Layout, file: string, stamp: number): F
     targetHandle: `in:${e.targetHandle}`,
     type: 'typed',
     zIndex: 1,
+    selectable: false,
     data: { view: e, route: layout.routes.get(e.id), highlighted: false, hovered: false, showChanges: false },
   }));
   // Fit the viewport when the level changes, not on reloads or mode switches.

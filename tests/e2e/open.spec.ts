@@ -45,6 +45,17 @@ function trackErrors(page: Page): string[] {
 
 const rendered = (page: Page) => page.locator('.react-flow__node');
 
+/** Waits for the viewport to finish fitting the level, before grabbing blocks. */
+async function settle(page: Page): Promise<void> {
+  const viewport = page.locator('.react-flow__viewport');
+  for (let prev = '', i = 0; i < 40; i++) {
+    await page.waitForTimeout(100);
+    const now = await viewport.evaluate((el) => (el as HTMLElement).style.transform);
+    if (now === prev) return;
+    prev = now;
+  }
+}
+
 test('renders the design example with no console errors', async ({ page }) => {
   const opened = await open(join(examples, 'other-free-text.logic.json'));
   const errors = trackErrors(page);
@@ -164,14 +175,7 @@ test('drags a block, saves where it was put, and lays the level out again on req
     await page.goto(opened.url);
     await expect(block).toBeVisible();
     const start = await position();
-    // Wait for the viewport to finish fitting the level before grabbing the block.
-    const viewport = page.locator('.react-flow__viewport');
-    for (let prev = '', i = 0; i < 40; i++) {
-      await page.waitForTimeout(100);
-      const now = await viewport.evaluate((el) => (el as HTMLElement).style.transform);
-      if (now === prev) break;
-      prev = now;
-    }
+    await settle(page);
     const box = (await block.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + 12);
     await page.mouse.down();
@@ -193,6 +197,42 @@ test('drags a block, saves where it was put, and lays the level out again on req
     await expect.poll(position).toBe(start);
     await expect.poll(() => existsSync(layoutFile)).toBe(false);
     await expect(page.getByRole('button', { name: 'Auto layout' })).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('selects several blocks and moves them together', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const errors = trackErrors(page);
+  const served = page.locator('.react-flow__node[data-id="served"]');
+  const denied = page.locator('.react-flow__node[data-id="denied"]');
+  const at = (block: typeof served) => block.evaluate((el) => (el as HTMLElement).style.transform);
+  try {
+    await page.goto(opened.url);
+    await expect(served).toBeVisible();
+    await settle(page);
+    const [servedStart, deniedStart] = [await at(served), await at(denied)];
+
+    await served.click({ position: { x: 20, y: 10 } });
+    await denied.click({ position: { x: 20, y: 10 }, modifiers: ['Shift'] });
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(2);
+
+    const box = (await served.boundingBox())!;
+    await page.mouse.move(box.x + 20, box.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 20, box.y + 210, { steps: 8 });
+    await page.mouse.up();
+    expect(await at(served)).not.toBe(servedStart);
+    expect(await at(denied)).not.toBe(deniedStart);
+
+    // Esc clears the selection before anything else.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(0);
+    // Cmd/Ctrl+A selects the whole level.
+    await page.keyboard.press('ControlOrMeta+a');
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(await page.locator('.react-flow__node').count());
     expect(errors).toEqual([]);
   } finally {
     opened.child.kill();

@@ -24,7 +24,10 @@ export interface ViewPort {
 
 export type ViewNodeType = 'block' | 'frame' | 'box' | 'pin' | 'connector';
 
-/** A shared state or external connected to at least this many blocks is drawn with connectors. */
+/**
+ * A shared state or external connected to at least this many blocks is a hub: when its wires are
+ * drawn with connectors, it gets one flag per port instead of one per wire.
+ */
 export const HUB_MIN = 3;
 
 export interface Connector {
@@ -146,7 +149,7 @@ export function resolvePath(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'aft
 }
 
 export interface BuildOptions {
-  /** View edge ids to draw with connectors, e.g. wires the layout found too long. */
+  /** View edge ids to draw with connectors: wires the layout found hard to follow. */
   labelEdges?: ReadonlySet<string>;
 }
 
@@ -403,9 +406,11 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
 }
 
 /**
- * Replaces long wires with labeled connector flags, as net labels in a schematic (spec §6.5):
- * wires marked `draw: "label"`, and wires touching a hub (a state or external block connected to
- * HUB_MIN or more blocks). A hub gets one flag per port; each block on the other side gets its own.
+ * Replaces wires with labeled connector flags, as net labels in a schematic (spec §6.5, §6.7):
+ * wires marked `draw: "label"`, and the wires the layout found hard to follow (`forced`: long,
+ * looping far back, or crossing many others). Everything else stays a line. A hub (a state or
+ * external block connected to HUB_MIN or more blocks) gets one flag per port; each block on the
+ * other side gets its own.
  */
 function withConnectors(nodes: ViewNode[], edges: ViewEdge[], forced: ReadonlySet<string>): { nodes: ViewNode[]; edges: ViewEdge[] } {
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -424,6 +429,8 @@ function withConnectors(nodes: ViewNode[], edges: ViewEdge[], forced: ReadonlySe
   const isPin = (id: string): boolean => byId.get(id)?.type === 'pin';
 
   const flags = new Map<string, ViewNode>();
+  /** The block each flag sits next to. */
+  const flagAt = new Map<string, string>();
   const out: ViewEdge[] = [];
   const stubs = new Map<string, ViewEdge>();
 
@@ -451,6 +458,7 @@ function withConnectors(nodes: ViewNode[], edges: ViewEdge[], forced: ReadonlySe
       connector: { side, peers: [peer.id], peerLabels: [peer.label] },
     };
     flags.set(id, created);
+    flagAt.set(id, at.id);
     return created;
   };
   // Stubs into the same flag merge, like duplicate wires.
@@ -472,7 +480,7 @@ function withConnectors(nodes: ViewNode[], edges: ViewEdge[], forced: ReadonlySe
   for (const e of edges) {
     const srcHub = isHub(e.source);
     const tgtHub = isHub(e.target);
-    const wanted = e.draw === 'label' || ((srcHub || tgtHub || forced.has(e.id)) && e.draw !== 'line');
+    const wanted = e.draw === 'label' || (forced.has(e.id) && e.draw !== 'line');
     // Boundary pins already are connectors to the level above.
     if (!wanted || isPin(e.source) || isPin(e.target)) {
       out.push(e);
@@ -480,9 +488,10 @@ function withConnectors(nodes: ViewNode[], edges: ViewEdge[], forced: ReadonlySe
     }
     const src = byId.get(e.source)!;
     const tgt = byId.get(e.target)!;
-    // A hub collects one flag per port; every other end gets a flag of its own.
-    const outFlag = srcHub && !tgtHub ? flag(`c:out:${e.source}.${e.sourceHandle}`, 'out', src, tgt, e) : flag(`c:out:${e.id}`, 'out', src, tgt, e);
-    const inFlag = tgtHub && !srcHub ? flag(`c:in:${e.target}.${e.targetHandle}`, 'in', tgt, src, e) : flag(`c:in:${e.id}`, 'in', tgt, src, e);
+    // A hub collects one flag per port. Every other block gets one flag per block at the other
+    // end, however many wires run between the two.
+    const outFlag = srcHub && !tgtHub ? flag(`c:out:${e.source}.${e.sourceHandle}`, 'out', src, tgt, e) : flag(`c:out:${e.source}->${e.target}`, 'out', src, tgt, e);
+    const inFlag = tgtHub && !srcHub ? flag(`c:in:${e.target}.${e.targetHandle}`, 'in', tgt, src, e) : flag(`c:in:${e.target}<-${e.source}`, 'in', tgt, src, e);
     stub(e, { id: `${e.id}:out`, target: outFlag.id, targetHandle: 'c' });
     stub(e, { id: `${e.id}:in`, source: inFlag.id, sourceHandle: 'c' });
   }
@@ -492,7 +501,13 @@ function withConnectors(nodes: ViewNode[], edges: ViewEdge[], forced: ReadonlySe
     const peers = f.connector!.peers;
     if (peers.length > 1) f.label = `${peers.length} blocks`;
   }
-  return { nodes: [...nodes, ...flags.values()], edges: out };
+  // Each flag goes next to its block in the node order ("comes from" before it, "goes to" after
+  // it): layouts that follow the model order then keep stubs short.
+  const ordered: ViewNode[] = [];
+  const near = (n: ViewNode, side: 'in' | 'out'): ViewNode[] =>
+    [...flags.values()].filter((f) => flagAt.get(f.id) === n.id && f.connector!.side === side);
+  for (const n of nodes) ordered.push(...near(n, 'in'), n, ...near(n, 'out'));
+  return { nodes: ordered, edges: out };
 }
 
 interface BoxPort {
