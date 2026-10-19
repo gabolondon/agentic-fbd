@@ -1,6 +1,10 @@
 {
   "name": "logic-builder-monorepo",
+  "version": "0.1.0",
   "private": true,
+  "description": "Logic diagrams for humans and coding agents",
+  "license": "MIT",
+  "author": "Gabriel Londoño",
   "type": "module",
   "workspaces": [
     "packages/*"

@@ -24,10 +24,10 @@ const ROOT_OPTIONS: Record<string, string> = {
   'elk.spacing.componentComponent': '48',
   'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
   'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-  // Real flows loop back (a result returns to the form that started it). Break cycles following
-  // the document order, so what is written first (usually triggers) stays on the left.
-  'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
-  'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+  // Real flows loop back (a result returns to the form that started it). Depth-first cycle
+  // breaking keeps the sources of a flow (its triggers) on the left; compared on the bundled
+  // examples and an agent-written diagram, it beat model-order and greedy strategies.
+  'elk.layered.cycleBreaking.strategy': 'DEPTH_FIRST',
 };
 
 const FRAME_OPTIONS: Record<string, string> = {
