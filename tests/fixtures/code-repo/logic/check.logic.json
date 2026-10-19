@@ -1,0 +1,11 @@
+{
+  "version": "0.1",
+  "subject": { "id": "check", "title": "Check code refs", "intent": "Exercise --check-code", "mode": "design" },
+  "nodes": [
+    { "id": "present", "kind": "function", "label": "Present", "code": { "file": "src/session.ts", "symbol": "readSession" } },
+    { "id": "renamed", "kind": "function", "label": "Renamed", "code": { "file": "src/session.ts", "symbol": "loadSession" } },
+    { "id": "gone", "kind": "function", "label": "Gone", "code": { "file": "src/gone.ts", "symbol": "x" } },
+    { "id": "planned", "kind": "function", "label": "Planned", "change": "new", "code": { "file": "src/planned.ts", "symbol": "y" } }
+  ],
+  "wires": []
+}

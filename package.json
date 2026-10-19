@@ -7,7 +7,9 @@
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core && tsc -p packages/cli && tsc -p packages/viewer"
+    "typecheck": "tsc -p packages/core && tsc -p packages/cli && tsc -p packages/viewer",
+    "build:cli": "node packages/cli/build.mjs",
+    "build": "npm run build:cli"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

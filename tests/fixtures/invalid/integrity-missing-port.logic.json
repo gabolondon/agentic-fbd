@@ -1,0 +1,121 @@
+{
+  "version": "0.1",
+  "subject": {
+    "id": "fixture",
+    "title": "Fixture",
+    "intent": "Test one integrity rule",
+    "mode": "design"
+  },
+  "types": {
+    "Id": "number"
+  },
+  "blockTypes": {
+    "Box": {
+      "label": "Box",
+      "inputs": {
+        "x": "number"
+      },
+      "outputs": {
+        "y": "number"
+      },
+      "body": {
+        "nodes": [
+          {
+            "id": "in",
+            "kind": "pin",
+            "label": "x",
+            "outputs": {
+              "x": "number"
+            }
+          },
+          {
+            "id": "out",
+            "kind": "pin",
+            "label": "y",
+            "inputs": {
+              "y": "number"
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "b1",
+            "from": "in.x",
+            "to": "out.y"
+          }
+        ]
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "g",
+      "kind": "group",
+      "label": "Group"
+    },
+    {
+      "id": "t",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Click",
+      "parent": "g",
+      "outputs": {
+        "n": "number"
+      }
+    },
+    {
+      "id": "f",
+      "kind": "function",
+      "label": "Fn",
+      "inputs": {
+        "n": "number"
+      },
+      "outputs": {
+        "s": "string"
+      }
+    },
+    {
+      "id": "st",
+      "kind": "state",
+      "label": "store",
+      "valueType": "string"
+    },
+    {
+      "id": "box",
+      "kind": "instance",
+      "of": "Box",
+      "label": "Box 1"
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": "t.n",
+      "to": "f"
+    },
+    {
+      "id": "w2",
+      "from": "f.s",
+      "to": "st",
+      "op": "write"
+    },
+    {
+      "id": "w3",
+      "from": "t.n",
+      "to": "box.x"
+    }
+  ],
+  "risks": [
+    {
+      "id": "r1",
+      "severity": "low",
+      "status": "open",
+      "title": "Risk",
+      "refs": [
+        "f",
+        "w1",
+        "Box/in"
+      ]
+    }
+  ]
+}
