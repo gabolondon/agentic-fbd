@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boceto 4 — UI limpia</title>
+<style>
+  :root { --bg:#f6f7f9; --canvas:#ffffff; --ink:#1d2433; --muted:#7a8394; --line:#c9ced8; --block:#ffffff; --border:#d9dde5;
+          --new:#22a35a; --mod:#d69a12; --risk:#e0473f; --trig:#2f6fd6; --sel:#2f6fd6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--ink); }
+  .note { max-width:1200px; margin:14px auto 0; padding:0 16px; font-size:13px; color:var(--muted); }
+  .app { max-width:1200px; margin:10px auto 30px; padding:0 16px; }
+  .bar { display:flex; align-items:center; gap:12px; background:var(--canvas); border:1px solid var(--border); border-bottom:none; border-radius:10px 10px 0 0; padding:10px 14px; flex-wrap:wrap; }
+  .crumb { font-size:14px; } .crumb a { color:var(--sel); cursor:pointer; text-decoration:none; } .crumb span { color:var(--muted); margin:0 6px; }
+  .spacer { flex:1; }
+  .seg { display:inline-flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; }
+  .seg button { border:0; background:#fff; padding:6px 12px; font-size:13px; cursor:pointer; color:var(--ink); }
+  .seg button.on { background:var(--ink); color:#fff; }
+  .pill { border:1px solid var(--border); background:#fff; border-radius:7px; padding:6px 10px; font-size:13px; cursor:pointer; }
+  .pill b { color:var(--risk); }
+  .stage { position:relative; display:flex; background:var(--canvas); border:1px solid var(--border); border-radius:0 0 10px 10px; overflow:hidden; }
+  svg { flex:1; display:block; min-height:470px; background:
+        radial-gradient(circle, #e6e9ef 1px, transparent 1px) 0 0/18px 18px; }
+  .panel { width:0; overflow:hidden; transition:width .2s; border-left:1px solid var(--border); background:#fff; }
+  .panel.open { width:320px; }
+  .panel .in { width:320px; padding:16px; font-size:13px; line-height:1.5; }
+  .panel h3 { margin:0 0 2px; font-size:16px; } .panel .kind { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  .panel .sec { margin-top:14px; } .panel .lab { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .panel code { font-family: ui-monospace, Menlo, monospace; font-size:12px; background:#f1f3f7; padding:1px 5px; border-radius:4px; }
+  .panel .x { float:right; cursor:pointer; color:var(--muted); font-size:18px; line-height:1; }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; color:#fff; margin-left:6px; vertical-align:middle; }
+  .riskitem { border-left:3px solid var(--risk); padding:4px 8px; margin-bottom:8px; background:#fdf3f2; border-radius:4px; cursor:pointer; }
+  .riskitem.med { border-color:var(--mod); background:#fdf8ec; }
+  .tip { position:fixed; pointer-events:none; background:#1d2433; color:#fff; font-size:12px; padding:7px 10px; border-radius:6px; display:none; max-width:340px; line-height:1.45; box-shadow:0 4px 14px rgba(0,0,0,.18); z-index:5; }
+  .tip code { font-family: ui-monospace, Menlo, monospace; color:#a8e6b8; }
+  .hint { font-size:12px; color:var(--muted); padding:8px 14px; }
+  text { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+</style>
+</head>
+<body>
+<div class="note">Boceto 4 (prototipo desechable). <b>Pasa el mouse</b> sobre los cables, haz <b>clic</b> en un bloque, haz <b>doble clic</b> en "Otros: agregar vacuna" y cambia entre <b>Antes / Después</b>.</div>
+<div class="app">
+  <div class="bar">
+    <div class="crumb" id="crumb"></div>
+    <div class="spacer"></div>
+    <div class="seg"><button id="mBefore">Antes</button><button id="mAfter" class="on">Después</button></div>
+    <button class="pill" id="riskBtn">Riesgos <b>1</b></button>
+  </div>
+  <div class="stage">
+    <svg id="cv" viewBox="0 0 1120 470"></svg>
+    <div class="panel" id="panel"><div class="in" id="pin"></div></div>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+const TYPES = {
+  OptionId: "number",
+  Answer: "{ kind:'option', optionId } | { kind:'text', text }",
+  Answers: "Record&lt;QuestionId, Answer&gt;",
+  string: "string", boolean: "boolean"
+};
+const ICON = { trigger:"⚡", function:"ƒ", state:"▣", instance:"◆", external:"⇄", result:"●", decision:"◇", pin:"○" };
+const KIND = { trigger:"Trigger", function:"Función", state:"Estado", instance:"Bloque reutilizable", external:"Externo", result:"Resultado", decision:"Decisión", pin:"Puerto" };
+
+const TOP = {
+  title: ["Cuestionario médico", "Otros con texto libre"],
+  groups: [{ label:"Paso: Vacunas", x:20, y:40, w:400, h:330 }],
+  nodes: [
+    { id:"t-select", kind:"trigger", label:"Clic en opción", x:40, y:90, w:150, out:[["optionId","OptionId"]], change:"existing",
+      desc:"El usuario elige una opción de la lista de vacunas.", ctx:"desde: Vacunas › Lista · modos: crear, editar" },
+    { id:"t-other", kind:"trigger", label:"Escribe en 'Otros'", x:40, y:250, w:150, out:[["text","string"]], change:"new",
+      desc:"El usuario escribe una vacuna que no está en la lista.", ctx:"desde: Vacunas › Lista › Otros · modos: crear, editar" },
+    { id:"otros", kind:"instance", label:"Otros: agregar vacuna", x:245, y:160, w:160, inp:[["selected","OptionId"],["text","string"]], out:[["answer","Answer"]], change:"new",
+      desc:"Instancia de “Opción Otros”. Convierte una selección o un texto en una respuesta etiquetada.", code:"src/questionnaire/OtherOption.tsx › OtherOption", uses:"Usado en 3 lugares: Ocupación, Vacunas, Enfermedades (nivel 4)", risk:"r2", drill:true },
+    { id:"save", kind:"function", label:"Guardar respuesta", x:480, y:160, w:160, inp:[["answer","Answer"]], out:[["answers","Answers"]], change:"modified",
+      desc:"Guarda la respuesta del paso en el store.", code:"src/questionnaire/useAnswers.ts › saveAnswer", note:"Antes recibía optionId: number; ahora recibe Answer." },
+    { id:"answers", kind:"state", label:"answers", x:480, y:320, w:160, inp:[["in","Answers"]], out:[["out","Answers"]], change:"modified",
+      desc:"Store con todas las respuestas del wizard.", code:"src/questionnaire/store.ts › answers" },
+    { id:"review", kind:"function", label:"Revisión", x:710, y:240, w:150, inp:[["answers","Answers"]], out:[["payload","Answers"]], change:"modified",
+      desc:"Pantalla de revisión antes de enviar.", code:"src/questionnaire/Review.tsx › Review", note:"Debe mostrar el texto libre.", risk:"r2" },
+    { id:"api", kind:"external", label:"POST /questionnaire", x:920, y:160, w:170, inp:[["payload","Answers"]], out:[["ok","boolean"]], change:"existing",
+      desc:"Endpoint existente del backend." },
+    { id:"done", kind:"result", label:"Respuesta guardada", x:930, y:320, w:150, inp:[["ok","boolean"]], change:"existing",
+      desc:"El usuario ve la confirmación." }
+  ],
+  wires: [
+    ["t-select.optionId","otros.selected","OptionId","modified"],
+    ["t-other.text","otros.text","string","new"],
+    ["otros.answer","save.answer","Answer","new"],
+    ["save.answers","answers.in","Answers","existing","escribe"],
+    ["answers.out","review.answers","Answers","existing","lee"],
+    ["review.payload","api.payload","Answers","existing"],
+    ["api.ok","done.ok","boolean","existing"]
+  ]
+};
+// Lo que había antes: el clic iba directo a Guardar respuesta con un number.
+const BEFORE_EXTRA = [["t-select.optionId","save.answer","OptionId","existing"]];
+
+const INNER = {
+  title: ["Cuestionario médico", "Otros con texto libre", "Otros: agregar vacuna"],
+  groups: [],
+  nodes: [
+    { id:"in-sel", kind:"pin", label:"selected", x:40, y:110, w:120, out:[["selected","OptionId"]], desc:"Entrada del bloque." },
+    { id:"in-txt", kind:"pin", label:"text", x:40, y:270, w:120, out:[["text","string"]], desc:"Entrada del bloque." },
+    { id:"dec", kind:"decision", label:"¿Hay texto?", x:250, y:180, w:150, inp:[["selected","OptionId"],["text","string"]], out:[["sí","string"],["no","OptionId"]],
+      desc:"Si el usuario escribió en Otros, gana el texto; si no, la opción elegida." },
+    { id:"mkText", kind:"function", label:"Crear respuesta texto", x:500, y:110, w:180, inp:[["text","string"]], out:[["answer","Answer"]],
+      desc:"Devuelve { kind:'text', text }. Un “25” queda como texto.", code:"OtherOption.tsx › toTextAnswer" },
+    { id:"mkOpt", kind:"function", label:"Crear respuesta opción", x:500, y:270, w:180, inp:[["optionId","OptionId"]], out:[["answer","Answer"]],
+      desc:"Devuelve { kind:'option', optionId }.", code:"OtherOption.tsx › toOptionAnswer" },
+    { id:"out", kind:"pin", label:"answer", x:820, y:190, w:120, inp:[["answer","Answer"]], desc:"Salida del bloque." }
+  ],
+  wires: [
+    ["in-sel.selected","dec.selected","OptionId"],
+    ["in-txt.text","dec.text","string"],
+    ["dec.sí","mkText.text","string"],
+    ["dec.no","mkOpt.optionId","OptionId"],
+    ["mkText.answer","out.answer","Answer"],
+    ["mkOpt.answer","out.answer","Answer"]
+  ]
+};
+
+const RISKS = {
+  r1: { sev:"high", status:"resolved", title:"Texto numérico tomado como ID", detail:"Si Guardar respuesta recibe un number suelto, “25” se lee como optionId 25. Resuelto: Answer lleva kind.", refs:["save","otros"] },
+  r2: { sev:"med", status:"open", title:"Editar debe reabrir 'Otros' con el texto", detail:"Al volver desde Revisión, el bloque Otros tiene que mostrar el texto escrito.", refs:["review","otros"] }
+};
+
+let view = TOP, mode = "after", selected = null, highlight = [];
+const cv = document.getElementById("cv"), tip = document.getElementById("tip"), panel = document.getElementById("panel"), pin = document.getElementById("pin");
+const NS = "http://www.w3.org/2000/svg";
+const el = (t, a, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); (p||cv).appendChild(e); return e; };
+
+function h(n) { return 38 + 20 * Math.max((n.inp||[]).length, (n.out||[]).length, 1); }
+function portPos(ref) {
+  const [id, port] = ref.split(".");
+  const n = view.nodes.find(x => x.id === id);
+  let i = (n.inp||[]).findIndex(p => p[0] === port);
+  if (i >= 0) return { x:n.x, y:n.y + 42 + i*20 };
+  i = (n.out||[]).findIndex(p => p[0] === port);
+  return { x:n.x + n.w, y:n.y + 42 + i*20 };
+}
+function visible(change) { return !(mode === "before" && change === "new"); }
+function accent(change) { if (mode !== "after") return null; return change === "new" ? "var(--new)" : change === "modified" ? "var(--mod)" : null; }
+
+function render() {
+  cv.innerHTML = "";
+  document.getElementById("crumb").innerHTML = view.title.map((t, i) =>
+    i < view.title.length - 1 && view === INNER && i === 1 ? `<a onclick="goTop()">${t}</a>` : `<strong style="font-weight:${i===view.title.length-1?600:400}">${t}</strong>`
+  ).join("<span>›</span>");
+
+  for (const g of view.groups) {
+    el("rect", { x:g.x, y:g.y, width:g.w, height:g.h, rx:12, fill:"#f5f8fd", stroke:"#d8e2f2", "stroke-dasharray":"5 4" });
+    el("text", { x:g.x+12, y:g.y+20, fill:"#6d86ad", "font-size":12 }).textContent = g.label;
+  }
+
+  let wires = view.wires.slice();
+  if (view === TOP && mode === "before") wires = wires.concat(BEFORE_EXTRA);
+  for (const w of wires) {
+    const [from, to, type, change, op] = w;
+    if (!visible(change)) continue;
+    const fid = from.split(".")[0], tid = to.split(".")[0];
+    if (view === TOP && mode === "before" && (fid === "otros" || tid === "otros")) continue;
+    const a = portPos(from), b = portPos(to), dx = Math.max(40, (b.x - a.x) / 2);
+    const d = `M${a.x},${a.y} C${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;
+    const hot = highlight.includes(fid) && highlight.includes(tid);
+    const col = accent(change) || (hot ? "var(--risk)" : "#9aa3b2");
+    const vis = el("path", { d, fill:"none", stroke:col, "stroke-width": hot ? 2.4 : 1.6 });
+    const hit = el("path", { d, fill:"none", stroke:"transparent", "stroke-width":14, style:"cursor:help" });
+    hit.addEventListener("mousemove", e => {
+      vis.setAttribute("stroke-width", 3);
+      tip.style.display = "block"; tip.style.left = (e.clientX + 14) + "px"; tip.style.top = (e.clientY + 12) + "px";
+      tip.innerHTML = `<b>${type}</b>${op ? ` · ${op} estado` : ""}<br><code>${TYPES[type] || type}</code><br><span style="color:#aab3c5">${from} → ${to}</span>`;
+    });
+    hit.addEventListener("mouseleave", () => { vis.setAttribute("stroke-width", hot ? 2.4 : 1.6); tip.style.display = "none"; });
+  }
+
+  for (const n of view.nodes) {
+    if (!visible(n.change)) continue;
+    const H = h(n), g = el("g", { style:"cursor:pointer" });
+    const isSel = selected === n.id, hot = highlight.includes(n.id);
+    const r = n.kind === "trigger" || n.kind === "pin" ? 22 : n.kind === "state" ? 4 : 8;
+    el("rect", { x:n.x, y:n.y, width:n.w, height:H, rx:r, fill: n.kind === "trigger" ? "#eef4fe" : "#fff",
+      stroke: isSel ? "var(--sel)" : hot ? "var(--risk)" : "var(--border)", "stroke-width": isSel || hot ? 2 : 1 }, g);
+    const ac = accent(n.change);
+    if (ac) el("rect", { x:n.x, y:n.y + 6, width:4, height:H - 12, rx:2, fill:ac }, g);
+    el("text", { x:n.x + 14, y:n.y + 22, "font-size":13, "font-weight":600, fill: n.kind === "trigger" ? "var(--trig)" : "var(--ink)" }, g).textContent = `${ICON[n.kind]}  ${n.label}`;
+    (n.inp||[]).forEach((p, i) => {
+      el("circle", { cx:n.x, cy:n.y + 42 + i*20, r:4, fill:"#fff", stroke:"#8a93a3" }, g);
+      el("text", { x:n.x + 10, y:n.y + 46 + i*20, "font-size":11, fill:"var(--muted)" }, g).textContent = p[0];
+    });
+    (n.out||[]).forEach((p, i) => {
+      el("circle", { cx:n.x + n.w, cy:n.y + 42 + i*20, r:4, fill:"#8a93a3" }, g);
+      el("text", { x:n.x + n.w - 10, y:n.y + 46 + i*20, "font-size":11, fill:"var(--muted)", "text-anchor":"end" }, g).textContent = p[0];
+    });
+    if (n.risk && mode === "after" && RISKS[n.risk].status === "open") el("circle", { cx:n.x + n.w - 10, cy:n.y + 12, r:5, fill:"var(--mod)" }, g);
+    if (n.drill) el("text", { x:n.x + n.w - 10, y:n.y + H - 8, "font-size":10, fill:"var(--muted)", "text-anchor":"end" }, g).textContent = "doble clic ⤢";
+    g.addEventListener("click", () => { selected = n.id; highlight = []; showNode(n); render(); });
+    g.addEventListener("dblclick", () => { if (n.drill) { view = INNER; selected = null; highlight = []; closePanel(); render(); } });
+  }
+}
+
+function showNode(n) {
+  const tagCol = n.change === "new" ? "var(--new)" : n.change === "modified" ? "var(--mod)" : null;
+  const ports = (arr, lab) => arr && arr.length ? `<div class="sec"><div class="lab">${lab}</div>${arr.map(p => `<div><code>${p[0]}</code> : ${p[1]}</div>`).join("")}</div>` : "";
+  pin.innerHTML = `<span class="x" onclick="closePanel()">×</span>
+    <div class="kind">${KIND[n.kind]}</div>
+    <h3>${n.label}${tagCol && mode === "after" ? `<span class="tag" style="background:${tagCol}">${n.change === "new" ? "nuevo" : "modificado"}</span>` : ""}</h3>
+    <div class="sec">${n.desc || ""}</div>
+    ${n.ctx ? `<div class="sec"><div class="lab">Contexto</div>${n.ctx}</div>` : ""}
+    ${ports(n.inp, "Entradas")}${ports(n.out, "Salidas")}
+    ${n.code ? `<div class="sec"><div class="lab">Código</div><code>${n.code}</code></div>` : ""}
+    ${n.note && mode === "after" ? `<div class="sec"><div class="lab">Qué cambia</div>${n.note}</div>` : ""}
+    ${n.uses ? `<div class="sec"><div class="lab">Instancias</div>${n.uses}</div>` : ""}
+    ${n.risk && mode === "after" ? `<div class="sec"><div class="lab">Riesgo abierto</div>${RISKS[n.risk].title}</div>` : ""}
+    ${n.drill ? `<div class="sec" style="color:var(--muted)">Doble clic en el bloque para ver por dentro.</div>` : ""}`;
+  panel.classList.add("open");
+}
+function showRisks() {
+  selected = null;
+  pin.innerHTML = `<span class="x" onclick="closePanel()">×</span><div class="kind">Riesgos</div><h3>Detectados por Claude</h3><div class="sec"></div>` +
+    Object.entries(RISKS).map(([id, r]) => `<div class="riskitem ${r.sev === "med" ? "med" : ""}" onclick="hl('${id}')"><b>${r.title}</b><br><span style="color:var(--muted)">${r.status === "open" ? "abierto" : "resuelto"} · ${r.detail}</span></div>`).join("");
+  panel.classList.add("open"); render();
+}
+function hl(id) { highlight = RISKS[id].refs; if (view !== TOP) view = TOP; render(); }
+function closePanel() { panel.classList.remove("open"); selected = null; highlight = []; render(); }
+function goTop() { view = TOP; selected = null; closePanel(); }
+document.getElementById("riskBtn").onclick = showRisks;
+document.getElementById("mBefore").onclick = () => { mode = "before"; mBefore.classList.add("on"); mAfter.classList.remove("on"); closePanel(); };
+document.getElementById("mAfter").onclick = () => { mode = "after"; mAfter.classList.add("on"); mBefore.classList.remove("on"); closePanel(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (view === INNER) goTop(); else closePanel(); } });
+render();
+</script>
+</body>
+</html>
