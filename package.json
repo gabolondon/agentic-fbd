@@ -9,8 +9,11 @@
     "test": "vitest run",
     "typecheck": "tsc -p packages/core && tsc -p packages/cli && tsc -p packages/viewer",
     "build:cli": "node packages/cli/build.mjs",
-    "build": "npm run build:cli",
-    "dev": "npm run dev -w @logic-builder/viewer"
+    "build": "npm run build:viewer && npm run build:cli",
+    "dev": "npm run dev -w @logic-builder/viewer",
+    "build:viewer": "npm run build -w @logic-builder/viewer",
+    "test:e2e": "playwright test",
+    "check:dist": "npm run build && git diff --exit-code -- dist"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

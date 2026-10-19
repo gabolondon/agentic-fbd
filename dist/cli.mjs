@@ -2233,8 +2233,8 @@ var require_resolve = __commonJS({
       }
       return count;
     }
-    function getFullPath(resolver, id = "", normalize) {
-      if (normalize !== false)
+    function getFullPath(resolver, id = "", normalize2) {
+      if (normalize2 !== false)
         id = normalizeId(id);
       const p = resolver.parse(id);
       return _getFullPath(resolver, p);
@@ -2982,7 +2982,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve2.call(this, root, ref);
+      let _sch = resolve4.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3009,7 +3009,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve2(root, ref) {
+    function resolve4(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3829,7 +3829,7 @@ var require_fast_uri = __commonJS({
       }
       return decodedScheme;
     }
-    function normalize(uri, options) {
+    function normalize2(uri, options) {
       if (typeof uri === "string") {
         uri = /** @type {T} */
         normalizeString(uri, options);
@@ -3839,7 +3839,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve2(baseURI, relativeURI, options) {
+    function resolve4(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -4207,8 +4207,8 @@ var require_fast_uri = __commonJS({
     }
     var fastUri = {
       SCHEMES,
-      normalize,
-      resolve: resolve2,
+      normalize: normalize2,
+      resolve: resolve4,
       resolveComponent,
       equal,
       serialize,
@@ -7456,8 +7456,8 @@ var require__ = __commonJS({
 });
 
 // packages/cli/src/main.ts
-import { readFileSync as readFileSync2 } from "node:fs";
-import { basename, resolve } from "node:path";
+import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
+import { basename as basename2, resolve as resolve3 } from "node:path";
 
 // skills/logic-builder/references/logic.schema.json
 var logic_schema_default = {
@@ -8054,7 +8054,7 @@ function parseString(s) {
   if (IDENT.test(s)) return { k: "name", name: s };
   return { k: "unknown", raw: s };
 }
-function splitTopLevel(s, sep) {
+function splitTopLevel(s, sep2) {
   const parts = [];
   let depth = 0;
   let quoted = false;
@@ -8065,7 +8065,7 @@ function splitTopLevel(s, sep) {
     else if (quoted) continue;
     else if (c === "<" || c === "(") depth++;
     else if (c === ">" || c === ")") depth--;
-    else if (c === sep && depth === 0) {
+    else if (c === sep2 && depth === 0) {
       parts.push(s.slice(start, i));
       start = i + 1;
     }
@@ -8530,6 +8530,184 @@ function checkCode(doc, repoRoot) {
   return issues;
 }
 
+// packages/cli/src/openBrowser.ts
+import { spawn } from "node:child_process";
+function openBrowser(url) {
+  const [command, args] = process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", '""', url]] : ["xdg-open", [url]];
+  try {
+    const child = spawn(command, args, { stdio: "ignore", detached: true });
+    child.on("error", () => void 0);
+    child.unref();
+  } catch {
+  }
+}
+
+// packages/cli/src/server.ts
+import { existsSync as existsSync2, readFileSync as readFileSync2, statSync } from "node:fs";
+import { createServer } from "node:http";
+import { dirname as dirname2, extname, join as join2, normalize, resolve as resolve2, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// packages/cli/src/api.ts
+import { readFile } from "node:fs/promises";
+import { watch } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
+var DEBOUNCE_MS = 120;
+var KEEPALIVE_MS = 2e4;
+function createDocApi(file, displayPath = file) {
+  const absolute = resolve(file);
+  const clients = /* @__PURE__ */ new Set();
+  let timer;
+  let watcher;
+  const notify = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      for (const res of clients) res.write("event: change\ndata: {}\n\n");
+    }, DEBOUNCE_MS);
+  };
+  try {
+    watcher = watch(dirname(absolute), (_event, name) => {
+      if (name === null || name === basename(absolute)) notify();
+    });
+    watcher.on("error", () => void 0);
+  } catch {
+    watcher = void 0;
+  }
+  const keepalive = setInterval(() => {
+    for (const res of clients) res.write(": keepalive\n\n");
+  }, KEEPALIVE_MS);
+  keepalive.unref?.();
+  return {
+    handle(req, res) {
+      const url = (req.url ?? "").split("?")[0];
+      if (url === "/api/doc") {
+        void load(absolute, displayPath).then((payload) => {
+          res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+          res.end(JSON.stringify(payload));
+        });
+        return true;
+      }
+      if (url === "/api/events") {
+        res.writeHead(200, {
+          "content-type": "text/event-stream",
+          "cache-control": "no-store",
+          connection: "keep-alive"
+        });
+        res.write(": connected\n\n");
+        clients.add(res);
+        req.on("close", () => clients.delete(res));
+        return true;
+      }
+      return false;
+    },
+    close() {
+      clearTimeout(timer);
+      clearInterval(keepalive);
+      watcher?.close();
+      for (const res of clients) res.end();
+      clients.clear();
+    }
+  };
+}
+async function load(absolute, displayPath) {
+  let text = await readSafe(absolute);
+  let result = text === null ? null : validateText(text);
+  if (text === null || result?.issues.some((i) => i.code === "json")) {
+    await new Promise((r) => setTimeout(r, 80));
+    text = await readSafe(absolute);
+    result = text === null ? null : validateText(text);
+  }
+  if (text === null || result === null) {
+    return {
+      path: displayPath,
+      doc: null,
+      valid: false,
+      issues: [{ level: "error", code: "read", path: "/", message: `cannot read ${displayPath}` }]
+    };
+  }
+  return { path: displayPath, doc: result.doc, valid: result.valid, issues: result.issues };
+}
+async function readSafe(path) {
+  try {
+    return await readFile(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+// packages/cli/src/server.ts
+var CONTENT_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+  ".map": "application/json; charset=utf-8"
+};
+function findViewerDir() {
+  const here = dirname2(fileURLToPath(import.meta.url));
+  const candidates = [join2(here, "viewer"), resolve2(here, "../../../dist/viewer")];
+  return candidates.find((dir) => existsSync2(join2(dir, "index.html"))) ?? null;
+}
+function startServer({ file, port = 0, viewerDir }) {
+  const api = createDocApi(file);
+  const root = resolve2(viewerDir);
+  const server = createServer((req, res) => {
+    if (api.handle(req, res)) return;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      res.writeHead(405).end();
+      return;
+    }
+    const target = staticPath(root, req.url ?? "/");
+    if (!target) {
+      res.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end("not found");
+      return;
+    }
+    res.writeHead(200, {
+      "content-type": CONTENT_TYPES[extname(target)] ?? "application/octet-stream",
+      "cache-control": "no-store"
+    });
+    res.end(req.method === "HEAD" ? void 0 : readFileSync2(target));
+  });
+  return new Promise((resolvePromise, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", () => {
+      const address = server.address();
+      const actualPort = typeof address === "object" && address ? address.port : port;
+      resolvePromise({
+        url: `http://127.0.0.1:${actualPort}/`,
+        server,
+        close: () => new Promise((done) => {
+          api.close();
+          server.closeAllConnections?.();
+          server.close(() => done());
+        })
+      });
+    });
+  });
+}
+function staticPath(root, url) {
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(url, "http://localhost").pathname);
+  } catch {
+    return null;
+  }
+  if (pathname.includes("\0")) return null;
+  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const target = normalize(join2(root, relative));
+  if (target !== root && !target.startsWith(root + sep)) return null;
+  try {
+    return statSync(target).isFile() ? target : null;
+  } catch {
+    return null;
+  }
+}
+
 // packages/cli/src/main.ts
 var USAGE = `logic-builder \u2014 logic diagrams for humans and coding agents
 
@@ -8600,24 +8778,70 @@ ${USAGE}`);
     return reports.every((r) => r.valid) ? 0 : 1;
   }
 });
+register({
+  name: "open",
+  async run(args, io) {
+    const [file, ...extra] = args.positional;
+    if (!file || extra.length) {
+      io.err(`open needs exactly one file
+
+${USAGE}`);
+      return 2;
+    }
+    if (!existsSync3(file)) {
+      io.err(`logic-builder: ${file} does not exist`);
+      return 1;
+    }
+    const portFlag = args.flags.get("port");
+    const port = typeof portFlag === "string" ? Number(portFlag) : 0;
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      io.err(`--port must be a number between 0 and 65535`);
+      return 2;
+    }
+    const viewerDir = findViewerDir();
+    if (!viewerDir) {
+      io.err('logic-builder: the viewer is not built (dist/viewer is missing); run "npm run build"');
+      return 1;
+    }
+    const report = validateFile(file);
+    let running;
+    try {
+      running = await startServer({ file, port, viewerDir });
+    } catch (e) {
+      io.err(`logic-builder: cannot start the server: ${e instanceof Error ? e.message : String(e)}`);
+      return 1;
+    }
+    io.out(`logic-builder: ${running.url}`);
+    io.out(`watching ${file} (${report.valid ? "valid" : "has errors, shown in the viewer"}); press Ctrl+C to stop`);
+    if (!args.flags.has("no-open")) openBrowser(running.url);
+    await new Promise((done) => {
+      const stop = () => {
+        void running.close().then(done);
+      };
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    });
+    return 0;
+  }
+});
 function validateFile(file, repoRoot) {
   let text;
   try {
-    text = readFileSync2(file, "utf8");
+    text = readFileSync3(file, "utf8");
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return { file, valid: false, issues: [{ level: "error", code: "read", path: "/", message: `cannot read file: ${message}` }] };
   }
   const result = validateText(text);
   const issues = [...result.issues];
-  if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve(repoRoot)));
+  if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve3(repoRoot)));
   return { file, valid: result.valid, issues };
 }
 function printReport(report, io) {
   const count = (level) => report.issues.filter((i) => i.level === level).length;
   const parts = [plural(count("error"), "error"), plural(count("warning"), "warning"), plural(count("notice"), "notice")];
   const summary = parts.filter((p) => !p.startsWith("0 ")).join(", ") || "no issues";
-  io.out(`${report.valid ? "ok  " : "FAIL"} ${basename(report.file)}: ${summary}`);
+  io.out(`${report.valid ? "ok  " : "FAIL"} ${basename2(report.file)}: ${summary}`);
   for (const issue of report.issues) io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
 }
 function plural(n, word) {

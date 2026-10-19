@@ -1,7 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { validateText, type Issue } from '@logic-builder/core';
 import { checkCode } from './checkCode.ts';
+import { openBrowser } from './openBrowser.ts';
+import { findViewerDir, startServer, type RunningServer } from './server.ts';
 
 export interface Io {
   out: (line: string) => void;
@@ -86,6 +88,54 @@ register({
     if (asJson) io.out(JSON.stringify(reports.length === 1 ? reports[0] : reports, null, 2));
     else for (const r of reports) printReport(r, io);
     return reports.every((r) => r.valid) ? 0 : 1;
+  },
+});
+
+register({
+  name: 'open',
+  async run(args, io) {
+    const [file, ...extra] = args.positional;
+    if (!file || extra.length) {
+      io.err(`open needs exactly one file\n\n${USAGE}`);
+      return 2;
+    }
+    if (!existsSync(file)) {
+      io.err(`logic-builder: ${file} does not exist`);
+      return 1;
+    }
+    const portFlag = args.flags.get('port');
+    const port = typeof portFlag === 'string' ? Number(portFlag) : 0;
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      io.err(`--port must be a number between 0 and 65535`);
+      return 2;
+    }
+    const viewerDir = findViewerDir();
+    if (!viewerDir) {
+      io.err('logic-builder: the viewer is not built (dist/viewer is missing); run "npm run build"');
+      return 1;
+    }
+
+    // The viewer opens even when the file is invalid; it shows the errors in a banner.
+    const report = validateFile(file);
+    let running: RunningServer;
+    try {
+      running = await startServer({ file, port, viewerDir });
+    } catch (e) {
+      io.err(`logic-builder: cannot start the server: ${e instanceof Error ? e.message : String(e)}`);
+      return 1;
+    }
+    io.out(`logic-builder: ${running.url}`);
+    io.out(`watching ${file} (${report.valid ? 'valid' : 'has errors, shown in the viewer'}); press Ctrl+C to stop`);
+    if (!args.flags.has('no-open')) openBrowser(running.url);
+
+    await new Promise<void>((done) => {
+      const stop = (): void => {
+        void running.close().then(done);
+      };
+      process.once('SIGINT', stop);
+      process.once('SIGTERM', stop);
+    });
+    return 0;
   },
 });
 
