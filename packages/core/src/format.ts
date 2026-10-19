@@ -36,11 +36,17 @@ export interface NodeBefore {
   valueType?: TypeExpr;
 }
 
+/** A short guide to how a block works: one paragraph, or ordered steps. */
+export type LogicGuide = string | string[];
+
 export interface LogicNode {
   id: string;
   kind: NodeKind;
   label: string;
+  /** What the block does, in one or two sentences. */
   desc?: string;
+  /** How it works inside, as a basic guide for the reader. */
+  logic?: LogicGuide;
   parent?: string;
   inputs?: Ports;
   outputs?: Ports;
@@ -93,6 +99,7 @@ export interface BlockTypeBefore {
 export interface BlockType {
   label: string;
   desc?: string;
+  logic?: LogicGuide;
   inputs: Ports;
   outputs: Ports;
   code?: CodeRef;

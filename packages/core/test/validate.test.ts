@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { validate, validateText } from '../src/index.ts';
 import { baseName, examplesDir, invalidDir, listJson, readJson, repoRoot } from './helpers.ts';
 
+const explanationCodes = new Set(['missing-desc', 'missing-logic']);
+const typeIssues = (issues: { level: string; code: string }[]) =>
+  issues.filter((i) => !explanationCodes.has(i.code)).map((i) => [i.level, i.code]);
+
 describe('validate', () => {
   for (const file of [...listJson(examplesDir), join(repoRoot, 'tests/fixtures/valid-fixture.logic.json')]) {
     it(`accepts ${baseName(file)} with no errors or warnings`, () => {
@@ -51,7 +55,7 @@ describe('validate', () => {
     };
     const result = validate(doc);
     expect(result.valid).toBe(true);
-    expect(result.issues.map((i) => [i.level, i.code])).toEqual([['warning', 'type-meaning']]);
+    expect(typeIssues(result.issues)).toEqual([['warning', 'type-meaning']]);
   });
 
   it('treats undefined type names as opaque notices', () => {
@@ -66,6 +70,24 @@ describe('validate', () => {
     };
     const result = validate(doc);
     expect(result.valid).toBe(true);
-    expect(result.issues.map((i) => [i.level, i.code])).toEqual([['notice', 'undefined-type']]);
+    expect(typeIssues(result.issues)).toEqual([['notice', 'undefined-type']]);
+  });
+
+  it('reports blocks without desc or logic as notices', () => {
+    const doc = {
+      version: '0.1',
+      subject: { id: 's', title: 'S', intent: 'I', mode: 'understand' },
+      nodes: [
+        { id: 'a', kind: 'function', label: 'A' },
+        { id: 'b', kind: 'result', label: 'B', desc: 'Shows B.' },
+      ],
+      wires: [],
+    };
+    const result = validate(doc);
+    expect(result.valid).toBe(true);
+    expect(result.issues.map((i) => [i.level, i.code])).toEqual([
+      ['notice', 'missing-desc'],
+      ['notice', 'missing-logic'],
+    ]);
   });
 });

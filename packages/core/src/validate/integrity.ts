@@ -35,7 +35,37 @@ export function checkIntegrity(doc: LogicDoc): Issue[] {
   checkRisks(doc, root, issues);
   checkFocus(doc, root, issues);
   checkTypeNames(doc, types, issues);
+  checkExplanations(doc, issues);
   return issues;
+}
+
+/** Kinds whose inner workings deserve a step-by-step `logic` guide. */
+const NEEDS_LOGIC = new Set(['function', 'decision']);
+
+/** The reader relies on desc/logic to understand each block; report what is missing. */
+function checkExplanations(doc: LogicDoc, issues: Issue[]): void {
+  const noDesc: string[] = [];
+  const noLogic: string[] = [];
+  const visit = (nodes: LogicNode[], prefix: string): void => {
+    for (const n of nodes) {
+      if (n.kind === 'pin' || n.kind === 'instance') continue;
+      if (!n.desc) noDesc.push(prefix + n.id);
+      if (NEEDS_LOGIC.has(n.kind) && !n.logic) noLogic.push(prefix + n.id);
+    }
+  };
+  visit(doc.nodes, '');
+  for (const [name, type] of Object.entries(doc.blockTypes ?? {})) {
+    if (!type.desc) noDesc.push(name);
+    if (!type.logic) noLogic.push(name);
+    visit(type.body?.nodes ?? [], `${name}/`);
+  }
+  const list = (ids: string[]): string => (ids.length > 6 ? `${ids.slice(0, 6).join(', ')} and ${ids.length - 6} more` : ids.join(', '));
+  if (noDesc.length) {
+    issues.push({ level: 'notice', code: 'missing-desc', path: noDesc[0]!, message: `${noDesc.length} block(s) have no "desc" (what it does): ${list(noDesc)}` });
+  }
+  if (noLogic.length) {
+    issues.push({ level: 'notice', code: 'missing-logic', path: noLogic[0]!, message: `${noLogic.length} block(s) have no "logic" guide (how it works): ${list(noLogic)}` });
+  }
 }
 
 function err(issues: Issue[], code: string, path: string, message: string): void {

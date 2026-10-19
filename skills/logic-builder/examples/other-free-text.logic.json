@@ -28,6 +28,12 @@
   "blockTypes": {
     "OtherOption": {
       "label": "Other option",
+      "desc": "Lets the user pick an option or type their own answer, and returns one tagged answer.",
+      "logic": [
+        "If the user typed text, the text wins and becomes a text answer, even if it looks like a number.",
+        "Otherwise the selected option becomes an option answer.",
+        "The output always says which kind it is, so later steps never confuse '25' with option 25."
+      ],
       "inputs": {
         "selected": "OptionId?",
         "text": "string?"
@@ -62,6 +68,11 @@
             "id": "dec",
             "kind": "decision",
             "label": "Has text?",
+            "desc": "Chooses between the typed text and the selected option.",
+            "logic": [
+              "Text present and not empty: yes branch, carrying the text.",
+              "No text: no branch, carrying the selected option id."
+            ],
             "inputs": {
               "selected": "OptionId?",
               "text": "string?"
@@ -75,6 +86,8 @@
             "id": "mkText",
             "kind": "function",
             "label": "Build text answer",
+            "desc": "Wraps the text as { kind: 'text', text }.",
+            "logic": "Keeps the text as a string; it is never parsed as a number.",
             "inputs": {
               "text": "string"
             },
@@ -90,6 +103,8 @@
             "id": "mkOpt",
             "kind": "function",
             "label": "Build option answer",
+            "desc": "Wraps the selected id as { kind: 'option', optionId }.",
+            "logic": "Passes the option id through unchanged.",
             "inputs": {
               "optionId": "OptionId"
             },
@@ -149,21 +164,23 @@
     {
       "id": "wizard",
       "kind": "group",
-      "label": "Wizard"
+      "label": "Wizard",
+      "desc": "The multi-step intake questionnaire: steps, back/forward navigation, review and edit."
     },
     {
       "id": "vaccines",
       "kind": "group",
       "parent": "wizard",
-      "label": "Step: Vaccinations"
+      "label": "Step: Vaccinations",
+      "desc": "Step where the user lists their vaccinations."
     },
     {
       "id": "conditions",
       "kind": "group",
       "parent": "wizard",
       "label": "Step: Known conditions",
-      "explored": false,
-      "desc": "Category → condition → Other, four levels deep"
+      "desc": "Category → condition → Other, four levels deep",
+      "explored": false
     },
     {
       "id": "t-select",
@@ -171,6 +188,7 @@
       "source": "user",
       "parent": "vaccines",
       "label": "Click option",
+      "desc": "The user picks a vaccine from the list.",
       "context": {
         "from": "Vaccinations › List",
         "modes": [
@@ -188,6 +206,7 @@
       "source": "user",
       "parent": "vaccines",
       "label": "Type in 'Other'",
+      "desc": "The user types a vaccine that is not in the list.",
       "context": {
         "from": "Vaccinations › List › Other",
         "modes": [
@@ -206,12 +225,19 @@
       "of": "OtherOption",
       "parent": "vaccines",
       "label": "Other: add vaccine",
+      "desc": "The 'Other' option of the vaccine list.",
       "change": "new"
     },
     {
       "id": "save",
       "kind": "function",
       "label": "Save answer",
+      "desc": "Stores the step's answer in the answers store.",
+      "logic": [
+        "Receives one tagged Answer.",
+        "Writes it under the current question id, replacing any earlier answer.",
+        "Before this change it received a bare optionId number."
+      ],
       "code": {
         "file": "src/questionnaire/useAnswers.ts",
         "symbol": "saveAnswer"
@@ -234,6 +260,7 @@
       "id": "answers",
       "kind": "state",
       "label": "answers (store)",
+      "desc": "Every answer of the wizard, by question id.",
       "valueType": "Answers",
       "change": "modified"
     },
@@ -241,6 +268,12 @@
       "id": "review",
       "kind": "function",
       "label": "Review",
+      "desc": "Review screen shown before submitting.",
+      "logic": [
+        "Reads every answer from the store.",
+        "Shows option answers by their label and text answers exactly as typed.",
+        "Edit sends the user back to the step, which must reopen 'Other' with its text."
+      ],
       "code": {
         "file": "src/questionnaire/Review.tsx",
         "symbol": "Review"
@@ -258,6 +291,7 @@
       "id": "api",
       "kind": "external",
       "label": "POST /questionnaire",
+      "desc": "Existing backend endpoint that saves the questionnaire.",
       "inputs": {
         "payload": "Answers"
       },
@@ -269,6 +303,7 @@
       "id": "done",
       "kind": "result",
       "label": "Answer saved",
+      "desc": "The user sees the confirmation.",
       "inputs": {
         "ok": "boolean"
       }

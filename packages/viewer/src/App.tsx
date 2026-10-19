@@ -13,7 +13,8 @@ import { buildView, initialPath, type Risk, type ViewModel, type ViewNode, type 
 import { layoutView, type Layout } from './layout/elk.ts';
 import { nodeSize } from './layout/sizes.ts';
 import { readHash, writeHash, type Location } from './state/hash.ts';
-import { riskTarget } from './state/lookup.ts';
+import { riskTarget, type TreeItem } from './state/lookup.ts';
+import { NavPanel } from './components/NavPanel.tsx';
 import { useDocument, type DocState } from './state/useDocument.ts';
 import { flowType, nodeTypes, type LogicFlowNode } from './components/nodes.tsx';
 import { edgeTypes, type LogicFlowEdge } from './components/TypedEdge.tsx';
@@ -167,7 +168,35 @@ function Viewer({ state }: { state: DocState }) {
     }
   }, [panel]);
 
+  // Tree clicks: open the item's level, then select the node once that level is laid out.
+  const [pendingSelect, setPendingSelect] = useState<{ scope: string; id: string } | null>(null);
+  const [navOpen, setNavOpen] = useState(true);
+
+  const onTreeOpen = useCallback(
+    (item: TreeItem) => {
+      setHighlight(new Set());
+      setActiveRisk(null);
+      if (item.isLevel) setPanel(null);
+      setPendingSelect(item.select ?? null);
+      navigate(item.path);
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    if (!pendingSelect || !view || flow.key !== (view.path.join('/') || '/')) return;
+    const match = flow.nodes.find((n) => n.data.view.ref?.scope === pendingSelect.scope && n.data.view.ref.id === pendingSelect.id);
+    if (match) {
+      const v = match.data.view;
+      setPanel(v.unexplored ? { type: 'unexplored', node: v } : { type: 'node', node: v });
+      // Bring the chosen block into view once the canvas has resized for the panel.
+      setTimeout(() => void fitView({ nodes: [{ id: match.id }], padding: 0.6, maxZoom: 1.2, duration: 250 }), 260);
+    }
+    setPendingSelect(null);
+  }, [pendingSelect, flow, view, fitView]);
+
   const selectedId = panel && panel.type !== 'risks' ? panel.node.id : null;
+  const selectedKey = panel && panel.type !== 'risks' && panel.node.ref ? `${panel.node.ref.scope}/${panel.node.ref.id}` : null;
   const hoveredEdge = tip ? `e:${tip.edge.wireIds[0]}` : null;
 
   const nodes = useMemo(
@@ -199,26 +228,29 @@ function Viewer({ state }: { state: DocState }) {
   const errors = state.issues.filter((i) => i.level === 'error');
 
   return (
-    <div className="lb-app">
+    <div className={`lb-app${navOpen && doc ? ' lb-with-nav' : ''}`}>
+      {doc && navOpen && (
+        <NavPanel doc={doc} path={view?.path ?? []} selectedKey={selectedKey} showChanges={showChanges} onOpen={onTreeOpen} />
+      )}
+      <div className="lb-main">
       <header className="lb-bar">
-        <nav className="lb-crumbs" aria-label="Levels">
-          {view?.breadcrumb.map((c, i) => {
-            const last = i === view.breadcrumb.length - 1;
-            return (
-              <span key={c.path.join('/') || 'root'} className="lb-crumb">
-                {i > 0 && <span className="lb-crumb-sep">›</span>}
-                {last ? (
-                  <strong title={i === 0 ? doc?.subject.intent : undefined}>{c.label}</strong>
-                ) : (
-                  <button className="lb-link" onClick={() => navigate(c.path)} title={i === 0 ? doc?.subject.intent : undefined}>
-                    {c.label}
-                  </button>
-                )}
-              </span>
-            );
-          })}
-          {!doc && <strong>logic-builder</strong>}
-        </nav>
+        {doc && (
+          <button className="lb-icon-button" onClick={() => setNavOpen((o) => !o)} aria-label={navOpen ? 'Hide structure' : 'Show structure'} title={navOpen ? 'Hide structure' : 'Show structure'}>
+            ☰
+          </button>
+        )}
+        <div className="lb-level">
+          {view && view.breadcrumb.length > 1 ? (
+            <>
+              <button className="lb-up" onClick={goUp} title="Up one level (Esc)">
+                ↑ {view.breadcrumb[view.breadcrumb.length - 2]!.label}
+              </button>
+              <strong>{view.breadcrumb[view.breadcrumb.length - 1]!.label}</strong>
+            </>
+          ) : (
+            <strong>{doc ? 'Overview' : 'logic-builder'}</strong>
+          )}
+        </div>
         <div className="lb-spacer" />
         {!state.connected && state.loaded && <span className="lb-chip lb-chip-offline">offline</span>}
         {design && (
@@ -276,7 +308,7 @@ function Viewer({ state }: { state: DocState }) {
               onEdgeMouseLeave={onEdgeLeave}
               onPaneClick={onPaneClick}
             >
-              <Background gap={18} size={1} color="#e3e6ec" />
+              <Background gap={18} size={1.2} color="#d5dae3" />
               <Controls showInteractive={false} />
             </ReactFlow>
           ) : (
@@ -300,6 +332,7 @@ function Viewer({ state }: { state: DocState }) {
             activeRisk={activeRisk}
           />
         )}
+      </div>
       </div>
       {tip && doc && <EdgeTooltip tip={tip} doc={doc} />}
     </div>

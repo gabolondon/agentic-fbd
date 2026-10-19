@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { describeType, type LogicDoc, type Ports, type Risk, type ViewMode, type ViewNode, type ViewPath } from '@logic-builder/core';
+import { describeType, type LogicDoc, type LogicGuide, type Ports, type Risk, type ViewMode, type ViewNode, type ViewPath } from '@logic-builder/core';
 import { findNode, instancesOf, risksFor } from '../state/lookup.ts';
 import { KIND_LABEL } from './nodes.tsx';
 
@@ -54,6 +54,36 @@ function PortList({ title, ports, doc }: { title: string; ports: Ports | undefin
   );
 }
 
+function Explanation({ desc, logic }: { desc?: string; logic?: LogicGuide }) {
+  if (!desc && !logic) {
+    return <p className="lb-muted lb-no-explanation">No explanation yet. Ask Claude to describe this block.</p>;
+  }
+  return (
+    <div className="lb-explanation">
+      {desc && (
+        <section>
+          <h4>What it does</h4>
+          <p className="lb-desc">{desc}</p>
+        </section>
+      )}
+      {logic && (
+        <section>
+          <h4>How it works</h4>
+          {Array.isArray(logic) ? (
+            <ol className="lb-steps">
+              {logic.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+          ) : (
+            <p>{logic}</p>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
 const CHANGE_TAG: Record<string, string> = { new: 'new', modified: 'modified', removed: 'removed', affected: 'affected' };
 
 function NodePanel({ node, doc, showChanges, onNavigate }: Props & { node: ViewNode }) {
@@ -85,7 +115,7 @@ function NodePanel({ node, doc, showChanges, onNavigate }: Props & { node: ViewN
         {source.label}
         {mark && <span className={`lb-tag lb-tag-${mark}`}>{CHANGE_TAG[mark]}</span>}
       </h3>
-      {(source.desc ?? type?.desc) && <p>{source.desc ?? type?.desc}</p>}
+      <Explanation desc={source.desc ?? type?.desc} logic={source.logic ?? type?.logic} />
       {source.kind === 'trigger' && (
         <section>
           <h4>Context</h4>
@@ -174,7 +204,7 @@ function UnexploredPanel({ node, doc, filePath }: Props & { node: ViewNode }) {
     <>
       <div className="lb-kind">Unexplored group</div>
       <h3>{node.label}</h3>
-      {source?.desc && <p>{source.desc}</p>}
+      {source?.desc && <p className="lb-desc">{source.desc}</p>}
       <p className="lb-muted">This part hasn't been explored yet. Ask Claude to explain it and this level will fill in here.</p>
       <PortList title="Inputs" ports={source?.inputs} doc={doc} />
       <PortList title="Outputs" ports={source?.outputs} doc={doc} />

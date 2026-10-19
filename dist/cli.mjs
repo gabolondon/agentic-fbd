@@ -7466,189 +7466,492 @@ var logic_schema_default = {
   title: "logic-builder file",
   description: "A logic diagram (function block diagram) of one subject: a feature, flow, tool or pipeline.",
   type: "object",
-  required: ["version", "subject", "nodes", "wires"],
+  required: [
+    "version",
+    "subject",
+    "nodes",
+    "wires"
+  ],
   additionalProperties: false,
   properties: {
-    $schema: { type: "string" },
-    version: { const: "0.1" },
-    subject: { $ref: "#/$defs/subject" },
+    $schema: {
+      type: "string"
+    },
+    version: {
+      const: "0.1"
+    },
+    subject: {
+      $ref: "#/$defs/subject"
+    },
     types: {
       type: "object",
-      additionalProperties: { $ref: "#/$defs/typeExpr" }
+      additionalProperties: {
+        $ref: "#/$defs/typeExpr"
+      }
     },
     blockTypes: {
       type: "object",
-      additionalProperties: { $ref: "#/$defs/blockType" }
+      additionalProperties: {
+        $ref: "#/$defs/blockType"
+      }
     },
-    nodes: { type: "array", items: { $ref: "#/$defs/node" } },
-    wires: { type: "array", items: { $ref: "#/$defs/wire" } },
-    risks: { type: "array", items: { $ref: "#/$defs/risk" } }
+    nodes: {
+      type: "array",
+      items: {
+        $ref: "#/$defs/node"
+      }
+    },
+    wires: {
+      type: "array",
+      items: {
+        $ref: "#/$defs/wire"
+      }
+    },
+    risks: {
+      type: "array",
+      items: {
+        $ref: "#/$defs/risk"
+      }
+    }
   },
   $defs: {
-    id: { type: "string", minLength: 1, pattern: "^[^./\\s]+$" },
-    portRef: { type: "string", minLength: 1 },
+    id: {
+      type: "string",
+      minLength: 1,
+      pattern: "^[^./\\s]+$"
+    },
+    portRef: {
+      type: "string",
+      minLength: 1
+    },
     typeExpr: {
       anyOf: [
-        { type: "string", minLength: 1 },
+        {
+          type: "string",
+          minLength: 1
+        },
         {
           type: "object",
-          required: ["oneOf"],
+          required: [
+            "oneOf"
+          ],
           additionalProperties: false,
           properties: {
-            oneOf: { type: "array", minItems: 1, items: { $ref: "#/$defs/typeExpr" } }
+            oneOf: {
+              type: "array",
+              minItems: 1,
+              items: {
+                $ref: "#/$defs/typeExpr"
+              }
+            }
           }
         },
         {
           type: "object",
-          additionalProperties: { $ref: "#/$defs/typeExpr" }
+          additionalProperties: {
+            $ref: "#/$defs/typeExpr"
+          }
         }
       ]
     },
     ports: {
       type: "object",
-      propertyNames: { pattern: "^[^.\\s]+$" },
-      additionalProperties: { $ref: "#/$defs/typeExpr" }
+      propertyNames: {
+        pattern: "^[^.\\s]+$"
+      },
+      additionalProperties: {
+        $ref: "#/$defs/typeExpr"
+      }
     },
-    change: { enum: ["existing", "new", "modified", "removed"] },
+    change: {
+      enum: [
+        "existing",
+        "new",
+        "modified",
+        "removed"
+      ]
+    },
     codeRef: {
       type: "object",
-      required: ["file"],
+      required: [
+        "file"
+      ],
       additionalProperties: false,
       properties: {
-        file: { type: "string", minLength: 1 },
-        symbol: { type: "string", minLength: 1 }
+        file: {
+          type: "string",
+          minLength: 1
+        },
+        symbol: {
+          type: "string",
+          minLength: 1
+        }
       }
     },
     subject: {
       type: "object",
-      required: ["id", "title", "intent", "mode"],
+      required: [
+        "id",
+        "title",
+        "intent",
+        "mode"
+      ],
       additionalProperties: false,
       properties: {
-        id: { $ref: "#/$defs/id" },
-        title: { type: "string", minLength: 1 },
-        intent: { type: "string", minLength: 1 },
-        scope: { type: "string" },
-        mode: { enum: ["understand", "design"] },
-        focus: { $ref: "#/$defs/id" }
+        id: {
+          $ref: "#/$defs/id"
+        },
+        title: {
+          type: "string",
+          minLength: 1
+        },
+        intent: {
+          type: "string",
+          minLength: 1
+        },
+        scope: {
+          type: "string"
+        },
+        mode: {
+          enum: [
+            "understand",
+            "design"
+          ]
+        },
+        focus: {
+          $ref: "#/$defs/id"
+        }
       }
     },
     node: {
       type: "object",
-      required: ["id", "kind", "label"],
+      required: [
+        "id",
+        "kind",
+        "label"
+      ],
       additionalProperties: false,
       properties: {
-        id: { $ref: "#/$defs/id" },
-        kind: {
-          enum: ["trigger", "function", "state", "decision", "external", "result", "group", "instance", "pin"]
+        id: {
+          $ref: "#/$defs/id"
         },
-        label: { type: "string", minLength: 1 },
-        desc: { type: "string" },
-        parent: { $ref: "#/$defs/id" },
-        inputs: { $ref: "#/$defs/ports" },
-        outputs: { $ref: "#/$defs/ports" },
-        code: { $ref: "#/$defs/codeRef" },
-        ref: { type: "string" },
-        change: { $ref: "#/$defs/change" },
-        changeNote: { type: "string" },
+        kind: {
+          enum: [
+            "trigger",
+            "function",
+            "state",
+            "decision",
+            "external",
+            "result",
+            "group",
+            "instance",
+            "pin"
+          ]
+        },
+        label: {
+          type: "string",
+          minLength: 1
+        },
+        desc: {
+          type: "string",
+          description: "What the block does, in one or two sentences."
+        },
+        logic: {
+          $ref: "#/$defs/logicGuide"
+        },
+        parent: {
+          $ref: "#/$defs/id"
+        },
+        inputs: {
+          $ref: "#/$defs/ports"
+        },
+        outputs: {
+          $ref: "#/$defs/ports"
+        },
+        code: {
+          $ref: "#/$defs/codeRef"
+        },
+        ref: {
+          type: "string"
+        },
+        change: {
+          $ref: "#/$defs/change"
+        },
+        changeNote: {
+          type: "string"
+        },
         before: {
           type: "object",
           additionalProperties: false,
           properties: {
-            label: { type: "string" },
-            desc: { type: "string" },
-            inputs: { $ref: "#/$defs/ports" },
-            outputs: { $ref: "#/$defs/ports" },
-            code: { $ref: "#/$defs/codeRef" },
-            parent: { $ref: "#/$defs/id" },
-            valueType: { $ref: "#/$defs/typeExpr" }
+            label: {
+              type: "string"
+            },
+            desc: {
+              type: "string"
+            },
+            inputs: {
+              $ref: "#/$defs/ports"
+            },
+            outputs: {
+              $ref: "#/$defs/ports"
+            },
+            code: {
+              $ref: "#/$defs/codeRef"
+            },
+            parent: {
+              $ref: "#/$defs/id"
+            },
+            valueType: {
+              $ref: "#/$defs/typeExpr"
+            }
           }
         },
-        source: { enum: ["user", "schedule", "http", "agent", "system"] },
-        context: { type: "object" },
-        valueType: { $ref: "#/$defs/typeExpr" },
-        of: { type: "string", minLength: 1 },
-        explored: { type: "boolean" }
+        source: {
+          enum: [
+            "user",
+            "schedule",
+            "http",
+            "agent",
+            "system"
+          ]
+        },
+        context: {
+          type: "object"
+        },
+        valueType: {
+          $ref: "#/$defs/typeExpr"
+        },
+        of: {
+          type: "string",
+          minLength: 1
+        },
+        explored: {
+          type: "boolean"
+        }
       },
       allOf: [
         {
-          if: { properties: { kind: { const: "instance" } } },
-          then: { required: ["of"] }
+          if: {
+            properties: {
+              kind: {
+                const: "instance"
+              }
+            }
+          },
+          then: {
+            required: [
+              "of"
+            ]
+          }
         },
         {
-          if: { properties: { kind: { const: "trigger" } } },
-          then: { required: ["source"] }
+          if: {
+            properties: {
+              kind: {
+                const: "trigger"
+              }
+            }
+          },
+          then: {
+            required: [
+              "source"
+            ]
+          }
         }
       ]
     },
     wire: {
       type: "object",
-      required: ["id", "from", "to"],
+      required: [
+        "id",
+        "from",
+        "to"
+      ],
       additionalProperties: false,
       properties: {
-        id: { $ref: "#/$defs/id" },
-        from: { $ref: "#/$defs/portRef" },
-        to: { $ref: "#/$defs/portRef" },
-        change: { $ref: "#/$defs/change" },
-        op: { enum: ["read", "write"] },
+        id: {
+          $ref: "#/$defs/id"
+        },
+        from: {
+          $ref: "#/$defs/portRef"
+        },
+        to: {
+          $ref: "#/$defs/portRef"
+        },
+        change: {
+          $ref: "#/$defs/change"
+        },
+        op: {
+          enum: [
+            "read",
+            "write"
+          ]
+        },
         before: {
           type: "object",
           additionalProperties: false,
           properties: {
-            from: { $ref: "#/$defs/portRef" },
-            to: { $ref: "#/$defs/portRef" },
-            op: { enum: ["read", "write"] }
+            from: {
+              $ref: "#/$defs/portRef"
+            },
+            to: {
+              $ref: "#/$defs/portRef"
+            },
+            op: {
+              enum: [
+                "read",
+                "write"
+              ]
+            }
           }
         }
       }
     },
     body: {
       type: "object",
-      required: ["nodes", "wires"],
+      required: [
+        "nodes",
+        "wires"
+      ],
       additionalProperties: false,
       properties: {
-        nodes: { type: "array", items: { $ref: "#/$defs/node" } },
-        wires: { type: "array", items: { $ref: "#/$defs/wire" } }
+        nodes: {
+          type: "array",
+          items: {
+            $ref: "#/$defs/node"
+          }
+        },
+        wires: {
+          type: "array",
+          items: {
+            $ref: "#/$defs/wire"
+          }
+        }
       }
     },
     blockType: {
       type: "object",
-      required: ["label", "inputs", "outputs"],
+      required: [
+        "label",
+        "inputs",
+        "outputs"
+      ],
       additionalProperties: false,
       properties: {
-        label: { type: "string", minLength: 1 },
-        desc: { type: "string" },
-        inputs: { $ref: "#/$defs/ports" },
-        outputs: { $ref: "#/$defs/ports" },
-        code: { $ref: "#/$defs/codeRef" },
-        change: { $ref: "#/$defs/change" },
-        changeNote: { type: "string" },
+        label: {
+          type: "string",
+          minLength: 1
+        },
+        desc: {
+          type: "string"
+        },
+        logic: {
+          $ref: "#/$defs/logicGuide"
+        },
+        inputs: {
+          $ref: "#/$defs/ports"
+        },
+        outputs: {
+          $ref: "#/$defs/ports"
+        },
+        code: {
+          $ref: "#/$defs/codeRef"
+        },
+        change: {
+          $ref: "#/$defs/change"
+        },
+        changeNote: {
+          type: "string"
+        },
         before: {
           type: "object",
           additionalProperties: false,
           properties: {
-            label: { type: "string" },
-            desc: { type: "string" },
-            inputs: { $ref: "#/$defs/ports" },
-            outputs: { $ref: "#/$defs/ports" },
-            code: { $ref: "#/$defs/codeRef" }
+            label: {
+              type: "string"
+            },
+            desc: {
+              type: "string"
+            },
+            inputs: {
+              $ref: "#/$defs/ports"
+            },
+            outputs: {
+              $ref: "#/$defs/ports"
+            },
+            code: {
+              $ref: "#/$defs/codeRef"
+            }
           }
         },
-        body: { $ref: "#/$defs/body" }
+        body: {
+          $ref: "#/$defs/body"
+        }
       }
     },
     risk: {
       type: "object",
-      required: ["id", "severity", "status", "title", "refs"],
+      required: [
+        "id",
+        "severity",
+        "status",
+        "title",
+        "refs"
+      ],
       additionalProperties: false,
       properties: {
-        id: { $ref: "#/$defs/id" },
-        severity: { enum: ["high", "medium", "low"] },
-        status: { enum: ["open", "resolved"] },
-        title: { type: "string", minLength: 1 },
-        detail: { type: "string" },
-        resolution: { type: "string" },
-        refs: { type: "array", items: { type: "string", minLength: 1 } }
+        id: {
+          $ref: "#/$defs/id"
+        },
+        severity: {
+          enum: [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        status: {
+          enum: [
+            "open",
+            "resolved"
+          ]
+        },
+        title: {
+          type: "string",
+          minLength: 1
+        },
+        detail: {
+          type: "string"
+        },
+        resolution: {
+          type: "string"
+        },
+        refs: {
+          type: "array",
+          items: {
+            type: "string",
+            minLength: 1
+          }
+        }
       }
+    },
+    logicGuide: {
+      description: "How the block works: a paragraph or ordered steps.",
+      anyOf: [
+        {
+          type: "string",
+          minLength: 1
+        },
+        {
+          type: "array",
+          minItems: 1,
+          items: {
+            type: "string",
+            minLength: 1
+          }
+        }
+      ]
     }
   }
 };
@@ -7931,7 +8234,33 @@ function checkIntegrity(doc) {
   checkRisks(doc, root, issues);
   checkFocus(doc, root, issues);
   checkTypeNames(doc, types, issues);
+  checkExplanations(doc, issues);
   return issues;
+}
+var NEEDS_LOGIC = /* @__PURE__ */ new Set(["function", "decision"]);
+function checkExplanations(doc, issues) {
+  const noDesc = [];
+  const noLogic = [];
+  const visit = (nodes, prefix) => {
+    for (const n of nodes) {
+      if (n.kind === "pin" || n.kind === "instance") continue;
+      if (!n.desc) noDesc.push(prefix + n.id);
+      if (NEEDS_LOGIC.has(n.kind) && !n.logic) noLogic.push(prefix + n.id);
+    }
+  };
+  visit(doc.nodes, "");
+  for (const [name, type] of Object.entries(doc.blockTypes ?? {})) {
+    if (!type.desc) noDesc.push(name);
+    if (!type.logic) noLogic.push(name);
+    visit(type.body?.nodes ?? [], `${name}/`);
+  }
+  const list = (ids) => ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", ");
+  if (noDesc.length) {
+    issues.push({ level: "notice", code: "missing-desc", path: noDesc[0], message: `${noDesc.length} block(s) have no "desc" (what it does): ${list(noDesc)}` });
+  }
+  if (noLogic.length) {
+    issues.push({ level: "notice", code: "missing-logic", path: noLogic[0], message: `${noLogic.length} block(s) have no "logic" guide (how it works): ${list(noLogic)}` });
+  }
 }
 function err(issues, code2, path, message) {
   issues.push({ level: "error", code: code2, path, message });

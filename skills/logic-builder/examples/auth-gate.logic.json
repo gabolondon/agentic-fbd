@@ -10,80 +10,290 @@
   "types": {
     "AppId": "string",
     "IdToken": "string",
-    "Session": { "uid": "string", "email": "string" },
-    "Role": { "oneOf": ["'admin'", "'reader'"] },
-    "Decision": { "oneOf": [
-      { "kind": "'allow'", "role": "Role" },
-      { "kind": "'deny'", "reason": "string" }
-    ]},
-    "AppTarget": { "appId": "AppId", "url": "string" },
-    "Response": { "status": "number", "body": "string" },
-    "AccessEvent": { "uid": "string", "appId": "AppId", "decision": "Decision", "at": "string" }
+    "Session": {
+      "uid": "string",
+      "email": "string"
+    },
+    "Role": {
+      "oneOf": [
+        "'admin'",
+        "'reader'"
+      ]
+    },
+    "Decision": {
+      "oneOf": [
+        {
+          "kind": "'allow'",
+          "role": "Role"
+        },
+        {
+          "kind": "'deny'",
+          "reason": "string"
+        }
+      ]
+    },
+    "AppTarget": {
+      "appId": "AppId",
+      "url": "string"
+    },
+    "Response": {
+      "status": "number",
+      "body": "string"
+    },
+    "AccessEvent": {
+      "uid": "string",
+      "appId": "AppId",
+      "decision": "Decision",
+      "at": "string"
+    }
   },
   "nodes": [
-    { "id": "t-request", "kind": "trigger", "source": "http", "label": "Request to an app",
+    {
+      "id": "t-request",
+      "kind": "trigger",
+      "source": "http",
+      "label": "Request to an app",
       "desc": "A browser opens an app behind the gate.",
-      "context": { "from": "GET /apps/:appId" },
-      "outputs": { "appId": "AppId", "cookie": "string" } },
-
-    { "id": "auth", "kind": "group", "label": "Authentication",
-      "desc": "Turns the session cookie into a verified user." },
-    { "id": "verify", "kind": "function", "parent": "auth", "label": "Read session cookie",
+      "context": {
+        "from": "GET /apps/:appId"
+      },
+      "outputs": {
+        "appId": "AppId",
+        "cookie": "string"
+      }
+    },
+    {
+      "id": "auth",
+      "kind": "group",
+      "label": "Authentication",
+      "desc": "Turns the session cookie into a verified user."
+    },
+    {
+      "id": "verify",
+      "kind": "function",
+      "parent": "auth",
+      "label": "Read session cookie",
       "desc": "Extracts the ID token from the session cookie.",
-      "code": { "file": "server/auth/session.ts", "symbol": "readSessionCookie" },
-      "inputs": { "cookie": "string" }, "outputs": { "idToken": "IdToken" } },
-    { "id": "provider", "kind": "external", "parent": "auth", "label": "Identity provider",
+      "logic": [
+        "Reads the session cookie from the request.",
+        "Extracts the ID token stored in it; a missing cookie gives an empty token."
+      ],
+      "code": {
+        "file": "server/auth/session.ts",
+        "symbol": "readSessionCookie"
+      },
+      "inputs": {
+        "cookie": "string"
+      },
+      "outputs": {
+        "idToken": "IdToken"
+      }
+    },
+    {
+      "id": "provider",
+      "kind": "external",
+      "parent": "auth",
+      "label": "Identity provider",
       "desc": "Hosted identity provider (for example Firebase Auth) that verifies the token.",
-      "inputs": { "idToken": "IdToken" }, "outputs": { "session": "Session?" } },
-    { "id": "signed-in", "kind": "decision", "parent": "auth", "label": "Signed in?",
-      "inputs": { "session": "Session?" }, "outputs": { "yes": "Session", "no": "null" } },
-
-    { "id": "to-login", "kind": "result", "label": "Redirect to sign-in",
-      "inputs": { "signal": "null" } },
-
-    { "id": "authz", "kind": "group", "label": "Authorization", "explored": false,
+      "inputs": {
+        "idToken": "IdToken"
+      },
+      "outputs": {
+        "session": "Session?"
+      }
+    },
+    {
+      "id": "signed-in",
+      "kind": "decision",
+      "parent": "auth",
+      "label": "Signed in?",
+      "desc": "Separates signed-in users from anonymous ones.",
+      "logic": [
+        "A verified session: yes, continue to authorization.",
+        "No session or an invalid token: no, send the user to sign in."
+      ],
+      "inputs": {
+        "session": "Session?"
+      },
+      "outputs": {
+        "yes": "Session",
+        "no": "null"
+      }
+    },
+    {
+      "id": "to-login",
+      "kind": "result",
+      "label": "Redirect to sign-in",
+      "desc": "Sends the browser to the sign-in page.",
+      "inputs": {
+        "signal": "null"
+      }
+    },
+    {
+      "id": "authz",
+      "kind": "group",
+      "label": "Authorization",
       "desc": "Loads the user's roles for the app and applies the access policy.",
-      "inputs": { "session": "Session", "appId": "AppId" }, "outputs": { "decision": "Decision" } },
-    { "id": "registry", "kind": "group", "label": "App registry", "explored": false,
+      "explored": false,
+      "inputs": {
+        "session": "Session",
+        "appId": "AppId"
+      },
+      "outputs": {
+        "decision": "Decision"
+      }
+    },
+    {
+      "id": "registry",
+      "kind": "group",
+      "label": "App registry",
       "desc": "Maps an app id to where the app is actually running.",
-      "inputs": { "appId": "AppId" }, "outputs": { "target": "AppTarget" } },
-
-    { "id": "proxy", "kind": "function", "label": "Forward or deny",
+      "explored": false,
+      "inputs": {
+        "appId": "AppId"
+      },
+      "outputs": {
+        "target": "AppTarget"
+      }
+    },
+    {
+      "id": "proxy",
+      "kind": "function",
+      "label": "Forward or deny",
       "desc": "Forwards allowed requests to the app; renders the denied page otherwise.",
-      "code": { "file": "server/proxy.ts", "symbol": "handleRequest" },
-      "inputs": { "decision": "Decision", "target": "AppTarget" },
-      "outputs": { "response": "Response", "denied": "string", "event": "AccessEvent" } },
-    { "id": "access-log", "kind": "state", "label": "access log", "valueType": "AccessEvent",
+      "logic": [
+        "Allow: forwards the request to the app's URL and returns its response.",
+        "Deny: renders the denied page with the reason.",
+        "Either way, appends an access event to the log."
+      ],
+      "code": {
+        "file": "server/proxy.ts",
+        "symbol": "handleRequest"
+      },
+      "inputs": {
+        "decision": "Decision",
+        "target": "AppTarget"
+      },
+      "outputs": {
+        "response": "Response",
+        "denied": "string",
+        "event": "AccessEvent"
+      }
+    },
+    {
+      "id": "access-log",
+      "kind": "state",
+      "label": "access log",
       "desc": "Append-only log of every access decision.",
-      "code": { "file": "server/audit.ts", "symbol": "accessLog" } },
-
-    { "id": "served", "kind": "result", "label": "App page served",
-      "inputs": { "response": "Response" } },
-    { "id": "denied", "kind": "result", "label": "Access denied page",
-      "inputs": { "reason": "string" } }
+      "valueType": "AccessEvent",
+      "code": {
+        "file": "server/audit.ts",
+        "symbol": "accessLog"
+      }
+    },
+    {
+      "id": "served",
+      "kind": "result",
+      "label": "App page served",
+      "desc": "The app's page reaches the browser.",
+      "inputs": {
+        "response": "Response"
+      }
+    },
+    {
+      "id": "denied",
+      "kind": "result",
+      "label": "Access denied page",
+      "desc": "The user sees why access was denied.",
+      "inputs": {
+        "reason": "string"
+      }
+    }
   ],
   "wires": [
-    { "id": "w1", "from": "t-request.cookie", "to": "verify.cookie" },
-    { "id": "w2", "from": "verify.idToken", "to": "provider.idToken" },
-    { "id": "w3", "from": "provider.session", "to": "signed-in.session" },
-    { "id": "w4", "from": "signed-in.no", "to": "to-login.signal" },
-    { "id": "w5", "from": "signed-in.yes", "to": "authz.session" },
-    { "id": "w6", "from": "t-request.appId", "to": "authz.appId" },
-    { "id": "w7", "from": "t-request.appId", "to": "registry.appId" },
-    { "id": "w8", "from": "authz.decision", "to": "proxy.decision" },
-    { "id": "w9", "from": "registry.target", "to": "proxy.target" },
-    { "id": "w10", "from": "proxy.response", "to": "served.response" },
-    { "id": "w11", "from": "proxy.denied", "to": "denied.reason" },
-    { "id": "w12", "from": "proxy.event", "to": "access-log", "op": "write" }
+    {
+      "id": "w1",
+      "from": "t-request.cookie",
+      "to": "verify.cookie"
+    },
+    {
+      "id": "w2",
+      "from": "verify.idToken",
+      "to": "provider.idToken"
+    },
+    {
+      "id": "w3",
+      "from": "provider.session",
+      "to": "signed-in.session"
+    },
+    {
+      "id": "w4",
+      "from": "signed-in.no",
+      "to": "to-login.signal"
+    },
+    {
+      "id": "w5",
+      "from": "signed-in.yes",
+      "to": "authz.session"
+    },
+    {
+      "id": "w6",
+      "from": "t-request.appId",
+      "to": "authz.appId"
+    },
+    {
+      "id": "w7",
+      "from": "t-request.appId",
+      "to": "registry.appId"
+    },
+    {
+      "id": "w8",
+      "from": "authz.decision",
+      "to": "proxy.decision"
+    },
+    {
+      "id": "w9",
+      "from": "registry.target",
+      "to": "proxy.target"
+    },
+    {
+      "id": "w10",
+      "from": "proxy.response",
+      "to": "served.response"
+    },
+    {
+      "id": "w11",
+      "from": "proxy.denied",
+      "to": "denied.reason"
+    },
+    {
+      "id": "w12",
+      "from": "proxy.event",
+      "to": "access-log",
+      "op": "write"
+    }
   ],
   "risks": [
-    { "id": "r1", "severity": "medium", "status": "open",
+    {
+      "id": "r1",
+      "severity": "medium",
+      "status": "open",
       "title": "Role changes apply only after the session expires",
       "detail": "Roles appear to be loaded once per session, so revoking a role is not immediate. Confirm when exploring Authorization.",
-      "refs": ["authz"] },
-    { "id": "r2", "severity": "low", "status": "open",
+      "refs": [
+        "authz"
+      ]
+    },
+    {
+      "id": "r2",
+      "severity": "low",
+      "status": "open",
       "title": "Unknown app ids",
       "detail": "Behavior for an app id missing from the registry is not visible at this level.",
-      "refs": ["registry", "w7"] }
+      "refs": [
+        "registry",
+        "w7"
+      ]
+    }
   ]
 }

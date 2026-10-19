@@ -196,8 +196,17 @@ from `understand` to `design` when the user starts designing on top of it.
 
 ### 5.2 Nodes
 
-Common fields: `id`, `kind`, `label`, `desc?`, `parent?`, `inputs?`, `outputs?`, `code?`,
+Common fields: `id`, `kind`, `label`, `desc?`, `logic?`, `parent?`, `inputs?`, `outputs?`, `code?`,
 `change?`, `changeNote?`, `before?`.
+
+**Explanations (added after the M6 review).** Every block carries a short explanation for the
+reader, shown when the block is clicked:
+- `desc`: **what it does**, in one or two sentences.
+- `logic`: **how it works**, as a basic guide: one paragraph, or an array of ordered steps.
+
+The skill writes `desc` for every block (pins excepted) and `logic` for every `function`,
+`decision` and blockType. `validate` reports missing ones as notices (`missing-desc`,
+`missing-logic`). BlockTypes accept `desc` and `logic` too; instances show their blockType's.
 
 **Id scope:** node, wire, blockType and risk ids share **one namespace per file** and are unique
 across it. Each blockType `body` is its own scope. A risk refers to something inside a body as
@@ -308,8 +317,17 @@ Clean, informative and interactive. Show little at first; detail appears as you 
 the direction of the approved prototype.
 
 ### 6.2 At a glance
-- White blocks with a small icon per `kind`, the label, inputs as dots on the left with their
-  names in grey, outputs on the right.
+- **Structure panel on the left** (replaces the breadcrumb, after the M6 review):
+  - Subject title, intent, scope, and a Design / Understand chip.
+  - A collapsible tree of the diagram. Groups and instances are levels: clicking one opens it.
+    Other blocks are leaves: clicking one opens its level, selects it and centers it.
+  - Change and risk dots on the tree items.
+  - A legend of block kinds and wire colors at the bottom.
+  - The panel can be hidden from the top bar.
+- Top bar: the current level's name, an "↑ parent" button (Esc does the same), Before/After and
+  Risks.
+- White blocks with soft shadows, a colored icon badge per `kind`, the label, inputs as dots on
+  the left with their names in grey, outputs on the right.
 - Triggers rounded and light blue. Groups as dashed frames with their name.
 - Thin grey wires.
 - In **After** view, a colored bar on the block's edge or the wire: green for `new`, amber for
@@ -319,10 +337,11 @@ the direction of the approved prototype.
 
 ### 6.3 Interactions
 - **Hover a wire:** tooltip with the type, its expanded shape, and `source → target`.
-- **Click a block:** side panel with description, context (triggers), typed inputs and outputs, code
-  (`file › symbol`), what changes, instances ("used in N places"), and risks.
-- **Double-click a `group` or `instance`:** enter it (its children or `body`), with a breadcrumb of
-  layers at the top. Esc goes up one level.
+- **Click a block:** side panel led by **What it does** (`desc`) and **How it works** (`logic`), then
+  context (triggers), typed inputs and outputs, code (`file › symbol`), what changes, instances
+  ("used in N places"), and risks.
+- **Double-click a `group` or `instance`:** enter it (its children or `body`). The structure panel
+  and the "↑ parent" button show where you are. Esc goes up one level.
 - **Double-click an unexplored group:** a panel explains it hasn't been explored yet and offers a
   "Copy request for Claude" button with a ready prompt (`Explain "<label>" (<id>) in <file>`).
 - **Layers:**
@@ -399,16 +418,19 @@ The skill's description must make these rules clear so it never triggers on its 
 2. Read only that code.
 3. Identify the state and the triggers, with their context.
 4. Draw the top level with blocks mapped 1:1 to code.
-5. Leave sub-areas as unexplored groups.
-6. Name the types on the wires.
-7. Note fragile spots as risks.
-8. Expand one layer at a time when asked.
+5. Explain every block: `desc` (what it does) and, for functions, decisions and blockTypes, `logic`
+   (how it works, as short ordered steps in plain language).
+6. Leave sub-areas as unexplored groups.
+7. Name the types on the wires.
+8. Note fragile spots as risks.
+9. Expand one layer at a time when asked.
 
 **Design:**
 1. Start from an Understand diagram of the area.
 2. Detect repeated patterns and turn them into `blockTypes` with instances.
 3. Mark new, modified (with `before`) and removed blocks and wires.
-4. Look for risks, especially where a type changes and every wire it travels on.
+4. Explain new and modified blocks (`desc`, `logic`), and say what changes in `changeNote`.
+5. Look for risks, especially where a type changes and every wire it travels on.
 
 ### 8.3 Contents
 - `SKILL.md`: when to use, both methods, the workflow.
@@ -532,6 +554,9 @@ Consequences:
 ---
 
 ## Appendix A — Full example (design mode)
+
+The canonical, up-to-date version of this example (including `desc` and `logic` on every block)
+is `skills/logic-builder/examples/other-free-text.logic.json`. The JSON below shows the structure.
 
 ```json
 {
