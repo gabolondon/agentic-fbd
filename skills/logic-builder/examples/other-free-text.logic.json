@@ -1,0 +1,350 @@
+{
+  "version": "0.1",
+  "subject": {
+    "id": "other-free-text",
+    "title": "'Other' option with free text",
+    "intent": "Accept answers outside the list on selection questions",
+    "scope": "Intake questionnaire (wizard)",
+    "mode": "design",
+    "focus": "vaccines"
+  },
+  "types": {
+    "QuestionId": "string",
+    "OptionId": "number",
+    "Answer": {
+      "oneOf": [
+        {
+          "kind": "'option'",
+          "optionId": "OptionId"
+        },
+        {
+          "kind": "'text'",
+          "text": "string"
+        }
+      ]
+    },
+    "Answers": "Record<QuestionId, Answer>"
+  },
+  "blockTypes": {
+    "OtherOption": {
+      "label": "Other option",
+      "inputs": {
+        "selected": "OptionId?",
+        "text": "string?"
+      },
+      "outputs": {
+        "answer": "Answer"
+      },
+      "code": {
+        "file": "src/questionnaire/OtherOption.tsx",
+        "symbol": "OtherOption"
+      },
+      "change": "new",
+      "body": {
+        "nodes": [
+          {
+            "id": "in-sel",
+            "kind": "pin",
+            "label": "selected",
+            "outputs": {
+              "selected": "OptionId?"
+            }
+          },
+          {
+            "id": "in-txt",
+            "kind": "pin",
+            "label": "text",
+            "outputs": {
+              "text": "string?"
+            }
+          },
+          {
+            "id": "dec",
+            "kind": "decision",
+            "label": "Has text?",
+            "inputs": {
+              "selected": "OptionId?",
+              "text": "string?"
+            },
+            "outputs": {
+              "yes": "string",
+              "no": "OptionId"
+            }
+          },
+          {
+            "id": "mkText",
+            "kind": "function",
+            "label": "Build text answer",
+            "inputs": {
+              "text": "string"
+            },
+            "outputs": {
+              "answer": "Answer"
+            },
+            "code": {
+              "file": "src/questionnaire/OtherOption.tsx",
+              "symbol": "toTextAnswer"
+            }
+          },
+          {
+            "id": "mkOpt",
+            "kind": "function",
+            "label": "Build option answer",
+            "inputs": {
+              "optionId": "OptionId"
+            },
+            "outputs": {
+              "answer": "Answer"
+            },
+            "code": {
+              "file": "src/questionnaire/OtherOption.tsx",
+              "symbol": "toOptionAnswer"
+            }
+          },
+          {
+            "id": "out",
+            "kind": "pin",
+            "label": "answer",
+            "inputs": {
+              "answer": "Answer"
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "b1",
+            "from": "in-sel.selected",
+            "to": "dec.selected"
+          },
+          {
+            "id": "b2",
+            "from": "in-txt.text",
+            "to": "dec.text"
+          },
+          {
+            "id": "b3",
+            "from": "dec.yes",
+            "to": "mkText.text"
+          },
+          {
+            "id": "b4",
+            "from": "dec.no",
+            "to": "mkOpt.optionId"
+          },
+          {
+            "id": "b5",
+            "from": "mkText.answer",
+            "to": "out.answer"
+          },
+          {
+            "id": "b6",
+            "from": "mkOpt.answer",
+            "to": "out.answer"
+          }
+        ]
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "wizard",
+      "kind": "group",
+      "label": "Wizard"
+    },
+    {
+      "id": "vaccines",
+      "kind": "group",
+      "parent": "wizard",
+      "label": "Step: Vaccinations"
+    },
+    {
+      "id": "conditions",
+      "kind": "group",
+      "parent": "wizard",
+      "label": "Step: Known conditions",
+      "explored": false,
+      "desc": "Category → condition → Other, four levels deep"
+    },
+    {
+      "id": "t-select",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "vaccines",
+      "label": "Click option",
+      "context": {
+        "from": "Vaccinations › List",
+        "modes": [
+          "create",
+          "edit"
+        ]
+      },
+      "outputs": {
+        "optionId": "OptionId"
+      }
+    },
+    {
+      "id": "t-other",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "vaccines",
+      "label": "Type in 'Other'",
+      "context": {
+        "from": "Vaccinations › List › Other",
+        "modes": [
+          "create",
+          "edit"
+        ]
+      },
+      "outputs": {
+        "text": "string"
+      },
+      "change": "new"
+    },
+    {
+      "id": "other-vaccines",
+      "kind": "instance",
+      "of": "OtherOption",
+      "parent": "vaccines",
+      "label": "Other: add vaccine",
+      "change": "new"
+    },
+    {
+      "id": "save",
+      "kind": "function",
+      "label": "Save answer",
+      "code": {
+        "file": "src/questionnaire/useAnswers.ts",
+        "symbol": "saveAnswer"
+      },
+      "inputs": {
+        "answer": "Answer"
+      },
+      "outputs": {
+        "answers": "Answers"
+      },
+      "change": "modified",
+      "changeNote": "Used to take optionId: number; now takes Answer",
+      "before": {
+        "inputs": {
+          "optionId": "OptionId"
+        }
+      }
+    },
+    {
+      "id": "answers",
+      "kind": "state",
+      "label": "answers (store)",
+      "valueType": "Answers",
+      "change": "modified"
+    },
+    {
+      "id": "review",
+      "kind": "function",
+      "label": "Review",
+      "code": {
+        "file": "src/questionnaire/Review.tsx",
+        "symbol": "Review"
+      },
+      "inputs": {
+        "answers": "Answers"
+      },
+      "outputs": {
+        "payload": "Answers"
+      },
+      "change": "modified",
+      "changeNote": "Must show the free text"
+    },
+    {
+      "id": "api",
+      "kind": "external",
+      "label": "POST /questionnaire",
+      "inputs": {
+        "payload": "Answers"
+      },
+      "outputs": {
+        "ok": "boolean"
+      }
+    },
+    {
+      "id": "done",
+      "kind": "result",
+      "label": "Answer saved",
+      "inputs": {
+        "ok": "boolean"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w0",
+      "from": "t-select.optionId",
+      "to": "save.optionId",
+      "change": "removed"
+    },
+    {
+      "id": "w1",
+      "from": "t-select.optionId",
+      "to": "other-vaccines.selected",
+      "change": "new"
+    },
+    {
+      "id": "w2",
+      "from": "t-other.text",
+      "to": "other-vaccines.text",
+      "change": "new"
+    },
+    {
+      "id": "w3",
+      "from": "other-vaccines.answer",
+      "to": "save.answer",
+      "change": "new"
+    },
+    {
+      "id": "w4",
+      "from": "save.answers",
+      "to": "answers",
+      "op": "write"
+    },
+    {
+      "id": "w5",
+      "from": "answers",
+      "to": "review.answers",
+      "op": "read"
+    },
+    {
+      "id": "w6",
+      "from": "review.payload",
+      "to": "api.payload"
+    },
+    {
+      "id": "w7",
+      "from": "api.ok",
+      "to": "done.ok"
+    }
+  ],
+  "risks": [
+    {
+      "id": "r1",
+      "severity": "high",
+      "status": "resolved",
+      "title": "Numeric text taken as an ID",
+      "detail": "If saveAnswer receives a bare number, '25' is read as optionId 25.",
+      "resolution": "Answer carries kind: 'option' | 'text'",
+      "refs": [
+        "save",
+        "w3",
+        "OtherOption"
+      ]
+    },
+    {
+      "id": "r2",
+      "severity": "medium",
+      "status": "open",
+      "title": "Editing must reopen 'Other' with its text",
+      "refs": [
+        "review",
+        "other-vaccines"
+      ]
+    }
+  ]
+}

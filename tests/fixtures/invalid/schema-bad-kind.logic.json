@@ -1,0 +1,6 @@
+{
+  "version": "0.1",
+  "subject": { "id": "s", "title": "S", "intent": "I", "mode": "understand" },
+  "nodes": [ { "id": "a", "kind": "widget", "label": "A" } ],
+  "wires": []
+}
