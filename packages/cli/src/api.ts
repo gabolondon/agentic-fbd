@@ -160,7 +160,8 @@ export function createDocApi(file: string, displayPath = file): DocApi {
           json(res, 400, { error: `not a diagram name: ${name}` });
           return true;
         }
-        const path = name === opened ? displayPath : name;
+        // Siblings are named from the same folder as the opened file, so references point at them.
+        const path = name === opened ? displayPath : join(dirname(displayPath), name);
         void load(join(dir, name), name, path).then((payload) => json(res, 200, payload));
         return true;
       }

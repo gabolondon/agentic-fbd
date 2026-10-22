@@ -103,6 +103,7 @@ export function NavPanel({ doc, path, selectedKey, showChanges, onOpen, files, c
                 >
                   <span className="lb-file-icon">{f.file === currentFile ? '◉' : '○'}</span>
                   <span className="lb-file-title">{f.title}</span>
+                  {f.draft && <span className="lb-draft-dot" title="Unsaved edits" />}
                 </button>
               </li>
             ))}

@@ -269,3 +269,36 @@ test('shows a collapsed Data box with reads and where they live', async ({ page 
     opened.child.kill();
   }
 });
+
+test('keeps edits in a draft until Save', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const draftFile = opened.file.replace(/\.logic\.json$/, '.draft.json');
+  const before = readFileSync(opened.file, 'utf8');
+  const errors = trackErrors(page);
+  const bar = page.locator('.lb-editbar');
+  try {
+    await page.goto(`${opened.url}?test#/`);
+    await expect(rendered(page).filter({ hasText: 'Forward or deny' })).toBeVisible();
+    await page.waitForFunction(() => typeof (window as unknown as { __lbEdit?: unknown }).__lbEdit === 'function');
+    const refused = await page.evaluate(() =>
+      (window as unknown as { __lbEdit: (e: unknown) => string | null }).__lbEdit({ op: 'setLabel', at: { scope: '', id: 'proxy' }, value: 'Forward request' }),
+    );
+    expect(refused).toBeNull();
+    await expect(bar).toContainText('1 unsaved change');
+    await expect(rendered(page).filter({ hasText: 'Forward request' })).toBeVisible();
+    await expect.poll(() => existsSync(draftFile)).toBe(true);
+    expect(readFileSync(opened.file, 'utf8')).toBe(before);
+
+    await page.reload();
+    await expect(bar).toContainText('1 unsaved change');
+    await expect(rendered(page).filter({ hasText: 'Forward request' })).toBeVisible();
+
+    await bar.getByRole('button', { name: 'Save' }).click();
+    await expect(bar.getByRole('button', { name: 'Copy for agent' })).toBeVisible();
+    expect(JSON.parse(readFileSync(opened.file, 'utf8')).nodes.find((n: { id: string }) => n.id === 'proxy').label).toBe('Forward request');
+    expect(existsSync(draftFile)).toBe(false);
+    expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});

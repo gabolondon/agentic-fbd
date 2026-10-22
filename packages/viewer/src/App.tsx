@@ -16,6 +16,7 @@ import {
   LAYOUT_VERSION,
   levelKey,
   layoutFileName,
+  type Edit,
   type Risk,
   type ViewModel,
   type ViewNode,
@@ -32,6 +33,7 @@ import { flowType, nodeTypes, type LogicFlowNode } from './components/nodes.tsx'
 import { edgeTypes, type LogicFlowEdge } from './components/TypedEdge.tsx';
 import { SidePanel, type Panel } from './components/SidePanel.tsx';
 import { EdgeTooltip, type TooltipState } from './components/Tooltip.tsx';
+import { EditBar, type Saved } from './components/EditBar.tsx';
 
 export function App() {
   const [loc, setLoc] = useState<Location>(() => readHash());
@@ -83,6 +85,10 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
   flowRef.current = flow;
   const stamp = useRef(0);
   const [arranged, setArranged] = useState(0);
+  // Edits: the request for the agent after a save, shown for a while in the edit bar.
+  const [saved, setSaved] = useState<Saved | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { fitView } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -378,6 +384,34 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
     [flow.edges, showChanges, hoveredEdge, highlight],
   );
 
+  const { edit: applyDocEdit, save: saveDraft, discard } = state;
+  const edit = useCallback(
+    (e: Edit): string | null => {
+      setSaved(null);
+      setSaveError(null);
+      return applyDocEdit(e);
+    },
+    [applyDocEdit],
+  );
+  const onSave = useCallback(async () => {
+    setSaving(true);
+    const result = await saveDraft();
+    setSaving(false);
+    if (result.ok) setSaved({ summary: result.summary, review: result.review });
+    else setSaveError(result.message);
+  }, [saveDraft]);
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(null), 20_000);
+    return () => clearTimeout(timer);
+  }, [saved]);
+  // Lets end-to-end tests drive edits before the panel has editing controls.
+  useEffect(() => {
+    if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('test')) {
+      (window as unknown as { __lbEdit?: (e: Edit) => string | null }).__lbEdit = edit;
+    }
+  }, [edit]);
+
   const openRisks = (doc?.risks ?? []).filter((r) => r.status === 'open').length;
   const errors = state.issues.filter((i) => i.level === 'error');
 
@@ -497,6 +531,22 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
             </ReactFlow>
           ) : (
             <div className="lb-empty">{state.loaded ? 'No diagram to show yet.' : 'Loading…'}</div>
+          )}
+          {doc && (
+            <EditBar
+              draft={state.draft}
+              doc={doc}
+              issues={state.issues}
+              saved={saved}
+              saving={saving}
+              error={saveError}
+              draftSaved={state.draftSaved}
+              onSave={() => void onSave()}
+              onDiscard={() => {
+                setSaveError(null);
+                discard();
+              }}
+            />
           )}
         </div>
         {doc && (

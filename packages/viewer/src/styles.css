@@ -574,6 +574,7 @@ code {
   flex: 1;
   min-width: 0;
   background: #f5f6f9;
+  position: relative;
 }
 
 .lb-empty {
@@ -1345,4 +1346,74 @@ div.lb-data-row-head {
 .lb-panel p.lb-data-more {
   margin: 6px 6px 2px;
   font-size: 12px;
+}
+
+/* ---- Edit bar and drafts (phase 2e) ---------------------------------------------------------- */
+
+.lb-editbar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: min(640px, calc(100% - 32px));
+  background: #fff;
+  border: 1px solid var(--mod);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(29, 36, 51, 0.14);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.lb-editbar-saved {
+  border-color: var(--new);
+}
+
+.lb-editbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lb-editbar-row b {
+  flex: none;
+}
+
+.lb-editbar-error {
+  color: var(--risk);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.lb-editbar-note {
+  margin: 0 0 6px;
+  color: #8a5a00;
+  font-size: 12px;
+}
+
+.lb-editbar-saved .lb-editbar-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.lb-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lb-pill-danger {
+  border-color: var(--risk);
+  color: var(--risk);
+}
+
+.lb-draft-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mod);
+  margin-left: auto;
 }

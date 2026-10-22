@@ -3872,10 +3872,10 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative, options, skipNormalization) {
+    function resolveComponent(base2, relative, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
-        base = parse(serialize(base, options), options);
+        base2 = parse(serialize(base2, options), options);
         relative = parse(serialize(relative, options), options);
       }
       options = options || {};
@@ -3895,32 +3895,32 @@ var require_fast_uri = __commonJS({
           target.query = relative.query;
         } else {
           if (!relative.path) {
-            target.path = base.path;
+            target.path = base2.path;
             if (relative.query !== void 0) {
               target.query = relative.query;
             } else {
-              target.query = base.query;
+              target.query = base2.query;
             }
           } else {
             if (relative.path[0] === "/") {
               target.path = removeDotSegments(relative.path);
             } else {
-              if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
+              if ((base2.userinfo !== void 0 || base2.host !== void 0 || base2.port !== void 0) && !base2.path) {
                 target.path = "/" + relative.path;
-              } else if (!base.path) {
+              } else if (!base2.path) {
                 target.path = relative.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative.path;
+                target.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative.path;
               }
               target.path = removeDotSegments(target.path);
             }
             target.query = relative.query;
           }
-          target.userinfo = base.userinfo;
-          target.host = base.host;
-          target.port = base.port;
+          target.userinfo = base2.userinfo;
+          target.host = base2.host;
+          target.port = base2.port;
         }
-        target.scheme = base.scheme;
+        target.scheme = base2.scheme;
       }
       target.fragment = relative.fragment;
       return target;
@@ -7729,6 +7729,18 @@ var logic_schema_default = {
             },
             valueType: {
               $ref: "#/$defs/typeExpr"
+            },
+            source: {
+              enum: [
+                "user",
+                "schedule",
+                "http",
+                "agent",
+                "system"
+              ]
+            },
+            context: {
+              type: "object"
             }
           }
         },
@@ -7762,6 +7774,10 @@ var logic_schema_default = {
           type: "string",
           pattern: "^[^/\\\\#]+\\.logic\\.json(#[^./#]+)?$",
           description: "Another diagram in the same folder that explains this block: file.logic.json or file.logic.json#node-id."
+        },
+        note: {
+          type: "string",
+          description: "A request left for the agent in the viewer. Not a change: the agent deletes it once it is done."
         }
       },
       allOf: [
@@ -7846,6 +7862,10 @@ var logic_schema_default = {
               ]
             }
           }
+        },
+        note: {
+          type: "string",
+          description: "A request left for the agent in the viewer. Not a change: the agent deletes it once it is done."
         }
       }
     },
@@ -8148,11 +8168,14 @@ function compat(source, target, types = {}) {
   return check2(parseType(source), parseType(target), new Resolver(types), 0);
 }
 function undefinedNames(expr, types) {
+  return namesIn(expr).filter((name) => !(name in types));
+}
+function namesIn(expr) {
   const out = /* @__PURE__ */ new Set();
   const walk = (t) => {
     switch (t.k) {
       case "name":
-        if (!(t.name in types)) out.add(t.name);
+        out.add(t.name);
         return;
       case "array":
       case "opt":
@@ -8577,8 +8600,8 @@ function validateText(text) {
 var LAYOUT_VERSION = "0.1";
 var DIAGRAM_SUFFIX = ".logic.json";
 function layoutFileName(diagram) {
-  const base = diagram.endsWith(DIAGRAM_SUFFIX) ? diagram.slice(0, -DIAGRAM_SUFFIX.length) : diagram;
-  return `${base}.layout.json`;
+  const base2 = diagram.endsWith(DIAGRAM_SUFFIX) ? diagram.slice(0, -DIAGRAM_SUFFIX.length) : diagram;
+  return `${base2}.layout.json`;
 }
 var MAX_COORD = 1e6;
 function parseLayout(value) {
@@ -8617,6 +8640,27 @@ function isObject(value) {
 }
 function isCoord(value) {
   return typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= MAX_COORD;
+}
+
+// packages/core/src/draftFile.ts
+var DIAGRAM_SUFFIX2 = ".logic.json";
+function base(diagram) {
+  return diagram.endsWith(DIAGRAM_SUFFIX2) ? diagram.slice(0, -DIAGRAM_SUFFIX2.length) : diagram;
+}
+function draftFileName(diagram) {
+  return `${base(diagram)}.draft.json`;
+}
+function reviewFileName(diagram) {
+  return `${base(diagram)}.review.json`;
+}
+function parseDraft(value) {
+  if (!isObject2(value) || typeof value.original !== "string") return null;
+  const doc = value.doc;
+  if (!isObject2(doc) || !isObject2(doc.subject) || !Array.isArray(doc.nodes)) return null;
+  return { original: value.original, doc };
+}
+function isObject2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // packages/cli/src/checkCode.ts
@@ -8721,9 +8765,25 @@ var DEBOUNCE_MS = 120;
 var KEEPALIVE_MS = 2e4;
 var DIAGRAM = /^[^/\\]+\.logic\.json$/;
 var MAX_LAYOUT_BYTES = 1e6;
+var MAX_DRAFT_BYTES = 5e6;
+var SIDE_FILE = /^([^/\\]+)\.(draft|review)\.json$/;
 function isDiagramName(name) {
   return DIAGRAM.test(name) && name !== "." && name !== "..";
 }
+function diagramOf(name) {
+  if (isDiagramName(name)) return name;
+  const side = SIDE_FILE.exec(name);
+  return side ? `${side[1]}.logic.json` : null;
+}
+var HttpError = class extends Error {
+  constructor(status, message, extra = {}) {
+    super(message);
+    this.status = status;
+    this.extra = extra;
+  }
+  status;
+  extra;
+};
 function createDocApi(file, displayPath = file) {
   const absolute = resolve(file);
   const dir = dirname2(absolute);
@@ -8748,8 +8808,8 @@ data: ${data}
   };
   try {
     watcher = watch(dir, (_event, name) => {
-      const changed = name === null ? null : name.toString();
-      if (changed === null || isDiagramName(changed)) notify(changed);
+      const changed = name === null ? null : diagramOf(name.toString());
+      if (name === null || changed !== null) notify(changed);
     });
     watcher.on("error", () => void 0);
   } catch {
@@ -8763,6 +8823,20 @@ data: ${data}
     res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end(JSON.stringify(body));
   };
+  const write = (req, res, name, methods, run2) => {
+    if (!methods.includes(req.method ?? "")) {
+      json(res, 405, { error: `use ${methods.join(" or ")}` });
+    } else if (!isDiagramName(name)) {
+      json(res, 400, { error: `not a diagram name: ${name}` });
+    } else if (!sameOrigin(req) || !String(req.headers["content-type"] ?? "").startsWith("application/json")) {
+      json(res, 403, { error: "forbidden" });
+    } else {
+      void run2().then(
+        (body) => json(res, 200, body ?? { ok: true }),
+        (e) => e instanceof HttpError ? json(res, e.status, { error: e.message, ...e.extra }) : json(res, 400, { error: e.message })
+      );
+    }
+  };
   return {
     handle(req, res) {
       const url = new URL(req.url ?? "/", "http://localhost");
@@ -8772,24 +8846,29 @@ data: ${data}
           json(res, 400, { error: `not a diagram name: ${name}` });
           return true;
         }
-        const path = name === opened ? displayPath : name;
+        const path = name === opened ? displayPath : join3(dirname2(displayPath), name);
         void load(join3(dir, name), name, path).then((payload) => json(res, 200, payload));
         return true;
       }
       if (url.pathname === "/api/layout") {
         const name = url.searchParams.get("file") ?? opened;
-        if (req.method !== "PUT") {
-          json(res, 405, { error: "use PUT" });
-        } else if (!isDiagramName(name)) {
-          json(res, 400, { error: `not a diagram name: ${name}` });
-        } else if (!sameOrigin(req) || !String(req.headers["content-type"] ?? "").startsWith("application/json")) {
-          json(res, 403, { error: "forbidden" });
-        } else {
-          void saveLayout(req, join3(dir, layoutFileName(name))).then(
-            () => json(res, 200, { ok: true }),
-            (e) => json(res, 400, { error: e.message })
-          );
-        }
+        write(req, res, name, ["PUT"], () => saveLayout(req, join3(dir, layoutFileName(name))));
+        return true;
+      }
+      if (url.pathname === "/api/draft") {
+        const name = url.searchParams.get("file") ?? opened;
+        write(
+          req,
+          res,
+          name,
+          ["PUT", "DELETE"],
+          () => req.method === "PUT" ? saveDraft(req, dir, name) : unlink(join3(dir, draftFileName(name))).catch(() => void 0)
+        );
+        return true;
+      }
+      if (url.pathname === "/api/save") {
+        const name = url.searchParams.get("file") ?? opened;
+        write(req, res, name, ["POST"], () => saveDiagram(dir, name));
         return true;
       }
       if (url.pathname === "/api/files") {
@@ -8819,12 +8898,14 @@ data: ${data}
   };
 }
 async function listDiagrams(dir, opened) {
-  let names;
+  let all;
   try {
-    names = (await readdir(dir)).filter(isDiagramName);
+    all = await readdir(dir);
   } catch {
-    names = [];
+    all = [];
   }
+  const names = all.filter(isDiagramName);
+  const drafts = new Set(all);
   const entries = await Promise.all(
     names.map(async (file) => {
       const text = await readSafe(join3(dir, file));
@@ -8836,33 +8917,73 @@ async function listDiagrams(dir, opened) {
         mode = subject?.mode;
       } catch {
       }
-      return { file, title, mode, opened: file === opened };
+      return { file, title, mode, opened: file === opened, draft: drafts.has(draftFileName(file)) };
     })
   );
   return entries.sort((a, b) => Number(b.opened) - Number(a.opened) || a.title.localeCompare(b.title));
 }
 async function saveLayout(req, target) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > MAX_LAYOUT_BYTES) throw new Error("layout too large");
-    chunks.push(chunk);
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    throw new Error("not JSON");
-  }
-  const layout = parseLayout(parsed);
+  const layout = parseLayout(await readJsonBody(req, MAX_LAYOUT_BYTES));
   if (!layout) throw new Error("not a layout");
   if (Object.keys(layout.levels).length === 0) {
     await unlink(target).catch(() => void 0);
     return;
   }
+  await writeAtomic(target, formatLayout(layout));
+}
+async function saveDraft(req, dir, name) {
+  const target = join3(dir, draftFileName(name));
+  const body = await readJsonBody(req, MAX_DRAFT_BYTES);
+  const existing = await readDraft(target);
+  const original = existing?.original ?? await readSafe(join3(dir, name));
+  if (original === null) throw new HttpError(404, `cannot read ${name}`);
+  const draft = parseDraft({ original, doc: body });
+  if (!draft) throw new Error("not a diagram");
+  await writeAtomic(target, JSON.stringify(draft, null, 2) + "\n");
+}
+async function saveDiagram(dir, name) {
+  const draftPath = join3(dir, draftFileName(name));
+  const draft = await readDraft(draftPath);
+  if (!draft) throw new HttpError(404, "there are no edits to save");
+  const result = validate(draft.doc);
+  if (!result.valid) throw new HttpError(400, "the edited diagram has errors", { issues: result.issues });
+  const target = join3(dir, name);
+  const current = await readSafe(target);
+  let review = null;
+  if (current !== null && current !== draft.original) {
+    review = reviewFileName(name);
+    await writeAtomic(join3(dir, review), current);
+  }
+  await writeAtomic(target, JSON.stringify(draft.doc, null, 2) + "\n");
+  await unlink(draftPath).catch(() => void 0);
+  return { ok: true, review };
+}
+async function readDraft(path) {
+  const text = await readSafe(path);
+  if (text === null) return null;
+  try {
+    return parseDraft(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+async function readJsonBody(req, limit) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new HttpError(413, "request too large");
+    chunks.push(chunk);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new Error("not JSON");
+  }
+}
+async function writeAtomic(target, text) {
   const temp = `${target}.${process.pid}.tmp`;
-  await writeFile(temp, formatLayout(layout));
+  await writeFile(temp, text);
   await rename(temp, target);
 }
 function sameOrigin(req) {
@@ -8898,11 +9019,30 @@ async function load(absolute, file, displayPath) {
       doc: null,
       valid: false,
       issues: [{ level: "error", code: "read", path: "/", message: `cannot read ${displayPath}` }],
-      layout: null
+      layout: null,
+      draft: await loadDraft(absolute, null),
+      review: await reviewOf(absolute)
     };
   }
   const layout = await loadLayout(absolute);
-  return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues, layout };
+  const draft = await loadDraft(absolute, text);
+  const review = await reviewOf(absolute);
+  return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues, layout, draft, review };
+}
+async function loadDraft(absolute, current) {
+  const draft = await readDraft(join3(dirname2(absolute), draftFileName(basename2(absolute))));
+  if (!draft) return null;
+  let original = null;
+  try {
+    original = JSON.parse(draft.original);
+  } catch {
+    original = null;
+  }
+  return { doc: draft.doc, original, changedOnDisk: current !== draft.original };
+}
+async function reviewOf(absolute) {
+  const name = reviewFileName(basename2(absolute));
+  return await readSafe(join3(dirname2(absolute), name)) === null ? null : name;
 }
 async function readSafe(path) {
   try {
