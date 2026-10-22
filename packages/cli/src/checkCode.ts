@@ -17,6 +17,7 @@ export function checkCode(doc: LogicDoc, repoRoot: string): Issue[] {
     if (type.code) refs.push({ at: name, code: type.code });
     collect(type.body?.nodes ?? [], `${name}/`);
   }
+  for (const [name, info] of Object.entries(doc.typeInfo ?? {})) if (info.code) refs.push({ at: `typeInfo/${name}`, code: info.code });
 
   const issues: Issue[] = [];
   const contents = new Map<string, string | null>();

@@ -53,6 +53,24 @@ describe('logic-builder validate', () => {
     const stale = report.issues.filter((i: { code: string }) => i.code === 'stale-code').map((i: { path: string }) => i.path);
     expect(stale.sort()).toEqual(['gone', 'renamed']);
   });
+
+  it('--check-code warns on a stale typeInfo code', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(join(tmpdir(), 'lb-typeinfo-'));
+    const doc = {
+      version: '0.1',
+      subject: { id: 'ti', title: 'Type info', intent: 'Check typeInfo code', mode: 'understand' },
+      types: { Session: { id: 'string' }, Gone: { id: 'string' } },
+      typeInfo: { Session: { code: { file: 'src/session.ts', symbol: 'readSession' } }, Gone: { code: { file: 'src/session.ts', symbol: 'NoSuchType' } } },
+      nodes: [],
+      wires: [],
+    };
+    writeFileSync(join(dir, 'ti.logic.json'), JSON.stringify(doc));
+    const { out } = await cli('validate', join(dir, 'ti.logic.json'), '--check-code', codeRepo, '--json');
+    const stale = JSON.parse(out).issues.filter((i: { code: string }) => i.code === 'stale-code').map((i: { path: string }) => i.path);
+    expect(stale).toEqual(['typeInfo/Gone']);
+  });
 });
 
 describe('logic-builder validate — links between diagrams', () => {

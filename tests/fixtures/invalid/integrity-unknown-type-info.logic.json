@@ -1,0 +1,8 @@
+{
+  "version": "0.1",
+  "subject": { "id": "type-info", "title": "Type info", "intent": "A typeInfo key that is not a type", "mode": "understand" },
+  "types": { "Booking": { "id": "string" } },
+  "typeInfo": { "Nope": { "desc": "Explains a type that does not exist." } },
+  "nodes": [{ "id": "a", "kind": "function", "label": "A", "outputs": { "b": "Booking" } }],
+  "wires": []
+}

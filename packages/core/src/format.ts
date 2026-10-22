@@ -60,6 +60,8 @@ export interface LogicNode {
   context?: Record<string, unknown>;
   /** state only */
   valueType?: TypeExpr;
+  /** state only: where the data lives and how long it lasts, e.g. "Zustand store · lost on reload". */
+  store?: string;
   /** instance only */
   of?: string;
   /** group only; false marks an unexplored group */
@@ -115,6 +117,15 @@ export interface BlockType {
   body?: Body;
 }
 
+/** What a named type means and where it is defined in code. */
+export interface TypeInfo {
+  desc?: string;
+  code?: CodeRef;
+  /** Set when the type was changed in Design mode; `before` holds the old expression. */
+  change?: 'modified';
+  before?: TypeExpr;
+}
+
 export type Severity = 'high' | 'medium' | 'low';
 
 export interface Risk {
@@ -142,6 +153,8 @@ export interface LogicDoc {
   version: string;
   subject: Subject;
   types?: Record<string, TypeExpr>;
+  /** Keyed by names in `types`. A separate map, so struct types keep any field names. */
+  typeInfo?: Record<string, TypeInfo>;
   blockTypes?: Record<string, BlockType>;
   nodes: LogicNode[];
   wires: Wire[];

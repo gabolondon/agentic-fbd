@@ -35,8 +35,47 @@ export function checkIntegrity(doc: LogicDoc): Issue[] {
   checkRisks(doc, root, issues);
   checkFocus(doc, root, issues);
   checkTypeNames(doc, types, issues);
+  checkTypeInfo(doc, types, issues);
+  checkStores(doc, issues);
   checkExplanations(doc, issues);
   return issues;
+}
+
+function checkTypeInfo(doc: LogicDoc, types: Record<string, TypeExpr>, issues: Issue[]): void {
+  for (const name of Object.keys(doc.typeInfo ?? {})) {
+    if (!(name in types)) err(issues, 'unknown-type-info', `typeInfo/${name}`, `typeInfo "${name}" describes a type that is not in "types"`);
+  }
+}
+
+/** Each state should say where its data lives; a new state should not copy an existing one. */
+function checkStores(doc: LogicDoc, issues: Issue[]): void {
+  const noStore: string[] = [];
+  const visit = (nodes: LogicNode[], prefix: string): void => {
+    const states = nodes.filter((n) => n.kind === 'state');
+    for (const n of states) if (n.store === undefined) noStore.push(prefix + n.id);
+    const shown = (n: LogicNode): string | undefined => (n.valueType === undefined ? undefined : typeToString(parseType(n.valueType)));
+    const existing = states.filter((n) => n.change !== 'new' && n.change !== 'removed');
+    for (const n of states.filter((s) => s.change === 'new')) {
+      const type = shown(n);
+      const twin = type === undefined ? undefined : existing.find((e) => shown(e) === type);
+      if (!twin) continue;
+      issues.push({
+        level: 'notice',
+        code: 'similar-store',
+        path: prefix + n.id,
+        message: `new state "${prefix + n.id}" holds the same type as existing "${prefix + twin.id}"; reuse it if it holds the same data`,
+      });
+    }
+  };
+  visit(doc.nodes, '');
+  for (const [name, type] of Object.entries(doc.blockTypes ?? {})) visit(type.body?.nodes ?? [], `${name}/`);
+  if (noStore.length) {
+    issues.push({ level: 'notice', code: 'missing-store', path: noStore[0]!, message: `${noStore.length} state(s) have no "store" (where the data lives): ${listIds(noStore)}` });
+  }
+}
+
+function listIds(ids: string[]): string {
+  return ids.length > 6 ? `${ids.slice(0, 6).join(', ')} and ${ids.length - 6} more` : ids.join(', ');
 }
 
 /** Kinds whose inner workings deserve a step-by-step `logic` guide. */
@@ -59,7 +98,7 @@ function checkExplanations(doc: LogicDoc, issues: Issue[]): void {
     if (!type.logic) noLogic.push(name);
     visit(type.body?.nodes ?? [], `${name}/`);
   }
-  const list = (ids: string[]): string => (ids.length > 6 ? `${ids.slice(0, 6).join(', ')} and ${ids.length - 6} more` : ids.join(', '));
+  const list = listIds;
   if (noDesc.length) {
     issues.push({ level: 'notice', code: 'missing-desc', path: noDesc[0]!, message: `${noDesc.length} block(s) have no "desc" (what it does): ${list(noDesc)}` });
   }

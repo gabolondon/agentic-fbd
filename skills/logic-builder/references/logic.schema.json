@@ -27,6 +27,13 @@
         "$ref": "#/$defs/typeExpr"
       }
     },
+    "typeInfo": {
+      "type": "object",
+      "description": "What a named type means and where it is defined. Keys must be names in \"types\".",
+      "additionalProperties": {
+        "$ref": "#/$defs/typeInfo"
+      }
+    },
     "blockTypes": {
       "type": "object",
       "additionalProperties": {
@@ -123,6 +130,24 @@
         "symbol": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "typeInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "desc": {
+          "type": "string"
+        },
+        "code": {
+          "$ref": "#/$defs/codeRef"
+        },
+        "change": {
+          "const": "modified"
+        },
+        "before": {
+          "$ref": "#/$defs/typeExpr"
         }
       }
     },
@@ -259,6 +284,10 @@
         },
         "valueType": {
           "$ref": "#/$defs/typeExpr"
+        },
+        "store": {
+          "type": "string",
+          "description": "state only: where the data lives and how long it lasts, e.g. \"Zustand store · lost on reload\"."
         },
         "of": {
           "type": "string",

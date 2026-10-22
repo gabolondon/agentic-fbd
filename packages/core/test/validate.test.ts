@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { validate, validateText } from '../src/index.ts';
 import { baseName, examplesDir, invalidDir, listJson, readJson, repoRoot } from './helpers.ts';
 
-const explanationCodes = new Set(['missing-desc', 'missing-logic']);
+const explanationCodes = new Set(['missing-desc', 'missing-logic', 'missing-store', 'similar-store']);
 const typeIssues = (issues: { level: string; code: string }[]) =>
   issues.filter((i) => !explanationCodes.has(i.code)).map((i) => [i.level, i.code]);
 
@@ -89,5 +89,48 @@ describe('validate', () => {
       ['notice', 'missing-desc'],
       ['notice', 'missing-logic'],
     ]);
+  });
+
+  it('accepts store and typeInfo', () => {
+    const doc = {
+      version: '0.1',
+      subject: { id: 's', title: 'S', intent: 'I', mode: 'understand' },
+      types: { Booking: { id: 'string' } },
+      typeInfo: { Booking: { desc: 'd', code: { file: 'a.ts', symbol: 'Booking' } } },
+      nodes: [{ id: 'cart', kind: 'state', label: 'Cart', valueType: 'Booking', store: 'Zustand store · lost on reload' }],
+      wires: [],
+    };
+    const result = validate(doc);
+    expect(result.valid).toBe(true);
+    expect(result.issues.find((i) => i.code === 'missing-store')).toBeUndefined();
+  });
+
+  it('reports a state without store as a notice', () => {
+    const doc = {
+      version: '0.1',
+      subject: { id: 's', title: 'S', intent: 'I', mode: 'understand' },
+      nodes: [{ id: 'cart', kind: 'state', label: 'Cart', valueType: 'string' }],
+      wires: [],
+    };
+    const result = validate(doc);
+    expect(result.valid).toBe(true);
+    expect(result.issues).toContainEqual(expect.objectContaining({ level: 'notice', code: 'missing-store', path: 'cart' }));
+  });
+
+  it('flags a new state that copies an existing one', () => {
+    const doc = {
+      version: '0.1',
+      subject: { id: 's', title: 'S', intent: 'I', mode: 'design' },
+      nodes: [
+        { id: 'draft', kind: 'state', label: 'Draft', valueType: 'Draft', store: 'Zustand store' },
+        { id: 'wizard', kind: 'state', label: 'Wizard', valueType: 'Draft', store: 'Redux store', change: 'new' },
+      ],
+      wires: [],
+    };
+    const result = validate(doc);
+    expect(result.valid).toBe(true);
+    const similar = result.issues.find((i) => i.code === 'similar-store');
+    expect(similar).toMatchObject({ level: 'notice', path: 'wizard' });
+    expect(similar!.message).toBe('new state "wizard" holds the same type as existing "draft"; reuse it if it holds the same data');
   });
 });
