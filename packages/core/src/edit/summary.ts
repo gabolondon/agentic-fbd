@@ -51,6 +51,8 @@ function diffScope(nodes: LogicNode[], wires: Wire[], draftNodes: LogicNode[], d
     if (removedNow.has(before.id)) {
       // A block removed with its group is part of that removal.
       if (before.parent === undefined || !removedNow.has(before.parent)) lines.push(`Removed "${before.label}" (${id})`);
+      // A note says why, so it stays.
+      if (after) lines.push(...noteLines(before.note, after.note, `"${before.label}" (${id})`));
       continue;
     }
     if (!after) continue;
@@ -77,7 +79,6 @@ function diffScope(nodes: LogicNode[], wires: Wire[], draftNodes: LogicNode[], d
     const touchesRemoved = [before.from, before.to].some((e) => removedNow.has(parseEndpoint(e).node));
     if (before.change !== 'removed' && (!after || after.change === 'removed')) {
       if (!touchesRemoved) lines.push(`Removed wire ${before.from} → ${before.to} (${id})`);
-      continue;
     }
     if (after) lines.push(...noteLines(before.note, after.note, `wire ${after.from} → ${after.to} (${id})`));
   }

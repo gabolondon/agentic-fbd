@@ -79,6 +79,13 @@ describe('editLines', () => {
     expect(linesFor(auth(), { op: 'remove', at: at('w7') })).toEqual(['Removed wire t-request.appId → registry.appId (w7)']);
   });
 
+  it('a note on a removed wire stays with the removal', () => {
+    expect(linesFor(auth(), { op: 'setNote', at: at('w7'), value: 'Cached elsewhere now.' }, { op: 'remove', at: at('w7') })).toEqual([
+      'Removed wire t-request.appId → registry.appId (w7)',
+      'Note on wire t-request.appId → registry.appId (w7): Cached elsewhere now.',
+    ]);
+  });
+
   it('notes on a block and a wire', () => {
     expect(
       linesFor(

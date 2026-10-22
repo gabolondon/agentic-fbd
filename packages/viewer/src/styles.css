@@ -1603,3 +1603,34 @@ textarea.lb-input {
   text-align: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
+
+/* ---- Wire and selection panels, copy references (phase 2e) ----------------------------------- */
+
+.lb-copy {
+  position: absolute;
+  top: 9px;
+  right: 40px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.lb-copy:hover {
+  color: var(--sel);
+  border-color: var(--sel);
+}
+
+.lb-panel code.lb-wire-title {
+  font-size: 13px;
+  background: none;
+  padding: 0;
+}
+
+.lb-selection {
+  margin: 6px 0 12px;
+  padding-left: 18px;
+}

@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import {
+  copyReference,
   describeType,
+  typedItem,
   type Edit,
+  type ItemRef,
   type LogicDoc,
   type LogicGuide,
   type LogicNode,
@@ -9,11 +12,12 @@ import {
   type Risk,
   type TriggerSource,
   type ViewMode,
+  type ViewEdge,
   type ViewNode,
   type ViewPath,
 } from '@logic-builder/core';
 import { findNode, instancesOf, risksFor } from '../state/lookup.ts';
-import { DataBox } from './DataBox.tsx';
+import { DataBox, DataRow } from './DataBox.tsx';
 import { EditableText } from './Editable.tsx';
 import { KIND_LABEL } from './nodes.tsx';
 
@@ -21,6 +25,10 @@ export type Panel =
   | { type: 'node'; node: ViewNode }
   | { type: 'unexplored'; node: ViewNode }
   | { type: 'risks' }
+  /** A wire of the level on screen; `scope` is that level's scope. */
+  | { type: 'wire'; edge: ViewEdge; scope: string }
+  /** Several blocks selected on the canvas. */
+  | { type: 'selection'; refs: ItemRef[] }
   | null;
 
 interface Props {
@@ -55,6 +63,8 @@ export function SidePanel(props: Props) {
           {panel.type === 'risks' && <RisksPanel {...props} />}
           {panel.type === 'node' && <NodePanel key={panel.node.id} {...props} node={panel.node} />}
           {panel.type === 'unexplored' && <UnexploredPanel {...props} node={panel.node} />}
+          {panel.type === 'wire' && <WirePanel key={panel.edge.wireIds[0]} {...props} edge={panel.edge} scope={panel.scope} />}
+          {panel.type === 'selection' && <SelectionPanel {...props} refs={panel.refs} />}
         </div>
       )}
     </aside>
@@ -215,7 +225,32 @@ function countInside(nodes: LogicNode[], id: string): number {
 
 const CHANGE_TAG: Record<string, string> = { new: 'new', modified: 'modified', removed: 'removed', affected: 'affected' };
 
-function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSelect, edit, original }: Props & { node: ViewNode }) {
+/** Copies text, and says so for a moment. */
+function useCopy(): [boolean, (text: string) => void] {
+  const [copied, setCopied] = useState(false);
+  const copy = (text: string): void => {
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      },
+      () => setCopied(false),
+    );
+  };
+  return [copied, copy];
+}
+
+/** The icon in a panel header that copies a reference to the block or wire for a prompt. */
+function CopyReference({ doc, filePath, target }: { doc: LogicDoc; filePath: string; target: ItemRef }) {
+  const [copied, copy] = useCopy();
+  return (
+    <button className="lb-copy" aria-label="Copy reference for agent" title="Copy reference for agent" onClick={() => copy(copyReference(doc, filePath, [target]))}>
+      {copied ? 'Copied' : '⧉'}
+    </button>
+  );
+}
+
+function NodePanel({ node, doc, filePath, mode, showChanges, onNavigate, onOpenLink, onSelect, edit, original }: Props & { node: ViewNode }) {
   if (!node.ref) {
     return (
       <>
@@ -248,6 +283,7 @@ function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSel
   return (
     <>
       <div className="lb-kind">{KIND_LABEL[source.kind]}</div>
+      <CopyReference doc={doc} filePath={filePath} target={at} />
       <h3>
         <EditableText value={source.label} label="Block name" onCommit={canEdit ? (value) => commit({ op: 'setLabel', at, value }) : undefined} />
         {mark && <span className={`lb-tag lb-tag-${mark}`}>{CHANGE_TAG[mark]}</span>}
@@ -342,6 +378,76 @@ function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSel
   );
 }
 
+/** A wire: what it carries, a note for the agent, and remove or restore (design spec §6.9). */
+function WirePanel({ edge, scope, doc, filePath, mode, showChanges, edit, original }: Props & { edge: ViewEdge; scope: string }) {
+  const items = scope ? doc.blockTypes?.[scope]?.body : doc;
+  const wire = items?.wires.find((w) => w.id === edge.wireIds[0]);
+  if (!wire) return null;
+  const at = { scope, id: wire.id };
+  const removed = wire.change === 'removed';
+  const canEdit = mode === 'after' && !removed;
+  const was = (scope ? original?.blockTypes?.[scope]?.body : original)?.wires.find((w) => w.id === wire.id);
+  const restorable = mode === 'after' && removed && !!was && was.change !== 'removed';
+  const mark = showChanges && (wire.change === 'new' || wire.change === 'modified' || wire.change === 'removed') ? wire.change : undefined;
+  const item = edge.type === undefined ? null : typedItem(doc, 'value', edge.type);
+  return (
+    <>
+      <div className="lb-kind">Wire</div>
+      <CopyReference doc={doc} filePath={filePath} target={at} />
+      <h3>
+        <code className="lb-wire-title">
+          {wire.from} → {wire.to}
+        </code>
+        {mark && <span className={`lb-tag lb-tag-${mark}`}>{CHANGE_TAG[mark]}</span>}
+      </h3>
+      {item && (
+        <section className="lb-data lb-data-open">
+          <div className="lb-data-body">
+            <h4>Carries</h4>
+            <DataRow item={item} />
+          </div>
+        </section>
+      )}
+      {wire.op && (
+        <section>
+          <h4>Operation</h4>
+          {wire.op === 'read' ? 'Reads the state' : 'Writes the state'}
+        </section>
+      )}
+      {(canEdit || wire.note) && (
+        <section className="lb-note-section">
+          <h4>Note for agent</h4>
+          <EditableText value={wire.note ?? ''} multiline placeholder="Add a note" label="Note for agent" onCommit={canEdit ? (value) => edit({ op: 'setNote', at, value }) : undefined} />
+        </section>
+      )}
+      {(canEdit || restorable) && (
+        <RemoveFooter inside={0} restorable={restorable} onRemove={canEdit ? () => edit({ op: 'remove', at }) : undefined} onRestore={() => edit({ op: 'restore', at })} />
+      )}
+    </>
+  );
+}
+
+/** Several blocks selected on the canvas: one reference for all of them. */
+function SelectionPanel({ refs, doc, filePath }: Props & { refs: ItemRef[] }) {
+  const [copied, copy] = useCopy();
+  const labels = refs.map((r) => findNode(doc, r.scope, r.id)?.label ?? r.id);
+  return (
+    <>
+      <div className="lb-kind">Selection</div>
+      <h3>{refs.length} blocks selected</h3>
+      <ul className="lb-selection">
+        {labels.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ul>
+      <button className="lb-button" onClick={() => copy(copyReference(doc, filePath, refs))}>
+        {copied ? 'Copied' : 'Copy for agent'}
+      </button>
+      <p className="lb-muted">Copies the file and one line per block, to point the agent at them in a prompt.</p>
+    </>
+  );
+}
+
 function UnexploredPanel({ node, doc, filePath }: Props & { node: ViewNode }) {
   const [copied, setCopied] = useState(false);
   const source = node.ref ? findNode(doc, node.ref.scope, node.ref.id) : undefined;
@@ -361,14 +467,14 @@ function UnexploredPanel({ node, doc, filePath }: Props & { node: ViewNode }) {
       <div className="lb-kind">Unexplored group</div>
       <h3>{node.label}</h3>
       {source?.desc && <p className="lb-desc">{source.desc}</p>}
-      <p className="lb-muted">This part hasn't been explored yet. Ask Claude to explain it and this level will fill in here.</p>
+      <p className="lb-muted">This part hasn't been explored yet. Ask the agent to explain it and this level will fill in here.</p>
       <PortList title="Inputs" ports={source?.inputs} doc={doc} />
       <PortList title="Outputs" ports={source?.outputs} doc={doc} />
       <section>
-        <h4>Request for Claude</h4>
+        <h4>Request for the agent</h4>
         <code className="lb-request">{request}</code>
         <button className="lb-button" onClick={() => void copy()}>
-          {copied ? 'Copied' : 'Copy request for Claude'}
+          {copied ? 'Copied' : 'Copy for agent'}
         </button>
       </section>
     </>

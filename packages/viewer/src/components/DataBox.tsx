@@ -165,7 +165,7 @@ function typeLabel(item: DataItem): string {
 }
 
 /** One port or state. `side` is set when the item is a port of the selected block. */
-function DataRow({ item, side }: { item: DataItem; side?: Side }) {
+export function DataRow({ item, side }: { item: DataItem; side?: Side }) {
   const editing = useContext(EditContext);
   const [open, setOpen] = useState(false);
   const port = editing && side ? { ...editing.at, side } : null;

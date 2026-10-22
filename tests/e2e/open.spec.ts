@@ -78,7 +78,7 @@ test('renders the understand example and its unexplored panel', async ({ page })
   try {
     await page.goto(opened.url);
     await rendered(page).filter({ hasText: 'Authorization' }).first().dblclick();
-    await expect(page.getByText('Copy request for Claude')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copy for agent' })).toBeVisible();
     await expect(page.locator('.lb-request')).toContainText('Explain "Authorization" (authz)');
     expect(errors).toEqual([]);
   } finally {
@@ -206,26 +206,28 @@ test('drags a block, saves where it was put, and lays the level out again on req
 test('selects several blocks and moves them together', async ({ page }) => {
   const opened = await open(join(examples, 'auth-gate.logic.json'));
   const errors = trackErrors(page);
-  const served = page.locator('.react-flow__node[data-id="served"]');
-  const denied = page.locator('.react-flow__node[data-id="denied"]');
-  const at = (block: typeof served) => block.evaluate((el) => (el as HTMLElement).style.transform);
+  // Blocks on the left, so the side panel that opens on the first click never hides them.
+  const first = page.locator('.react-flow__node[data-id="t-request"]');
+  const second = page.locator('.react-flow__node[data-id="registry"]');
+  const at = (block: typeof first) => block.evaluate((el) => (el as HTMLElement).style.transform);
   try {
     await page.goto(opened.url);
-    await expect(served).toBeVisible();
+    await expect(first).toBeVisible();
     await settle(page);
-    const [servedStart, deniedStart] = [await at(served), await at(denied)];
+    const [firstStart, secondStart] = [await at(first), await at(second)];
 
-    await served.click({ position: { x: 20, y: 10 } });
-    await denied.click({ position: { x: 20, y: 10 }, modifiers: ['Shift'] });
+    await first.click({ position: { x: 20, y: 10 } });
+    await second.click({ position: { x: 20, y: 10 }, modifiers: ['Shift'] });
     await expect(page.locator('.react-flow__node.selected')).toHaveCount(2);
+    await settle(page);
 
-    const box = (await served.boundingBox())!;
+    const box = (await first.boundingBox())!;
     await page.mouse.move(box.x + 20, box.y + 10);
     await page.mouse.down();
     await page.mouse.move(box.x + 20, box.y + 210, { steps: 8 });
     await page.mouse.up();
-    expect(await at(served)).not.toBe(servedStart);
-    expect(await at(denied)).not.toBe(deniedStart);
+    expect(await at(first)).not.toBe(firstStart);
+    expect(await at(second)).not.toBe(secondStart);
 
     // Esc clears the selection before anything else.
     await page.keyboard.press('Escape');
@@ -407,6 +409,71 @@ test('no pencils in the Before view', async ({ page }) => {
     await pick(page, 'review');
     await expect(page.locator('.lb-panel h3')).toHaveText(/^Review/);
     await expect(page.locator('.lb-panel .lb-pencil')).toHaveCount(0);
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('clicking a wire opens its panel and copies its reference', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const errors = trackErrors(page);
+  try {
+    await page.goto(`${opened.url}#/`);
+    await page.getByTestId('rf__edge-e:w10').locator('.react-flow__edge-interaction').dispatchEvent('click');
+    await expect(page.locator('.lb-panel .lb-kind')).toHaveText('Wire');
+    await expect(page.locator('.lb-panel h3')).toContainText('proxy.response → served.response');
+    await page.getByRole('button', { name: 'Copy reference for agent' }).click();
+    await expect(page.getByRole('button', { name: 'Copy reference for agent' })).toHaveText('Copied');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${opened.file}\n- wire w10: proxy.response → served.response (Response)`);
+    expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('copies a reference for several selected blocks', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  try {
+    await page.goto(`${opened.url}#/`);
+    await settle(page);
+    await page.locator('.react-flow__node[data-id="t-request"]').click({ position: { x: 20, y: 10 } });
+    await page.locator('.react-flow__node[data-id="registry"]').click({ position: { x: 20, y: 10 }, modifiers: ['Shift'] });
+    await expect(page.locator('.lb-panel h3')).toHaveText('2 blocks selected');
+    await page.locator('.lb-panel').getByRole('button', { name: 'Copy for agent' }).click();
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    expect(text.split('\n')).toEqual([opened.file, '- "Request to an app" (id: t-request, trigger)', '- "App registry" (id: registry, group)']);
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('removes a wire and leaves a note on it', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const bar = page.locator('.lb-editbar');
+  try {
+    await page.goto(`${opened.url}#/`);
+    await page.getByTestId('rf__edge-e:w10').locator('.react-flow__edge-interaction').dispatchEvent('click');
+    await page.locator('.lb-note-section').getByRole('button', { name: 'Edit' }).click();
+    await page.getByRole('textbox', { name: 'Note for agent' }).fill('Stream the response.');
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(bar).toContainText('1 unsaved change');
+    await page.locator('.lb-panel-footer').getByRole('button', { name: 'Remove' }).click();
+    await expect(bar).toContainText('2 unsaved changes');
+    await expect(page.locator('.lb-panel-footer').getByRole('button', { name: 'Restore' })).toBeVisible();
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('the viewer never says Claude', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  try {
+    await page.goto(opened.url);
+    await rendered(page).filter({ hasText: 'Authorization' }).first().dblclick();
+    await expect(page.locator('.lb-request')).toBeVisible();
+    await expect(page.getByText(/Claude/)).toHaveCount(0);
   } finally {
     opened.child.kill();
   }

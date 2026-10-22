@@ -151,7 +151,8 @@ function stateItem(doc: LogicDoc, scope: string, node: EffNode): DataItem {
   return item;
 }
 
-function typedItem(doc: LogicDoc, name: string, type: TypeExpr | undefined): DataItem {
+/** A Data box row for a value of some type: its fields, and its `typeInfo` description and code. */
+export function typedItem(doc: LogicDoc, name: string, type: TypeExpr | undefined): DataItem {
   const item: DataItem = { name, where: '' };
   if (type === undefined) return item;
   item.type = type;

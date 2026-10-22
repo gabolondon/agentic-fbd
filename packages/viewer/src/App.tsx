@@ -297,6 +297,14 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
   const onEdgeEnter: EdgeMouseHandler<LogicFlowEdge> = useCallback((e, edge) => {
     if (edge.data) setTip({ edge: edge.data.view, x: e.clientX, y: e.clientY });
   }, []);
+  // A click selects the wire and opens its panel; a connector stub stands for its wire.
+  const onEdgeClick: EdgeMouseHandler<LogicFlowEdge> = useCallback(
+    (_e, edge) => {
+      setTip(null);
+      if (edge.data && view) setPanel({ type: 'wire', edge: edge.data.view, scope: view.scope });
+    },
+    [view],
+  );
   const onEdgeMove: EdgeMouseHandler<LogicFlowEdge> = useCallback((e, edge) => {
     if (edge.data) setTip({ edge: edge.data.view, x: e.clientX, y: e.clientY });
   }, []);
@@ -355,8 +363,10 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
     setPendingSelect(null);
   }, [pendingSelect, flow, view, fitView, state.file]);
 
-  const selectedId = panel && panel.type !== 'risks' ? panel.node.id : null;
-  const selectedKey = panel && panel.type !== 'risks' && panel.node.ref ? `${panel.node.ref.scope}/${panel.node.ref.id}` : null;
+  const panelNode = panel && (panel.type === 'node' || panel.type === 'unexplored') ? panel.node : null;
+  const selectedId = panelNode ? panelNode.id : null;
+  const selectedKey = panelNode?.ref ? `${panelNode.ref.scope}/${panelNode.ref.id}` : null;
+  const selectedWire = panel?.type === 'wire' ? panel.edge.wireIds[0] : null;
   const hoveredEdge = tip ? tip.edge.id : null;
 
   const nodes = useMemo(
@@ -378,10 +388,10 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
           ...e.data!,
           showChanges,
           hovered: e.id === hoveredEdge,
-          highlighted: e.data!.view.wireIds.some((w) => highlight.has(w)),
+          highlighted: e.data!.view.wireIds.some((w) => highlight.has(w) || w === selectedWire),
         },
       })),
-    [flow.edges, showChanges, hoveredEdge, highlight],
+    [flow.edges, showChanges, hoveredEdge, highlight, selectedWire],
   );
 
   const { edit: applyDocEdit, save: saveDraft, discard } = state;
@@ -406,16 +416,26 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
     return () => clearTimeout(timer);
   }, [saved]);
 
-  // The panel follows the block through edits; a block an edit deleted closes it.
+  // The panel follows the block or wire through edits; one an edit deleted closes it.
   useEffect(() => {
-    if (!doc || !panel || panel.type === 'risks' || !panel.node.ref) return;
-    if (!findNode(doc, panel.node.ref.scope, panel.node.ref.id)) setPanel(null);
+    if (!doc || !panel) return;
+    if ((panel.type === 'node' || panel.type === 'unexplored') && panel.node.ref && !findNode(doc, panel.node.ref.scope, panel.node.ref.id)) setPanel(null);
+    if (panel.type === 'wire') {
+      const wires = panel.scope ? doc.blockTypes?.[panel.scope]?.body?.wires : doc.wires;
+      if (!wires?.some((w) => w.id === panel.edge.wireIds[0])) setPanel(null);
+    }
   }, [doc, panel]);
+  // Several blocks selected: the panel offers one reference for all of them.
+  const selectedRefs = useMemo(
+    () => flow.nodes.flatMap((n) => (n.selected && n.data.view.ref && !n.data.view.connector ? [n.data.view.ref] : [])),
+    [flow.nodes],
+  );
   const shownPanel = useMemo<Panel>(() => {
-    if (!panel || panel.type === 'risks') return panel;
+    if (selectedRefs.length > 1) return { type: 'selection', refs: selectedRefs };
+    if (!panel || (panel.type !== 'node' && panel.type !== 'unexplored')) return panel;
     const live = flow.nodes.find((n) => n.id === panel.node.id)?.data.view;
     return live && live !== panel.node ? { ...panel, node: live } : panel;
-  }, [panel, flow.nodes]);
+  }, [panel, flow.nodes, selectedRefs]);
 
   const openRisks = (doc?.risks ?? []).filter((r) => r.status === 'open').length;
   const errors = state.issues.filter((i) => i.level === 'error');
@@ -525,7 +545,7 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
               onNodeDoubleClick={onNodeDoubleClick}
               // An edge click handler also keeps React Flow from marking edges "inactive"
               // (pointer-events: none) when they are not selectable.
-              onEdgeClick={onEdgeEnter}
+              onEdgeClick={onEdgeClick}
               onEdgeMouseEnter={onEdgeEnter}
               onEdgeMouseMove={onEdgeMove}
               onEdgeMouseLeave={onEdgeLeave}
@@ -562,6 +582,7 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
             mode={mode}
             showChanges={showChanges}
             onClose={() => {
+              selectAll(false);
               setPanel(null);
               setHighlight(new Set());
               setActiveRisk(null);
