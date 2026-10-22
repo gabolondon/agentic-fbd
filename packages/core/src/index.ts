@@ -12,3 +12,4 @@ export * from './model.ts';
 export * from './viewModel/index.ts';
 export * from './layoutFile.ts';
 export { effectiveScope, type EffNode, type EffScope, type EffWire } from './viewModel/effective.ts';
+export * from './data/dataBox.ts';
