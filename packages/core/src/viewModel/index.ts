@@ -1,6 +1,6 @@
 import type { LogicDoc, NodeKind, TypeExpr, WireDraw, WireOp } from '../format.ts';
 import { parseEndpoint } from '../model.ts';
-import { compat, type Compat } from '../types/compat.ts';
+import { compat, namesIn, type Compat } from '../types/compat.ts';
 import { effectiveScope, type EffNode, type EffScope, type Mark, type ViewMode } from './effective.ts';
 
 export type { Mark, ViewMode } from './effective.ts';
@@ -217,6 +217,14 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
   const boxPorts = new Map<string, { inputs: Map<string, BoxPort>; outputs: Map<string, BoxPort> }>();
   const pins = new Map<string, ViewNode>();
   const edges = new Map<string, ViewEdge>();
+  // A wire that carries a type changed in Design mode is affected by that change.
+  const changedTypes = new Set(
+    doc.subject.mode === 'design' && mode === 'after'
+      ? Object.entries(doc.typeInfo ?? {}).flatMap(([name, info]) => (info.change === 'modified' ? [name] : []))
+      : [],
+  );
+  const carriesChanged = (type: TypeExpr | undefined): boolean =>
+    changedTypes.size > 0 && type !== undefined && namesIn(type).some((n) => changedTypes.has(n));
 
   for (const w of eff.wires) {
     const a = parseEndpoint(w.from);
@@ -256,7 +264,7 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
         to: w.to,
         type: fromType ?? toType,
         compat: result,
-        mark: w.mark,
+        mark: w.mark ?? (carriesChanged(fromType ?? toType) ? 'affected' : undefined),
         ghost: w.ghost,
         op: w.op,
         draw: w.wire.draw,

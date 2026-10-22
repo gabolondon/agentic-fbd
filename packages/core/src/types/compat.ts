@@ -31,11 +31,16 @@ export function describeType(expr: TypeExpr, types: TypeTable = {}): string {
 
 /** Names used in an expression that are neither primitives nor defined in `types`. */
 export function undefinedNames(expr: TypeExpr, types: TypeTable): string[] {
+  return namesIn(expr).filter((name) => !(name in types));
+}
+
+/** Every type name an expression mentions, e.g. "Record<QuestionId, Answer>" → QuestionId, Answer. */
+export function namesIn(expr: TypeExpr): string[] {
   const out = new Set<string>();
   const walk = (t: TypeNode): void => {
     switch (t.k) {
       case 'name':
-        if (!(t.name in types)) out.add(t.name);
+        out.add(t.name);
         return;
       case 'array':
       case 'opt':

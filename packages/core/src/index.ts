@@ -7,7 +7,7 @@ export { validateSchema } from './validate/schema.ts';
 export { checkIntegrity } from './validate/integrity.ts';
 export { validate, validateText, type ValidationResult } from './validate/index.ts';
 export { parseType, typeToString, type TypeNode, type Primitive } from './types/parse.ts';
-export { compat, describeType, undefinedNames, type Compat, type TypeTable } from './types/compat.ts';
+export { compat, describeType, namesIn, undefinedNames, type Compat, type TypeTable } from './types/compat.ts';
 export * from './model.ts';
 export * from './viewModel/index.ts';
 export * from './layoutFile.ts';

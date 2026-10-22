@@ -284,3 +284,15 @@ describe('buildView — connectors', () => {
     expect(lines.edges.find((e) => e.wireIds.includes('w1'))!.target).toBe('db');
   });
 });
+
+describe('buildView — types changed in Design mode', () => {
+  it('an edge carrying a modified type is marked affected', () => {
+    const doc = structuredClone(understand);
+    doc.subject.mode = 'design';
+    doc.typeInfo = { ...doc.typeInfo, Session: { ...doc.typeInfo!.Session, change: 'modified', before: { uid: 'string' } } };
+    const v = buildView(doc, ['auth'], 'after');
+    expect(edgeFor(v, 'w3')!.mark).toBe('affected');
+    expect(edgeFor(v, 'w2')!.mark).toBeUndefined();
+    expect(edgeFor(buildView(doc, ['auth'], 'before'), 'w3')!.mark).toBeUndefined();
+  });
+});

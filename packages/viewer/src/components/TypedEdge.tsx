@@ -22,7 +22,7 @@ export function edgeTone(data: EdgeData): string {
   if (v.compat === 'error') return 'lb-edge-error';
   if (v.compat === 'warning') return 'lb-edge-warning';
   if (data.showChanges && v.mark === 'new') return 'lb-edge-new';
-  if (data.showChanges && v.mark === 'modified') return 'lb-edge-modified';
+  if (data.showChanges && (v.mark === 'modified' || v.mark === 'affected')) return 'lb-edge-modified';
   return 'lb-edge-plain';
 }
 
