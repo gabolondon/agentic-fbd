@@ -72,10 +72,16 @@ export function buildTree(doc: LogicDoc): TreeItem[] {
 
 /** Where a file-root node is shown: the tree item to open for a link like "file#id". */
 export function locateNode(doc: LogicDoc, id: string): TreeItem | undefined {
+  return locateRef(doc, '', id);
+}
+
+/** The first tree item showing a node of the file root ('' scope) or of a blockType body. */
+export function locateRef(doc: LogicDoc, scope: string, id: string): TreeItem | undefined {
+  const matches = (key: string): boolean => (scope ? key.endsWith(`|${scope}/${id}`) : key === `|${id}`);
   const stack = [...buildTree(doc)];
   while (stack.length) {
     const item = stack.shift()!;
-    if (item.key === `|${id}`) return item;
+    if (matches(item.key)) return item;
     stack.push(...item.children);
   }
   return undefined;

@@ -7489,6 +7489,13 @@ var logic_schema_default = {
         $ref: "#/$defs/typeExpr"
       }
     },
+    typeInfo: {
+      type: "object",
+      description: 'What a named type means and where it is defined. Keys must be names in "types".',
+      additionalProperties: {
+        $ref: "#/$defs/typeInfo"
+      }
+    },
     blockTypes: {
       type: "object",
       additionalProperties: {
@@ -7585,6 +7592,24 @@ var logic_schema_default = {
         symbol: {
           type: "string",
           minLength: 1
+        }
+      }
+    },
+    typeInfo: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        desc: {
+          type: "string"
+        },
+        code: {
+          $ref: "#/$defs/codeRef"
+        },
+        change: {
+          const: "modified"
+        },
+        before: {
+          $ref: "#/$defs/typeExpr"
         }
       }
     },
@@ -7721,6 +7746,10 @@ var logic_schema_default = {
         },
         valueType: {
           $ref: "#/$defs/typeExpr"
+        },
+        store: {
+          type: "string",
+          description: 'state only: where the data lives and how long it lasts, e.g. "Zustand store \xB7 lost on reload".'
         },
         of: {
           type: "string",
@@ -8246,8 +8275,43 @@ function checkIntegrity(doc) {
   checkRisks(doc, root, issues);
   checkFocus(doc, root, issues);
   checkTypeNames(doc, types, issues);
+  checkTypeInfo(doc, types, issues);
+  checkStores(doc, issues);
   checkExplanations(doc, issues);
   return issues;
+}
+function checkTypeInfo(doc, types, issues) {
+  for (const name of Object.keys(doc.typeInfo ?? {})) {
+    if (!(name in types)) err(issues, "unknown-type-info", `typeInfo/${name}`, `typeInfo "${name}" describes a type that is not in "types"`);
+  }
+}
+function checkStores(doc, issues) {
+  const noStore = [];
+  const visit = (nodes, prefix) => {
+    const states = nodes.filter((n) => n.kind === "state");
+    for (const n of states) if (n.store === void 0) noStore.push(prefix + n.id);
+    const shown = (n) => n.valueType === void 0 ? void 0 : typeToString(parseType(n.valueType));
+    const existing = states.filter((n) => n.change !== "new" && n.change !== "removed");
+    for (const n of states.filter((s) => s.change === "new")) {
+      const type = shown(n);
+      const twin = type === void 0 ? void 0 : existing.find((e) => shown(e) === type);
+      if (!twin) continue;
+      issues.push({
+        level: "notice",
+        code: "similar-store",
+        path: prefix + n.id,
+        message: `new state "${prefix + n.id}" holds the same type as existing "${prefix + twin.id}"; reuse it if it holds the same data`
+      });
+    }
+  };
+  visit(doc.nodes, "");
+  for (const [name, type] of Object.entries(doc.blockTypes ?? {})) visit(type.body?.nodes ?? [], `${name}/`);
+  if (noStore.length) {
+    issues.push({ level: "notice", code: "missing-store", path: noStore[0], message: `${noStore.length} state(s) have no "store" (where the data lives): ${listIds(noStore)}` });
+  }
+}
+function listIds(ids) {
+  return ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", ");
 }
 var NEEDS_LOGIC = /* @__PURE__ */ new Set(["function", "decision"]);
 function checkExplanations(doc, issues) {
@@ -8266,7 +8330,7 @@ function checkExplanations(doc, issues) {
     if (!type.logic) noLogic.push(name);
     visit(type.body?.nodes ?? [], `${name}/`);
   }
-  const list = (ids) => ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", ");
+  const list = listIds;
   if (noDesc.length) {
     issues.push({ level: "notice", code: "missing-desc", path: noDesc[0], message: `${noDesc.length} block(s) have no "desc" (what it does): ${list(noDesc)}` });
   }
@@ -8569,6 +8633,7 @@ function checkCode(doc, repoRoot) {
     if (type.code) refs.push({ at: name, code: type.code });
     collect(type.body?.nodes ?? [], `${name}/`);
   }
+  for (const [name, info] of Object.entries(doc.typeInfo ?? {})) if (info.code) refs.push({ at: `typeInfo/${name}`, code: info.code });
   const issues = [];
   const contents = /* @__PURE__ */ new Map();
   for (const { at, code: code2 } of refs) {

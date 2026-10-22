@@ -207,13 +207,24 @@ function fieldsOf(t: TypeNode, types: TypeTable, seen: Set<string>, depth: numbe
       return fieldsOf(parseType(def), types, new Set(seen).add(t.name), depth);
     }
     case 'struct':
-      return Object.entries(t.fields).map(([name, f]) => {
-        const field: DataField = { name, type: typeToString(f) };
-        const inner = fieldsOf(f, types, seen, depth + 1);
-        if (inner) field.fields = inner;
-        return field;
-      });
+      return Object.entries(t.fields).map(([name, f]) => field(name, f, types, seen, depth));
+    // A map of objects shows one row for its values; a union of objects one row per option.
+    case 'record': {
+      const row = field(`[${typeToString(t.key)}]`, t.value, types, seen, depth);
+      return row.fields ? [row] : undefined;
+    }
+    case 'union': {
+      const rows = t.options.map((o, i) => field(`option ${i + 1}`, o, types, seen, depth));
+      return rows.some((r) => r.fields) ? rows : undefined;
+    }
     default:
       return undefined;
   }
+}
+
+function field(name: string, t: TypeNode, types: TypeTable, seen: Set<string>, depth: number): DataField {
+  const row: DataField = { name, type: typeToString(t) };
+  const inner = fieldsOf(t, types, seen, depth + 1);
+  if (inner) row.fields = inner;
+  return row;
 }

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { dataBox, typeFields, type DataBox, type LogicDoc } from '../src/index.ts';
+import { dataBox, typeFields, type DataBox, type LogicDoc, type TypeTable } from '../src/index.ts';
 import { examplesDir, readJson } from './helpers.ts';
 
 const example = (): LogicDoc => structuredClone(readJson(join(examplesDir, 'other-free-text.logic.json')) as LogicDoc);
@@ -125,6 +125,22 @@ describe('typeFields', () => {
     ]);
     expect(typeFields('Trip?', types)).toEqual(typeFields('Trip', types));
     expect(typeFields('string', types)).toBeUndefined();
+  });
+
+  it('shows the values of a record and the options of a union of objects', () => {
+    const types: TypeTable = { Answer: { oneOf: [{ kind: "'option'", optionId: 'number' }, { kind: "'text'", text: 'string' }] }, Answers: 'Record<string, Answer>' };
+    expect(typeFields('Answers', types)).toEqual([
+      {
+        name: '[string]',
+        type: 'Answer',
+        fields: [
+          { name: 'option 1', type: "{ kind: 'option', optionId: number }", fields: [{ name: 'kind', type: "'option'" }, { name: 'optionId', type: 'number' }] },
+          { name: 'option 2', type: "{ kind: 'text', text: string }", fields: [{ name: 'kind', type: "'text'" }, { name: 'text', type: 'string' }] },
+        ],
+      },
+    ]);
+    expect(typeFields("'a' | 'b'", types)).toBeUndefined();
+    expect(typeFields('Record<string, number>', types)).toBeUndefined();
   });
 
   it('stops on recursive types', () => {

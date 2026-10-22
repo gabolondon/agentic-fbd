@@ -1188,3 +1188,161 @@ code {
     z-index: 10;
   }
 }
+
+/* ---- Data box (phase 2d) --------------------------------------------------------------------- */
+
+.lb-panel section.lb-data {
+  margin-top: 16px;
+  border: 1px solid #ddd5f3;
+  background: #f7f4fd;
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+
+.lb-data-head,
+.lb-data-section-head,
+.lb-data-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 6px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.lb-data-head b {
+  color: #5b46a8;
+}
+
+.lb-data-body {
+  padding: 0 4px 6px;
+}
+
+.lb-caret {
+  color: #8a7cc0;
+  font-size: 10px;
+  width: 9px;
+  flex: none;
+}
+
+.lb-data-section {
+  border-top: 1px solid #e8e2f7;
+}
+
+.lb-data-section-head {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6a5aa8;
+}
+
+.lb-data-row {
+  background: #fff;
+  border: 1px solid #ebe6f7;
+  border-radius: 6px;
+  margin: 0 0 5px;
+}
+
+div.lb-data-row-head {
+  cursor: default;
+}
+
+.lb-panel code.lb-data-name {
+  flex: none;
+  background: none;
+  padding: 0;
+  font-weight: 600;
+}
+
+.lb-data-type {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.lb-where {
+  margin-left: auto;
+  flex: none;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #5b46a8;
+  background: #efeafc;
+  border-radius: 9px;
+  padding: 0 7px;
+}
+
+.lb-panel p.lb-data-desc {
+  margin: -2px 8px 6px 21px;
+  color: #4a5161;
+  font-size: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lb-panel .lb-data-row-open p.lb-data-desc {
+  display: block;
+}
+
+.lb-data-row-open .lb-where {
+  white-space: normal;
+}
+
+.lb-data-fields {
+  margin: 0 8px 6px 21px;
+  border-top: 1px dashed #e3ddf3;
+  padding-top: 4px;
+}
+
+.lb-field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  padding: 1px 0;
+}
+
+.lb-field-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  width: 10px;
+  flex: none;
+  color: #8a7cc0;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.lb-field-name {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  white-space: nowrap;
+  flex: none;
+}
+
+.lb-data-code {
+  margin: 0 8px 6px 21px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lb-data-uses {
+  padding: 0 8px 6px 21px;
+}
+
+.lb-panel p.lb-data-more {
+  margin: 6px 6px 2px;
+  font-size: 12px;
+}

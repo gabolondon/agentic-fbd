@@ -25,7 +25,7 @@ import { layoutReadable, type Box, type Layout } from './layout/elk.ts';
 import { applySaved, fitFrames, snapToWires, snapshot } from './layout/arrange.ts';
 import { nodeSize } from './layout/sizes.ts';
 import { readHash, writeHash, type Location } from './state/hash.ts';
-import { locateNode, riskTarget, type TreeItem } from './state/lookup.ts';
+import { locateNode, locateRef, riskTarget, type TreeItem } from './state/lookup.ts';
 import { NavPanel } from './components/NavPanel.tsx';
 import { useDocument, type DocHandle } from './state/useDocument.ts';
 import { flowType, nodeTypes, type LogicFlowNode } from './components/nodes.tsx';
@@ -328,6 +328,15 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
     [navigate],
   );
 
+  /** Shows a block from the side panel: opens its level and selects it. */
+  const selectNode = useCallback(
+    (scope: string, id: string) => {
+      const item = doc ? locateRef(doc, scope, id) : undefined;
+      if (item) onTreeOpen(item);
+    },
+    [doc, onTreeOpen],
+  );
+
   useEffect(() => {
     if (!pendingSelect || !view || flow.key !== flowKey(state.file, view)) return;
     const match = flow.nodes.find((n) => n.data.view.ref?.scope === pendingSelect.scope && n.data.view.ref.id === pendingSelect.id);
@@ -506,6 +515,7 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
             onOpenLink={openLink}
             onRisk={onRisk}
             activeRisk={activeRisk}
+            onSelect={selectNode}
           />
         )}
       </div>

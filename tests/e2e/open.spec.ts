@@ -238,3 +238,34 @@ test('selects several blocks and moves them together', async ({ page }) => {
     opened.child.kill();
   }
 });
+
+test('shows a collapsed Data box with reads and where they live', async ({ page }) => {
+  const doc = JSON.parse(readFileSync(join(examples, 'other-free-text.logic.json'), 'utf8'));
+  doc.nodes.find((n: { id: string }) => n.id === 'answers').store = 'Zustand store · lost on reload';
+  const opened = await open(null, JSON.stringify(doc));
+  const errors = trackErrors(page);
+  const data = page.locator('.lb-data');
+  try {
+    await page.goto(`${opened.url}#/`);
+    await page.locator('.react-flow__node[data-id="review"]').click();
+    await expect(data).toContainText(/Reads \d+/);
+    await expect(page.locator('.lb-data-row')).toHaveCount(0);
+
+    await data.locator('.lb-data-head').click();
+    await data.locator('.lb-data-section-head', { hasText: 'Reads' }).click();
+    const row = data.locator('.lb-data-row').filter({ hasText: 'Zustand store · lost on reload' });
+    await expect(row).toBeVisible();
+    await row.locator('.lb-data-row-head').click();
+    await expect(row.locator('.lb-data-fields')).toBeVisible();
+
+    await page.locator('.react-flow__node[data-id="answers"]').click();
+    await expect(page.locator('.lb-data-row')).toHaveCount(0);
+    await data.locator('.lb-data-head').click();
+    await data.locator('.lb-data-section-head', { hasText: 'Read by' }).click();
+    await data.getByRole('button', { name: 'Review' }).click();
+    await expect(page.locator('.lb-panel h3')).toHaveText(/^Review/);
+    expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});

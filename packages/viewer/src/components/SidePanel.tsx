@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { describeType, type LogicDoc, type LogicGuide, type Ports, type Risk, type ViewMode, type ViewNode, type ViewPath } from '@logic-builder/core';
 import { findNode, instancesOf, risksFor } from '../state/lookup.ts';
+import { DataBox } from './DataBox.tsx';
 import { KIND_LABEL } from './nodes.tsx';
 
 export type Panel =
@@ -21,6 +22,8 @@ interface Props {
   onOpenLink: (see: string) => void;
   onRisk: (risk: Risk) => void;
   activeRisk: string | null;
+  /** Opens the level that shows a block and selects it. */
+  onSelect: (scope: string, id: string) => void;
 }
 
 export function SidePanel(props: Props) {
@@ -88,7 +91,7 @@ function Explanation({ desc, logic }: { desc?: string; logic?: LogicGuide }) {
 
 const CHANGE_TAG: Record<string, string> = { new: 'new', modified: 'modified', removed: 'removed', affected: 'affected' };
 
-function NodePanel({ node, doc, showChanges, onNavigate, onOpenLink }: Props & { node: ViewNode }) {
+function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSelect }: Props & { node: ViewNode }) {
   if (!node.ref) {
     return (
       <>
@@ -103,8 +106,6 @@ function NodePanel({ node, doc, showChanges, onNavigate, onOpenLink }: Props & {
   const source = findNode(doc, node.ref.scope, node.ref.id);
   if (!source) return null;
   const type = source.kind === 'instance' && source.of ? doc.blockTypes?.[source.of] : undefined;
-  const inputs = source.kind === 'instance' ? type?.inputs : source.inputs;
-  const outputs = source.kind === 'instance' ? type?.outputs : source.outputs;
   const code = source.code ?? type?.code;
   const risks = risksFor(doc, node.ref.scope, node.ref.id);
   const uses = source.kind === 'instance' && source.of ? instancesOf(doc, source.of) : [];
@@ -139,14 +140,7 @@ function NodePanel({ node, doc, showChanges, onNavigate, onOpenLink }: Props & {
           ))}
         </section>
       )}
-      {source.kind === 'state' && source.valueType !== undefined && (
-        <section>
-          <h4>Holds</h4>
-          <span className="lb-type">{describeType(source.valueType, doc.types ?? {})}</span>
-        </section>
-      )}
-      <PortList title="Inputs" ports={inputs} doc={doc} />
-      <PortList title="Outputs" ports={outputs} doc={doc} />
+      <DataBox key={`${node.ref.scope}/${node.ref.id}`} doc={doc} scope={node.ref.scope} id={node.ref.id} mode={mode} onSelect={onSelect} />
       {(code || source.ref) && (
         <section>
           <h4>Code</h4>
