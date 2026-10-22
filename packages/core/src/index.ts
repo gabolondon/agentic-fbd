@@ -14,3 +14,4 @@ export * from './layoutFile.ts';
 export * from './draftFile.ts';
 export { effectiveScope, type EffNode, type EffScope, type EffWire } from './viewModel/effective.ts';
 export * from './data/dataBox.ts';
+export { applyEdit, type Edit, type EditResult, type ItemRef } from './edit/applyEdit.ts';
