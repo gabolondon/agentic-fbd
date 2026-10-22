@@ -167,6 +167,7 @@ Layout:
 | `packages/viewer` | React + React Flow + elkjs app |
 | `packages/cli` | Node CLI and local server, bundled with esbuild into `dist/cli.mjs` |
 | `skills/logic-builder` | The skill, format reference, schema and examples |
+| `logic` | Diagrams of logic-builder itself, made with logic-builder (`node dist/cli.mjs open logic/phase-2d-2e.logic.json`) |
 | `.claude-plugin` | Plugin and marketplace manifests |
 
 The format, CLI and viewer don't depend on Claude Code; only `skills/` and `.claude-plugin/` are

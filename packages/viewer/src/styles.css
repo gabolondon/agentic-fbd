@@ -1424,11 +1424,18 @@ div.lb-data-row-head {
   position: relative;
 }
 
+/* Takes no room in the line (the negative margin cancels its width), so a hidden pencil never
+   pushes text onto a new line. */
 .lb-pencil {
+  display: inline-block;
+  width: 16px;
+  margin-right: -16px;
+  position: relative;
+  z-index: 1;
   border: 0;
   background: none;
-  padding: 0 3px;
-  margin-left: 3px;
+  padding: 0;
+  text-align: center;
   color: var(--muted);
   font-size: 12px;
   font-family: ui-sans-serif, system-ui, sans-serif;
