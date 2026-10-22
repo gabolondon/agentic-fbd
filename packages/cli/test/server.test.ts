@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -176,5 +176,140 @@ describe('startServer — layout', () => {
     expect((await put({ levels: {} }, { ...json, origin: 'https://other.example' })).status).toBe(403);
     expect((await put({ levels: {} }, json, '..%2Fgate.logic.json')).status).toBe(400);
     expect((await fetch(`${running.url}api/layout`)).status).toBe(405);
+  });
+});
+
+describe('startServer — draft and save', () => {
+  let running: RunningServer;
+  let dir: string;
+  let diagram: string;
+  const json = { 'content-type': 'application/json' };
+  const call = (method: string, path: string, body?: unknown, headers: Record<string, string> = json) =>
+    fetch(`${running.url}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const original = () => JSON.parse(readFileSync(example, 'utf8'));
+  const renamed = (label: string) => {
+    const doc = original();
+    doc.nodes.find((n: { id: string }) => n.id === 'proxy').label = label;
+    return doc;
+  };
+  const draftPath = () => join(dir, 'gate.draft.json');
+  const reviewPath = () => join(dir, 'gate.review.json');
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'lb-draft-'));
+    const viewer = join(dir, 'viewer');
+    mkdirSync(viewer);
+    writeFileSync(join(viewer, 'index.html'), '<!doctype html>');
+    diagram = join(dir, 'gate.logic.json');
+    running = await startServer({ file: diagram, viewerDir: viewer });
+  });
+
+  afterAll(async () => {
+    await running.close();
+  });
+
+  const reset = (text = readFileSync(example, 'utf8')) => {
+    writeFileSync(diagram, text);
+    for (const p of [draftPath(), reviewPath()]) if (existsSync(p)) rmSync(p);
+  };
+
+  it('PUT draft keeps the original text from when editing started', async () => {
+    reset();
+    const first = readFileSync(diagram, 'utf8');
+    expect((await call('PUT', 'api/draft?file=gate.logic.json', renamed('One'))).status).toBe(200);
+    writeFileSync(diagram, JSON.stringify(renamed('Changed by the agent')));
+    expect((await call('PUT', 'api/draft?file=gate.logic.json', renamed('Two'))).status).toBe(200);
+    const draft = JSON.parse(readFileSync(draftPath(), 'utf8'));
+    expect(draft.original).toBe(first);
+    expect(draft.doc.nodes.find((n: { id: string }) => n.id === 'proxy').label).toBe('Two');
+  });
+
+  it('/api/doc returns the draft and flags a change on disk', async () => {
+    reset();
+    await call('PUT', 'api/draft?file=gate.logic.json', renamed('Mine'));
+    let payload = (await (await fetch(`${running.url}api/doc`)).json()) as { draft: { doc: { nodes: { id: string; label: string }[] }; original: unknown; changedOnDisk: boolean } };
+    expect(payload.draft.doc.nodes.find((n) => n.id === 'proxy')!.label).toBe('Mine');
+    expect(payload.draft.original).toEqual(original());
+    expect(payload.draft.changedOnDisk).toBe(false);
+    writeFileSync(diagram, JSON.stringify(renamed('Theirs')));
+    payload = (await (await fetch(`${running.url}api/doc`)).json()) as typeof payload;
+    expect(payload.draft.changedOnDisk).toBe(true);
+  });
+
+  it('save writes the draft and removes it', async () => {
+    reset();
+    await call('PUT', 'api/draft?file=gate.logic.json', renamed('Saved'));
+    const res = await call('POST', 'api/save?file=gate.logic.json', {});
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, review: null });
+    expect(readFileSync(diagram, 'utf8')).toBe(JSON.stringify(renamed('Saved'), null, 2) + '\n');
+    expect(existsSync(draftPath())).toBe(false);
+    expect(existsSync(reviewPath())).toBe(false);
+  });
+
+  it('save keeps the disk version for review when it changed', async () => {
+    reset();
+    await call('PUT', 'api/draft?file=gate.logic.json', renamed('Mine'));
+    const theirs = JSON.stringify(renamed('Theirs'), null, 2);
+    writeFileSync(diagram, theirs);
+    const res = await call('POST', 'api/save?file=gate.logic.json', {});
+    expect(await res.json()).toEqual({ ok: true, review: 'gate.review.json' });
+    expect(readFileSync(reviewPath(), 'utf8')).toBe(theirs);
+    expect(JSON.parse(readFileSync(diagram, 'utf8'))).toEqual(renamed('Mine'));
+    const payload = (await (await fetch(`${running.url}api/doc`)).json()) as { review: string | null; draft: unknown };
+    expect(payload.review).toBe('gate.review.json');
+    expect(payload.draft).toBeNull();
+  });
+
+  it('save keeps an invalid disk version for review too', async () => {
+    reset();
+    await call('PUT', 'api/draft?file=gate.logic.json', renamed('Mine'));
+    writeFileSync(diagram, '{ broken');
+    const res = await call('POST', 'api/save?file=gate.logic.json', {});
+    expect(res.status).toBe(200);
+    expect(readFileSync(reviewPath(), 'utf8')).toBe('{ broken');
+    expect(JSON.parse(readFileSync(diagram, 'utf8'))).toEqual(renamed('Mine'));
+  });
+
+  it('save refuses an invalid draft with its issues', async () => {
+    reset();
+    const bad = renamed('x');
+    bad.wires[0].to = 'verify.nope';
+    await call('PUT', 'api/draft?file=gate.logic.json', bad);
+    const res = await call('POST', 'api/save?file=gate.logic.json', {});
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; issues: { code: string }[] };
+    expect(body.issues.map((i) => i.code)).toContain('unknown-port');
+    expect(readFileSync(diagram, 'utf8')).toBe(readFileSync(example, 'utf8'));
+    expect(existsSync(draftPath())).toBe(true);
+  });
+
+  it('save without a draft is a 404, and discard removes the draft', async () => {
+    reset();
+    expect((await call('POST', 'api/save?file=gate.logic.json', {})).status).toBe(404);
+    await call('PUT', 'api/draft?file=gate.logic.json', renamed('Mine'));
+    expect((await call('DELETE', 'api/draft?file=gate.logic.json')).status).toBe(200);
+    expect(existsSync(draftPath())).toBe(false);
+    expect((await call('DELETE', 'api/draft?file=gate.logic.json')).status).toBe(200);
+  });
+
+  it('draft endpoints refuse other origins and non-JSON requests', async () => {
+    reset();
+    const text = { 'content-type': 'text/plain' };
+    const other = { ...json, origin: 'https://other.example' };
+    expect((await call('PUT', 'api/draft?file=gate.logic.json', renamed('x'), text)).status).toBe(403);
+    expect((await call('PUT', 'api/draft?file=gate.logic.json', renamed('x'), other)).status).toBe(403);
+    expect((await call('DELETE', 'api/draft?file=gate.logic.json', undefined, text)).status).toBe(403);
+    expect((await call('POST', 'api/save?file=gate.logic.json', {}, other)).status).toBe(403);
+    expect((await call('PUT', 'api/draft?file=gate.logic.json', { nope: 1 })).status).toBe(400);
+    expect((await call('PUT', 'api/draft?file=..%2Fgate.logic.json', renamed('x'))).status).toBe(400);
+    expect(existsSync(draftPath())).toBe(false);
+  });
+
+  it('/api/files flags files with a draft', async () => {
+    reset();
+    await call('PUT', 'api/draft?file=gate.logic.json', renamed('Mine'));
+    const files = (await (await fetch(`${running.url}api/files`)).json()) as { file: string; draft: boolean }[];
+    expect(files).toEqual([expect.objectContaining({ file: 'gate.logic.json', draft: true })]);
   });
 });
