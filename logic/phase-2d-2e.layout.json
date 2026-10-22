@@ -1,0 +1,26 @@
+{
+  "version": "0.1",
+  "levels": {
+    "g-edit": {
+      "c:in:e-field<-e-ok": { "x": 119, "y": 76 },
+      "c:out:e-ok->e-field": { "x": 1245, "y": 154 },
+      "e-apply": { "x": 782, "y": 44 },
+      "e-bar": { "x": 535, "y": 284 },
+      "e-field": { "x": 289, "y": 25 },
+      "e-hook": { "x": 522, "y": 44 },
+      "e-ok": { "x": 1019, "y": 44 },
+      "e-ref": { "x": 530, "y": 174 },
+      "e-summary": { "x": 778, "y": 304 },
+      "pin:in:s-screen": { "x": 197, "y": 139 },
+      "pin:in:t-edit.edit": { "x": 57, "y": 12 },
+      "pin:in:v-valid.errors": { "x": 44, "y": 374 },
+      "pin:in:v-write.result": { "x": 12, "y": 438 },
+      "pin:out:r-agenttext.text": { "x": 1245, "y": 274 },
+      "pin:out:s-screen": { "x": 1245, "y": 90 },
+      "pin:out:v-put.doc": { "x": 1245, "y": 26 },
+      "pin:out:v-save.go": { "x": 1245, "y": 210 },
+      "t-copy": { "x": 60, "y": 212 },
+      "t-save": { "x": 63, "y": 284 }
+    }
+  }
+}

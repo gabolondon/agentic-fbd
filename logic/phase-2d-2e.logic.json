@@ -1,0 +1,1455 @@
+{
+  "version": "0.1",
+  "subject": {
+    "id": "phase-2d-2e",
+    "title": "Phase 2d + 2e: Data box and edits in the viewer",
+    "intent": "Explain the implementation plan before building it: how a click becomes a Data box, and how an edit becomes a draft, a saved diagram and a request for the agent",
+    "scope": "logic-builder: core, CLI server, viewer and skill",
+    "mode": "design",
+    "focus": "g-edit"
+  },
+  "types": {
+    "ItemRef": {
+      "scope": "string",
+      "id": "string"
+    },
+    "ViewMode": {
+      "oneOf": [
+        "'before'",
+        "'after'"
+      ]
+    },
+    "DiagramText": "string",
+    "AgentText": "string",
+    "LogicDoc": {
+      "version": "string",
+      "subject": "Record<string, string>",
+      "nodes": "Record<string, string>[]",
+      "wires": "Record<string, string>[]"
+    },
+    "Issue": {
+      "level": "string",
+      "code": "string",
+      "message": "string"
+    },
+    "EditOp": {
+      "oneOf": [
+        "'setLabel'",
+        "'setDesc'",
+        "'setSymbol'",
+        "'setTrigger'",
+        "'setNote'",
+        "'renamePort'",
+        "'setPortType'",
+        "'setType'",
+        "'remove'",
+        "'restore'"
+      ]
+    },
+    "Edit": {
+      "op": "EditOp",
+      "at": "ItemRef?",
+      "value": "string?"
+    },
+    "EditResult": {
+      "ok": "boolean",
+      "doc": "LogicDoc?",
+      "reason": "string?"
+    },
+    "ScreenState": {
+      "doc": "LogicDoc",
+      "original": "LogicDoc?",
+      "issues": "Issue[]",
+      "changedOnDisk": "boolean"
+    },
+    "DataField": {
+      "name": "string",
+      "type": "string"
+    },
+    "DataItem": {
+      "name": "string",
+      "where": "string",
+      "desc": "string?",
+      "fields": "DataField[]?"
+    },
+    "DataBox": {
+      "kind": "string",
+      "reads": "DataItem[]",
+      "writes": "DataItem[]",
+      "inside": "number?"
+    },
+    "DraftFile": {
+      "original": "DiagramText",
+      "doc": "LogicDoc"
+    },
+    "SaveResult": {
+      "ok": "boolean",
+      "review": "string?"
+    }
+  },
+  "nodes": [
+    {
+      "id": "t-click",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Click a block",
+      "desc": "The user clicks a block, a state or a group on the canvas.",
+      "context": {
+        "from": "Canvas",
+        "modes": [
+          "before",
+          "after"
+        ]
+      },
+      "outputs": {
+        "at": "ItemRef",
+        "mode": "ViewMode"
+      }
+    },
+    {
+      "id": "t-edit",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Edit a field",
+      "desc": "The user clicks a pencil in the side panel and changes a name, a type, a field, a trigger or a note.",
+      "context": {
+        "from": "Side panel › pencil",
+        "modes": [
+          "after"
+        ]
+      },
+      "outputs": {
+        "edit": "Edit"
+      },
+      "change": "new"
+    },
+    {
+      "id": "t-agent",
+      "kind": "trigger",
+      "source": "agent",
+      "label": "Agent picks up a request",
+      "desc": "The user pastes the Copy-for-agent text in the chat, or just says they edited the diagram.",
+      "context": {
+        "from": "Chat with the agent"
+      },
+      "outputs": {
+        "request": "AgentText"
+      }
+    },
+    {
+      "id": "s-screen",
+      "kind": "state",
+      "label": "Doc on screen",
+      "desc": "What the viewer shows: the diagram, or the draft while one exists, plus its issues. React state in useDocument; refetched from the server on reload.",
+      "valueType": "ScreenState",
+      "store": "React state in useDocument · lost on reload, refetched from the server",
+      "code": {
+        "file": "packages/viewer/src/state/useDocument.ts",
+        "symbol": "useDocument"
+      },
+      "change": "modified",
+      "changeNote": "Holds the draft's doc and the original copy while a draft exists",
+      "before": {
+        "valueType": "LogicDoc"
+      }
+    },
+    {
+      "id": "diagram",
+      "kind": "state",
+      "label": "Diagram file",
+      "desc": "logic/<subject>.logic.json on disk. Committed to the repo; the source of truth once saved.",
+      "valueType": "DiagramText",
+      "store": "File logic/<subject>.logic.json · committed to git"
+    },
+    {
+      "id": "g-format",
+      "kind": "group",
+      "label": "Format and validation",
+      "desc": "The JSON format, its schema and the integrity checks (Tasks 1 and 5)."
+    },
+    {
+      "id": "f-schema",
+      "kind": "function",
+      "parent": "g-format",
+      "label": "Schema check",
+      "desc": "Checks the shape of a diagram against the JSON Schema.",
+      "logic": [
+        "Accepts the new fields: state.store, typeInfo, note on nodes and wires, before.source and before.context.",
+        "Rejects anything else, as today (additionalProperties: false)."
+      ],
+      "inputs": {
+        "doc": "LogicDoc"
+      },
+      "outputs": {
+        "doc": "LogicDoc",
+        "issues": "Issue[]"
+      },
+      "code": {
+        "file": "packages/core/src/validate/schema.ts",
+        "symbol": "validateSchema"
+      },
+      "change": "modified",
+      "changeNote": "Schema gains store, typeInfo, note and the trigger before-fields",
+      "before": {
+        "desc": "Checks the shape of a diagram against the JSON Schema (phase 2c fields)."
+      }
+    },
+    {
+      "id": "f-integrity",
+      "kind": "function",
+      "parent": "g-format",
+      "label": "Integrity checks",
+      "desc": "Reference and consistency checks the schema cannot express.",
+      "logic": [
+        "Error: a typeInfo name that is not in types (unknown-type-info).",
+        "Notice: a state without store (missing-store).",
+        "Notice: a new state holding the same type as an existing one (similar-store), to push reuse before creating."
+      ],
+      "inputs": {
+        "doc": "LogicDoc"
+      },
+      "outputs": {
+        "issues": "Issue[]"
+      },
+      "code": {
+        "file": "packages/core/src/validate/integrity.ts",
+        "symbol": "checkIntegrity"
+      },
+      "change": "modified",
+      "changeNote": "Three new checks: unknown-type-info, missing-store, similar-store",
+      "before": {
+        "desc": "Reference and consistency checks (ids, ports, pins, risks, types)."
+      }
+    },
+    {
+      "id": "f-names",
+      "kind": "function",
+      "parent": "g-format",
+      "label": "Draft and review file names",
+      "desc": "Names the side files of a diagram: booking.logic.json → booking.draft.json and booking.review.json.",
+      "logic": [
+        "Strip .logic.json and add .draft.json or .review.json.",
+        "Neither ends in .logic.json, so they never show up as diagrams in the structure panel or in links."
+      ],
+      "inputs": {
+        "diagram": "string"
+      },
+      "outputs": {
+        "draft": "string",
+        "review": "string"
+      },
+      "code": {
+        "file": "packages/core/src/draftFile.ts",
+        "symbol": "draftFileName"
+      },
+      "change": "new"
+    },
+    {
+      "id": "g-data",
+      "kind": "group",
+      "label": "Data box (phase 2d)",
+      "desc": "Shows what a block reads and writes and where each piece of data lives, collapsed by default (Tasks 2 and 3).",
+      "change": "new"
+    },
+    {
+      "id": "d-panel",
+      "kind": "function",
+      "parent": "g-data",
+      "label": "Side panel",
+      "desc": "The panel that opens on click. The Data box replaces its Inputs and Outputs lists.",
+      "logic": [
+        "Show the explanation (what it does, how it works).",
+        "Mount the Data box, collapsed, between the explanation and the code reference.",
+        "Then code, what changes, instances and risks, as today."
+      ],
+      "inputs": {
+        "at": "ItemRef",
+        "mode": "ViewMode"
+      },
+      "outputs": {
+        "at": "ItemRef"
+      },
+      "code": {
+        "file": "packages/viewer/src/components/SidePanel.tsx",
+        "symbol": "NodePanel"
+      },
+      "change": "modified",
+      "changeNote": "Data box replaces the Inputs / Outputs lists and the state's Holds section",
+      "before": {
+        "desc": "The panel that opens on click, with port lists for inputs and outputs."
+      }
+    },
+    {
+      "id": "d-kind",
+      "kind": "decision",
+      "parent": "g-data",
+      "label": "What was clicked?",
+      "desc": "Picks which kind of Data box to build.",
+      "logic": [
+        "A state → who reads it and who writes it.",
+        "A group → only the data that crosses its edge.",
+        "Anything else (function, trigger, instance…) → its reads, writes and responses."
+      ],
+      "inputs": {
+        "at": "ItemRef"
+      },
+      "outputs": {
+        "block": "ItemRef",
+        "state": "ItemRef",
+        "group": "ItemRef"
+      },
+      "code": {
+        "file": "packages/core/src/data/dataBox.ts",
+        "symbol": "dataBox"
+      },
+      "change": "new"
+    },
+    {
+      "id": "d-block",
+      "kind": "function",
+      "parent": "g-data",
+      "label": "Reads, writes, responses",
+      "desc": "One row per input (reads) and per output (writes); outputs named 200, 422… go to Responses.",
+      "logic": [
+        "Each row gets where it lives: the state's store if a state feeds it, else 'from A' / 'to B'.",
+        "Each row gets up to two lines of description: the state's desc, else typeInfo.desc.",
+        "Instances use their blockType's ports."
+      ],
+      "inputs": {
+        "at": "ItemRef",
+        "screen": "ScreenState"
+      },
+      "outputs": {
+        "box": "DataBox"
+      },
+      "code": {
+        "file": "packages/core/src/data/dataBox.ts",
+        "symbol": "dataBox"
+      },
+      "change": "new"
+    },
+    {
+      "id": "d-state",
+      "kind": "function",
+      "parent": "g-data",
+      "label": "Read by, written by",
+      "desc": "For a state: the blocks on its read and write wires, in flow order, each clickable.",
+      "logic": [
+        "Collect the blocks on read wires and on write wires.",
+        "Keep the file's wire order (story order), without duplicates.",
+        "Answers 'who already uses this store?' before a new one is created."
+      ],
+      "inputs": {
+        "at": "ItemRef",
+        "screen": "ScreenState"
+      },
+      "outputs": {
+        "box": "DataBox"
+      },
+      "code": {
+        "file": "packages/core/src/data/dataBox.ts",
+        "symbol": "dataBox"
+      },
+      "change": "new"
+    },
+    {
+      "id": "d-boundary",
+      "kind": "function",
+      "parent": "g-data",
+      "label": "Data crossing the edge",
+      "desc": "For a group: only the wires with one end inside and one outside, plus how many blocks are inside.",
+      "logic": [
+        "Wires coming in are reads, wires going out are writes.",
+        "What happens inside is not listed; a muted '+N more inside' line says there is more."
+      ],
+      "inputs": {
+        "at": "ItemRef",
+        "screen": "ScreenState"
+      },
+      "outputs": {
+        "box": "DataBox"
+      },
+      "code": {
+        "file": "packages/core/src/data/dataBox.ts",
+        "symbol": "dataBox"
+      },
+      "change": "new"
+    },
+    {
+      "id": "d-view",
+      "kind": "function",
+      "parent": "g-data",
+      "label": "Data box",
+      "desc": "The tinted box in the panel: header 'Data · Reads 3 · Writes 2', then collapsed sections and rows.",
+      "logic": [
+        "Everything starts collapsed and nothing is remembered between clicks.",
+        "Each row: name, type, where-badge, two-line description.",
+        "Opening a row asks for the type's fields and shows them as a table, with a link to the code."
+      ],
+      "inputs": {
+        "box": "DataBox"
+      },
+      "outputs": {
+        "shown": "DataBox",
+        "openRow": "string"
+      },
+      "code": {
+        "file": "packages/viewer/src/components/DataBox.tsx",
+        "symbol": "DataBox"
+      },
+      "change": "new"
+    },
+    {
+      "id": "d-fields",
+      "kind": "function",
+      "parent": "g-data",
+      "label": "Field table",
+      "desc": "Turns a type into its fields, following names, optionals and lists.",
+      "logic": [
+        "Resolve a named type through types, unwrapping T? and T[].",
+        "Return the object's fields, nested up to four levels.",
+        "Stop on recursive types instead of looping."
+      ],
+      "inputs": {
+        "type": "string"
+      },
+      "outputs": {
+        "fields": "DataField[]"
+      },
+      "code": {
+        "file": "packages/core/src/data/dataBox.ts",
+        "symbol": "typeFields"
+      },
+      "change": "new"
+    },
+    {
+      "id": "g-edit",
+      "kind": "group",
+      "label": "Editing (phase 2e)",
+      "desc": "Small edits in the panel, applied with Design marks, kept in a draft, and turned into text for the agent (Tasks 6–8 and 10–12).",
+      "change": "new"
+    },
+    {
+      "id": "e-field",
+      "kind": "function",
+      "parent": "g-edit",
+      "label": "Input editable fields",
+      "desc": "Pencil-on-hover inputs and the field table editor in the side panel.",
+      "logic": [
+        "Click the pencil, type, Enter commits and Esc cancels.",
+        "On an instance, a port edit first asks 'Changes all N uses of <Type>'.",
+        "A rejected edit keeps the input open and shows the reason under it.",
+        "No pencils in the Before view, on removed items or on pins."
+      ],
+      "inputs": {
+        "edit": "Edit",
+        "error": "string?"
+      },
+      "outputs": {
+        "edit": "Edit"
+      },
+      "code": {
+        "file": "packages/viewer/src/components/Editable.tsx",
+        "symbol": "EditableText"
+      },
+      "change": "new"
+    },
+    {
+      "id": "e-hook",
+      "kind": "function",
+      "parent": "g-edit",
+      "label": "useDocument.edit()",
+      "desc": "Takes an edit from the panel and hands it, with the doc on screen and the original copy, to applyEdit.",
+      "logic": [
+        "On the first edit, the doc on screen becomes the original copy.",
+        "Pass the doc, the edit and the original to applyEdit."
+      ],
+      "inputs": {
+        "edit": "Edit",
+        "screen": "ScreenState"
+      },
+      "outputs": {
+        "doc": "LogicDoc",
+        "edit": "Edit",
+        "original": "LogicDoc?"
+      },
+      "code": {
+        "file": "packages/viewer/src/state/useDocument.ts",
+        "symbol": "useDocument"
+      },
+      "change": "new"
+    },
+    {
+      "id": "e-apply",
+      "kind": "function",
+      "parent": "g-edit",
+      "label": "applyEdit()",
+      "desc": "Applies one edit to a copy of the doc and marks it the Design way, so Before/After shows what the user touched.",
+      "logic": [
+        "An existing item becomes modified and keeps its first value in before; setting it back clears the mark.",
+        "A new item changes in place; removing it deletes it. Removing an existing item marks it removed, with its wires (and its children for a group).",
+        "Renaming a port rewrites its wires and keeps their old ends in before. On an instance it renames the blockType, its pin and every instance's wires.",
+        "Any edit except a note switches the file to design. A note never marks anything.",
+        "Restore copies the marks back from the original."
+      ],
+      "inputs": {
+        "doc": "LogicDoc",
+        "edit": "Edit",
+        "original": "LogicDoc?"
+      },
+      "outputs": {
+        "result": "EditResult"
+      },
+      "code": {
+        "file": "packages/core/src/edit/applyEdit.ts",
+        "symbol": "applyEdit"
+      },
+      "change": "new"
+    },
+    {
+      "id": "e-ok",
+      "kind": "decision",
+      "parent": "g-edit",
+      "label": "Accepted?",
+      "desc": "An edit can be refused with a readable reason: empty label, duplicate port name, unparseable type, editing a removed block.",
+      "logic": [
+        "Accepted → the new doc goes on screen and to the draft file.",
+        "Refused → the reason goes back to the field."
+      ],
+      "inputs": {
+        "result": "EditResult"
+      },
+      "outputs": {
+        "doc": "LogicDoc",
+        "screen": "ScreenState",
+        "reason": "string"
+      },
+      "code": {
+        "file": "packages/viewer/src/state/useDocument.ts",
+        "symbol": "useDocument"
+      },
+      "change": "new"
+    },
+    {
+      "id": "t-save",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "g-edit",
+      "label": "Click Save Button",
+      "desc": "The user clicks Save in the edit bar to save the changes into the json.",
+      "context": {
+        "from": "Edit bar"
+      },
+      "outputs": {
+        "go": "boolean"
+      },
+      "change": "new"
+    },
+    {
+      "id": "e-bar",
+      "kind": "function",
+      "parent": "g-edit",
+      "label": "Edit bar",
+      "desc": "The bar at the bottom: 'N unsaved changes · Save · Discard', and after saving 'Saved · Copy for agent'.",
+      "logic": [
+        "N counts the user's edits (a diff of draft against original).",
+        "Save is disabled while the draft has errors; the first error is shown.",
+        "If the diagram changed on disk, it warns that saving keeps the user's version and keeps the other for review.",
+        "After saving, it offers Copy for agent and names the review file if one was made."
+      ],
+      "inputs": {
+        "go": "boolean",
+        "screen": "ScreenState",
+        "errors": "Issue[]",
+        "result": "SaveResult"
+      },
+      "outputs": {
+        "save": "boolean",
+        "draft": "LogicDoc",
+        "original": "LogicDoc"
+      },
+      "code": {
+        "file": "packages/viewer/src/components/EditBar.tsx",
+        "symbol": "EditBar"
+      },
+      "change": "new"
+    },
+    {
+      "id": "e-summary",
+      "kind": "function",
+      "parent": "g-edit",
+      "label": "summarizeEdits()",
+      "desc": "Builds the Copy-for-agent request: 'I edited <file> in the viewer. Please review and implement:' plus one line per change.",
+      "logic": [
+        "Diff the draft against the original copy, not the marks, so only the user's edits are listed.",
+        "One line per rename, port change, field change, trigger change, removal and note."
+      ],
+      "inputs": {
+        "draft": "LogicDoc",
+        "original": "LogicDoc"
+      },
+      "outputs": {
+        "text": "AgentText"
+      },
+      "code": {
+        "file": "packages/core/src/edit/summary.ts",
+        "symbol": "summarizeEdits"
+      },
+      "change": "new"
+    },
+    {
+      "id": "t-copy",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "g-edit",
+      "label": "Copy IconButton for reference",
+      "desc": "The copy icon on a block or wire panel, or 'Copy for agent' with several blocks selected.",
+      "context": {
+        "from": "Side panel header / selection panel"
+      },
+      "outputs": {
+        "at": "ItemRef[]"
+      },
+      "change": "new"
+    },
+    {
+      "id": "e-ref",
+      "kind": "function",
+      "parent": "g-edit",
+      "label": "copyReference()",
+      "desc": "A reference, not the JSON: the file path, then one line per block or wire with its title, id, kind and code.",
+      "logic": [
+        "First line: the diagram's path, since a subject can span several linked files.",
+        "Block: '\"Title\" (id: x, function) → file · symbol'.",
+        "Wire: 'wire w3: a.out → b.in (Type)'."
+      ],
+      "inputs": {
+        "at": "ItemRef[]",
+        "screen": "ScreenState"
+      },
+      "outputs": {
+        "text": "AgentText"
+      },
+      "code": {
+        "file": "packages/core/src/edit/reference.ts",
+        "symbol": "copyReference"
+      },
+      "change": "new"
+    },
+    {
+      "id": "g-server",
+      "kind": "group",
+      "label": "Draft server",
+      "desc": "The local server behind the viewer: keeps the draft next to the diagram and saves it (Task 9).",
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      }
+    },
+    {
+      "id": "v-put",
+      "kind": "function",
+      "parent": "g-server",
+      "label": "PUT /api/draft",
+      "desc": "Writes the draft file after each edit (debounced 300 ms in the viewer).",
+      "logic": [
+        "On the first write, read the diagram's text as the original copy.",
+        "Later writes keep that original and replace the doc.",
+        "Same-origin and JSON only; atomic write."
+      ],
+      "inputs": {
+        "doc": "LogicDoc",
+        "disk": "DiagramText",
+        "path": "string"
+      },
+      "outputs": {
+        "draft": "DraftFile"
+      },
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      },
+      "change": "new"
+    },
+    {
+      "id": "s-draft",
+      "kind": "state",
+      "parent": "g-server",
+      "label": "Draft file",
+      "desc": "<subject>.draft.json next to the diagram: the edited doc plus the original text. Survives reloads; its presence tells the agent someone is editing.",
+      "valueType": "DraftFile",
+      "store": "File <subject>.draft.json · survives reloads, never committed",
+      "change": "new"
+    },
+    {
+      "id": "v-save",
+      "kind": "function",
+      "parent": "g-server",
+      "label": "POST /api/save",
+      "desc": "Saves the draft as the diagram.",
+      "logic": [
+        "Read the draft (404 if there is none).",
+        "Validate its doc; refuse with the issues if invalid.",
+        "Compare the diagram on disk with the draft's original."
+      ],
+      "inputs": {
+        "go": "boolean",
+        "draft": "DraftFile"
+      },
+      "outputs": {
+        "doc": "LogicDoc",
+        "draft": "DraftFile"
+      },
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      },
+      "change": "new"
+    },
+    {
+      "id": "v-valid",
+      "kind": "decision",
+      "parent": "g-server",
+      "label": "Draft valid?",
+      "desc": "A draft with errors is never written over the diagram.",
+      "logic": [
+        "No errors → go on to the disk check.",
+        "Errors → 400 with the issues, shown in the edit bar."
+      ],
+      "inputs": {
+        "draft": "DraftFile",
+        "issues": "Issue[]"
+      },
+      "outputs": {
+        "ok": "DraftFile",
+        "errors": "Issue[]"
+      },
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      },
+      "change": "new"
+    },
+    {
+      "id": "v-changed",
+      "kind": "decision",
+      "parent": "g-server",
+      "label": "Changed on disk?",
+      "desc": "Did someone (usually the agent) change the diagram while the user was editing?",
+      "logic": [
+        "Same text as the draft's original → just write.",
+        "Different (even invalid JSON) → keep the disk version for review first, then write. The user's version wins."
+      ],
+      "inputs": {
+        "draft": "DraftFile",
+        "disk": "DiagramText"
+      },
+      "outputs": {
+        "same": "DraftFile",
+        "changed": "DraftFile"
+      },
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      },
+      "change": "new"
+    },
+    {
+      "id": "v-review",
+      "kind": "function",
+      "parent": "g-server",
+      "label": "Keep the other version",
+      "desc": "Writes the diagram's current text to <subject>.review.json so the agent's edits are not lost.",
+      "logic": [
+        "Copy the disk text as is, valid or not.",
+        "Hand the draft on to be written."
+      ],
+      "inputs": {
+        "draft": "DraftFile",
+        "disk": "DiagramText",
+        "path": "string"
+      },
+      "outputs": {
+        "text": "DiagramText",
+        "draft": "DraftFile"
+      },
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      },
+      "change": "new"
+    },
+    {
+      "id": "s-review",
+      "kind": "state",
+      "parent": "g-server",
+      "label": "Review copy",
+      "desc": "<subject>.review.json: the version a save set aside. Lives until the agent merges it and deletes it.",
+      "valueType": "DiagramText",
+      "store": "File <subject>.review.json · until the agent merges and deletes it",
+      "change": "new",
+      "changeNote": "A separate file on purpose: it holds the version a save set aside, so the diagram never loses either side."
+    },
+    {
+      "id": "v-write",
+      "kind": "function",
+      "parent": "g-server",
+      "label": "Write the diagram",
+      "desc": "Writes the draft's doc over the diagram and deletes the draft.",
+      "logic": [
+        "Format as JSON with 2-space indent, like the bundled examples.",
+        "Atomic write (temp file + rename), then delete the draft.",
+        "Reply with ok and the review file name, if any."
+      ],
+      "inputs": {
+        "draft": "DraftFile"
+      },
+      "outputs": {
+        "text": "DiagramText",
+        "result": "SaveResult",
+        "cleared": "DraftFile"
+      },
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      },
+      "change": "new"
+    },
+    {
+      "id": "v-load",
+      "kind": "function",
+      "parent": "g-server",
+      "label": "GET /api/doc",
+      "desc": "What the viewer loads on open, on reload and on every change event.",
+      "logic": [
+        "Read the diagram, validate it, attach its layout (as today).",
+        "If a draft exists, also return it, its original, and whether the disk changed since.",
+        "Say whether a review copy exists."
+      ],
+      "inputs": {
+        "disk": "DiagramText",
+        "draft": "DraftFile"
+      },
+      "outputs": {
+        "screen": "ScreenState"
+      },
+      "code": {
+        "file": "packages/cli/src/api.ts",
+        "symbol": "createDocApi"
+      },
+      "change": "modified",
+      "changeNote": "Returns the draft (with changedOnDisk) and the review file name",
+      "before": {
+        "desc": "Returns the diagram, its issues and its layout."
+      }
+    },
+    {
+      "id": "g-skill",
+      "kind": "group",
+      "label": "Skill: the agent's side",
+      "desc": "What the agent does with the new fields and with the user's edits (Tasks 4 and 13).",
+      "code": {
+        "file": "skills/logic-builder/SKILL.md"
+      }
+    },
+    {
+      "id": "k-read",
+      "kind": "function",
+      "parent": "g-skill",
+      "label": "Read the user's request",
+      "desc": "Turns the pasted Copy-for-agent text, or git diff on the diagram, into requests.",
+      "logic": [
+        "A renamed block, port or symbol means: rename it in the code.",
+        "An added field means: add it to the model. A removal means: drop it from the design.",
+        "A note is a request; implement it, then delete the note."
+      ],
+      "inputs": {
+        "request": "AgentText"
+      },
+      "outputs": {
+        "requests": "string[]"
+      },
+      "code": {
+        "file": "skills/logic-builder/SKILL.md"
+      },
+      "change": "new"
+    },
+    {
+      "id": "k-check",
+      "kind": "decision",
+      "parent": "g-skill",
+      "label": "Draft open?",
+      "desc": "Before touching a diagram, the agent checks for <subject>.draft.json.",
+      "logic": [
+        "A draft exists → the user has unsaved edits: don't edit the diagram, say so and wait.",
+        "No draft → go ahead."
+      ],
+      "inputs": {
+        "requests": "string[]",
+        "draft": "DraftFile"
+      },
+      "outputs": {
+        "wait": "string",
+        "go": "string[]"
+      },
+      "code": {
+        "file": "skills/logic-builder/SKILL.md"
+      },
+      "change": "new"
+    },
+    {
+      "id": "k-merge",
+      "kind": "function",
+      "parent": "g-skill",
+      "label": "Merge the review copy",
+      "desc": "If a save set the agent's edits aside, re-apply what still makes sense on top of the user's version.",
+      "logic": [
+        "Compare <subject>.review.json with the diagram.",
+        "Re-apply the agent's changes that don't clash with the user's.",
+        "Delete the review copy."
+      ],
+      "inputs": {
+        "go": "string[]",
+        "review": "DiagramText"
+      },
+      "outputs": {
+        "go": "string[]"
+      },
+      "code": {
+        "file": "skills/logic-builder/SKILL.md"
+      },
+      "change": "new"
+    },
+    {
+      "id": "k-write",
+      "kind": "function",
+      "parent": "g-skill",
+      "label": "Update the diagram",
+      "desc": "The agent edits the JSON, validates it and says what changed.",
+      "logic": [
+        "Every state gets a store (what the code really uses).",
+        "Reuse before creating: wire new blocks to an existing store when it holds the data; a new store needs a reason.",
+        "typeInfo only for the types that matter.",
+        "Validate until it passes."
+      ],
+      "inputs": {
+        "go": "string[]"
+      },
+      "outputs": {
+        "text": "DiagramText"
+      },
+      "code": {
+        "file": "skills/logic-builder/SKILL.md"
+      },
+      "change": "modified",
+      "changeNote": "Adds store, typeInfo and reuse-before-create to the rules"
+    },
+    {
+      "id": "r-databox",
+      "kind": "result",
+      "label": "Data box on screen",
+      "desc": "The user sees where each piece of data comes from, where it lives and its fields.",
+      "inputs": {
+        "box": "DataBox",
+        "fields": "DataField[]"
+      },
+      "change": "new"
+    },
+    {
+      "id": "r-agenttext",
+      "kind": "result",
+      "label": "Text for the agent",
+      "desc": "In the clipboard, ready to paste: the edit summary after a save, or a block reference.",
+      "inputs": {
+        "text": "AgentText"
+      },
+      "change": "new"
+    }
+  ],
+  "wires": [
+    {
+      "id": "w-click",
+      "from": "t-click.at",
+      "to": "d-panel.at"
+    },
+    {
+      "id": "w-mode",
+      "from": "t-click.mode",
+      "to": "d-panel.mode"
+    },
+    {
+      "id": "w-kind",
+      "from": "d-panel.at",
+      "to": "d-kind.at",
+      "change": "new"
+    },
+    {
+      "id": "w-kblock",
+      "from": "d-kind.block",
+      "to": "d-block.at",
+      "change": "new"
+    },
+    {
+      "id": "w-kstate",
+      "from": "d-kind.state",
+      "to": "d-state.at",
+      "change": "new"
+    },
+    {
+      "id": "w-kgroup",
+      "from": "d-kind.group",
+      "to": "d-boundary.at",
+      "change": "new"
+    },
+    {
+      "id": "w-rblock",
+      "from": "s-screen",
+      "to": "d-block.screen",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-rstate",
+      "from": "s-screen",
+      "to": "d-state.screen",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-rgroup",
+      "from": "s-screen",
+      "to": "d-boundary.screen",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-box1",
+      "from": "d-block.box",
+      "to": "d-view.box",
+      "change": "new"
+    },
+    {
+      "id": "w-box2",
+      "from": "d-state.box",
+      "to": "d-view.box",
+      "change": "new"
+    },
+    {
+      "id": "w-box3",
+      "from": "d-boundary.box",
+      "to": "d-view.box",
+      "change": "new"
+    },
+    {
+      "id": "w-row",
+      "from": "d-view.openRow",
+      "to": "d-fields.type",
+      "change": "new"
+    },
+    {
+      "id": "w-shown",
+      "from": "d-view.shown",
+      "to": "r-databox.box",
+      "change": "new"
+    },
+    {
+      "id": "w-fields",
+      "from": "d-fields.fields",
+      "to": "r-databox.fields",
+      "change": "new"
+    },
+    {
+      "id": "w-edit",
+      "from": "t-edit.edit",
+      "to": "e-field.edit",
+      "change": "new"
+    },
+    {
+      "id": "w-edit2",
+      "from": "e-field.edit",
+      "to": "e-hook.edit",
+      "change": "new"
+    },
+    {
+      "id": "w-rhook",
+      "from": "s-screen",
+      "to": "e-hook.screen",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-adoc",
+      "from": "e-hook.doc",
+      "to": "e-apply.doc",
+      "change": "new"
+    },
+    {
+      "id": "w-aedit",
+      "from": "e-hook.edit",
+      "to": "e-apply.edit",
+      "change": "new"
+    },
+    {
+      "id": "w-aorig",
+      "from": "e-hook.original",
+      "to": "e-apply.original",
+      "change": "new"
+    },
+    {
+      "id": "w-result",
+      "from": "e-apply.result",
+      "to": "e-ok.result",
+      "change": "new"
+    },
+    {
+      "id": "w-reason",
+      "from": "e-ok.reason",
+      "to": "e-field.error",
+      "change": "new"
+    },
+    {
+      "id": "w-wscreen",
+      "from": "e-ok.screen",
+      "to": "s-screen",
+      "op": "write",
+      "change": "new"
+    },
+    {
+      "id": "w-put",
+      "from": "e-ok.doc",
+      "to": "v-put.doc",
+      "change": "new"
+    },
+    {
+      "id": "w-save",
+      "from": "t-save.go",
+      "to": "e-bar.go",
+      "change": "new"
+    },
+    {
+      "id": "w-rbar",
+      "from": "s-screen",
+      "to": "e-bar.screen",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-sdraft",
+      "from": "e-bar.draft",
+      "to": "e-summary.draft",
+      "change": "new"
+    },
+    {
+      "id": "w-sorig",
+      "from": "e-bar.original",
+      "to": "e-summary.original",
+      "change": "new"
+    },
+    {
+      "id": "w-summary",
+      "from": "e-summary.text",
+      "to": "r-agenttext.text",
+      "change": "new"
+    },
+    {
+      "id": "w-copy",
+      "from": "t-copy.at",
+      "to": "e-ref.at",
+      "change": "new"
+    },
+    {
+      "id": "w-rref",
+      "from": "s-screen",
+      "to": "e-ref.screen",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-ref",
+      "from": "e-ref.text",
+      "to": "r-agenttext.text",
+      "change": "new"
+    },
+    {
+      "id": "w-rdisk-put",
+      "from": "diagram",
+      "to": "v-put.disk",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-dname",
+      "from": "f-names.draft",
+      "to": "v-put.path",
+      "change": "new"
+    },
+    {
+      "id": "w-wdraft",
+      "from": "v-put.draft",
+      "to": "s-draft",
+      "op": "write",
+      "change": "new"
+    },
+    {
+      "id": "w-go",
+      "from": "e-bar.save",
+      "to": "v-save.go",
+      "change": "new"
+    },
+    {
+      "id": "w-rdraft",
+      "from": "s-draft",
+      "to": "v-save.draft",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-check",
+      "from": "v-save.doc",
+      "to": "f-schema.doc",
+      "change": "new"
+    },
+    {
+      "id": "w-schema",
+      "from": "f-schema.doc",
+      "to": "f-integrity.doc"
+    },
+    {
+      "id": "w-issues",
+      "from": "f-integrity.issues",
+      "to": "v-valid.issues",
+      "change": "new"
+    },
+    {
+      "id": "w-vdraft",
+      "from": "v-save.draft",
+      "to": "v-valid.draft",
+      "change": "new"
+    },
+    {
+      "id": "w-errors",
+      "from": "v-valid.errors",
+      "to": "e-bar.errors",
+      "change": "new"
+    },
+    {
+      "id": "w-ok",
+      "from": "v-valid.ok",
+      "to": "v-changed.draft",
+      "change": "new"
+    },
+    {
+      "id": "w-rdisk-changed",
+      "from": "diagram",
+      "to": "v-changed.disk",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-same",
+      "from": "v-changed.same",
+      "to": "v-write.draft",
+      "change": "new"
+    },
+    {
+      "id": "w-changed",
+      "from": "v-changed.changed",
+      "to": "v-review.draft",
+      "change": "new"
+    },
+    {
+      "id": "w-rdisk-review",
+      "from": "diagram",
+      "to": "v-review.disk",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-rname",
+      "from": "f-names.review",
+      "to": "v-review.path",
+      "change": "new"
+    },
+    {
+      "id": "w-wreview",
+      "from": "v-review.text",
+      "to": "s-review",
+      "op": "write",
+      "change": "new"
+    },
+    {
+      "id": "w-after-review",
+      "from": "v-review.draft",
+      "to": "v-write.draft",
+      "change": "new"
+    },
+    {
+      "id": "w-wdiagram",
+      "from": "v-write.text",
+      "to": "diagram",
+      "op": "write",
+      "change": "new"
+    },
+    {
+      "id": "w-cleardraft",
+      "from": "v-write.cleared",
+      "to": "s-draft",
+      "op": "write",
+      "change": "new"
+    },
+    {
+      "id": "w-saved",
+      "from": "v-write.result",
+      "to": "e-bar.result",
+      "change": "new"
+    },
+    {
+      "id": "w-rdisk-load",
+      "from": "diagram",
+      "to": "v-load.disk",
+      "op": "read"
+    },
+    {
+      "id": "w-rdraft-load",
+      "from": "s-draft",
+      "to": "v-load.draft",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-wscreen-load",
+      "from": "v-load.screen",
+      "to": "s-screen",
+      "op": "write"
+    },
+    {
+      "id": "w-request",
+      "from": "t-agent.request",
+      "to": "k-read.request",
+      "change": "new"
+    },
+    {
+      "id": "w-requests",
+      "from": "k-read.requests",
+      "to": "k-check.requests",
+      "change": "new"
+    },
+    {
+      "id": "w-rdraft-agent",
+      "from": "s-draft",
+      "to": "k-check.draft",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-kgo",
+      "from": "k-check.go",
+      "to": "k-merge.go",
+      "change": "new"
+    },
+    {
+      "id": "w-rreview",
+      "from": "s-review",
+      "to": "k-merge.review",
+      "op": "read",
+      "change": "new"
+    },
+    {
+      "id": "w-kwrite",
+      "from": "k-merge.go",
+      "to": "k-write.go",
+      "change": "new"
+    },
+    {
+      "id": "w-agent-write",
+      "from": "k-write.text",
+      "to": "diagram",
+      "op": "write"
+    }
+  ],
+  "risks": [
+    {
+      "id": "rf1",
+      "severity": "high",
+      "status": "open",
+      "title": "Port rename loses wires in the Before view",
+      "detail": "If a renamed port's wires only get the new name, Before (which shows the old port) has nothing to attach them to.",
+      "resolution": "applyEdit keeps the old end in the wire's before; Task 7 tests that Before still draws it.",
+      "refs": [
+        "e-apply"
+      ]
+    },
+    {
+      "id": "rf2",
+      "severity": "high",
+      "status": "open",
+      "title": "Agent's edits lost when the user saves",
+      "detail": "The agent may change the diagram while a draft is open (the skill rule can be missed). A plain save would overwrite it.",
+      "resolution": "Save compares with the draft's original and keeps the disk text in .review.json, even if it is invalid JSON (Task 9).",
+      "refs": [
+        "v-changed",
+        "v-review",
+        "s-review"
+      ]
+    },
+    {
+      "id": "rf3",
+      "severity": "medium",
+      "status": "open",
+      "title": "An edit that breaks the file",
+      "detail": "A duplicate port name or an empty label would make the saved diagram invalid.",
+      "resolution": "applyEdit refuses them with a reason, and the server validates again before writing (Tasks 7, 9, 11).",
+      "refs": [
+        "e-ok",
+        "v-valid"
+      ]
+    },
+    {
+      "id": "rf4",
+      "severity": "medium",
+      "status": "open",
+      "title": "Reload shows the original instead of the draft",
+      "detail": "After a reload or a restart of open, the viewer must come back to the draft and its edit bar.",
+      "resolution": "GET /api/doc returns the draft when it exists (Tasks 9 and 10).",
+      "refs": [
+        "v-load",
+        "s-draft"
+      ]
+    },
+    {
+      "id": "rf5",
+      "severity": "medium",
+      "status": "open",
+      "title": "Removing a new block leaves dangling references",
+      "detail": "A deleted new block may be named by a risk or by subject.focus, which would fail validation.",
+      "resolution": "applyEdit strips deleted ids from risk refs and drops a focus that no longer exists (Task 7).",
+      "refs": [
+        "e-apply"
+      ]
+    },
+    {
+      "id": "r-race",
+      "severity": "low",
+      "status": "open",
+      "title": "Local draft overwritten by a refetch",
+      "detail": "Each PUT triggers a change event; a refetch that lands before the next PUT could replace newer local edits.",
+      "resolution": "The server's draft wins only when no PUT is pending (Task 10).",
+      "refs": [
+        "e-hook",
+        "v-put"
+      ]
+    },
+    {
+      "id": "r-instance",
+      "severity": "medium",
+      "status": "open",
+      "title": "One click renames a port in every use",
+      "detail": "Instances share their blockType's ports, so a port edit on one instance changes all of them.",
+      "resolution": "The panel asks first: 'Changes all N uses of <Type>' (Task 11).",
+      "refs": [
+        "e-field",
+        "e-apply"
+      ]
+    }
+  ]
+}
