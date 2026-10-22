@@ -45,7 +45,7 @@ They chain: understand an area first, then design on the same diagram. After the
 implemented, the diagram is folded back into an Understand diagram and committed next to the
 code.
 
-![An understand diagram with an unexplored group and a ready-to-copy request for Claude](docs/images/viewer-understand.png)
+![An understand diagram with an unexplored group and a ready-to-copy request for the agent](docs/images/viewer-understand.png)
 
 ## Install
 
@@ -83,10 +83,19 @@ simple tasks it doesn't offer it at all.
 - **Structure panel:** the subject, a tree of levels and blocks with change and risk marks, and a
   legend.
 - **Hover a wire:** see its type, its full shape, and where it comes from and goes.
-- **Click a block:** see *What it does*, *How it works* (step by step), its typed ports, the code
-  it maps to, what changes, and where a reusable block is used.
+- **Click a block:** see *What it does*, *How it works* (step by step), the code it maps to, what
+  changes, and where a reusable block is used.
+- **Data box:** under each block, what it reads and writes, with types, fields and where the data
+  lives ("Zustand store · lost on reload", "Postgres table bookings"). A state lists who reads and
+  writes it, and a group lists only the data that crosses its edge. Everything starts collapsed.
+- **Edit in the viewer:** rename blocks, ports and functions, change types, fields and triggers,
+  remove blocks or wires, and leave notes for the agent. Edits stay in a draft until you save;
+  then **Copy for agent** gives you the request to paste into Claude Code.
+- **Copy reference for agent:** the icon in a block's or wire's panel (or the button when several
+  blocks are selected) copies the file and the blocks' ids and code, to point at them in a prompt.
 - **Double-click** a group or reusable block to go inside it. **Esc** goes back up.
-- **Unexplored groups** offer a *Copy request for Claude* button to expand them.
+- **Click a wire:** its panel shows what it carries, with a note and remove.
+- **Unexplored groups** offer a *Copy for agent* button to expand them.
 - **Labeled connectors:** wires are lines, but as in a schematic, a wire that would be hard to
   follow (very long, looping far back, or crossing several others) is drawn as a pair of arrow
   flags ("goes to X", "comes from Y"). Click a flag to see the other end. `draw` on a wire
@@ -126,7 +135,8 @@ One JSON file per subject. The pieces are:
 - **Explanations:** `desc` (what a block does) and `logic` (how it works).
 - **Links:** `see` on a block points at another diagram, and `draw` on a wire picks a line or
   labeled connectors.
-- **Change marks**, with `before` for modified items.
+- **Data:** `store` on a state (where it lives), and `typeInfo` notes on named types.
+- **Change marks**, with `before` for modified items, and `note` for requests left in the viewer.
 - **Risks** that point at blocks and wires.
 
 There are no coordinates; the viewer lays everything out. Positions you set by dragging live in

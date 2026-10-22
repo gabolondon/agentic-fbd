@@ -28,7 +28,7 @@ Validate with `node "<base>/../../dist/cli.mjs" validate <file>`. Schema: `logic
 ## Nodes
 
 Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outputs`, `code`,
-`ref`, `see`, `change`, `changeNote`, `before`.
+`ref`, `see`, `note`, `change`, `changeNote`, `before`.
 
 | kind | Use for | Extra fields |
 |---|---|---|
@@ -52,6 +52,8 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
   `"Zustand store · lost on reload"`, `"localStorage · survives reload"`, `"Redux slice booking"`,
   `"Postgres table bookings"`. Write what the code actually uses; never guess a category.
   `validate` reports states without it as a `missing-store` notice.
+- `note`: a request the user left for you in the viewer, on a node or a wire. It is not a change
+  and marks nothing. Implement it, then delete it.
 - HTTP responses are ordinary outputs named by status code: `"outputs": { "200": "Booking",
   "422": "ValidationError" }`. The viewer lists them as Responses.
 - `see`: another diagram in the same folder that explains this block, `"other.logic.json"` or
@@ -74,6 +76,7 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
 - `from` is an output port, `to` is an input port. A `state` node is referenced by its id alone
   (`"to": "answers"`, `"op": "write"`; `"from": "answers"`, `"op": "read"`).
 - Several wires may feed one input.
+- `note`: as on nodes.
 - `draw`: `"label"` draws the wire as a pair of labeled flags (a net label: "goes to X" at the
   output, "comes from Y" at the input) instead of a line; `"line"` forces a line. Leave it out:
   the viewer draws lines and turns a wire into flags only when its route is very long, loops far
@@ -102,8 +105,11 @@ changes marks all its instances as affected.
 - `change`: `existing` (default) | `new` | `modified` | `removed`, on nodes, wires and blockTypes.
 - `changeNote`: one line on what changes.
 - `before` (only on `modified` items): the fields as they were. Nodes: `label`, `desc`, `inputs`,
-  `outputs`, `code`, `parent`, `valueType`. BlockTypes: `label`, `desc`, `inputs`, `outputs`,
-  `code`. Wires: `from`, `to`, `op`.
+  `outputs`, `code`, `parent`, `valueType`, and on triggers `source` and `context`. BlockTypes:
+  `label`, `desc`, `inputs`, `outputs`, `code`. Wires: `from`, `to`, `op`. An empty string or
+  object in `before` means the field was not there.
+- A changed named type is marked in `typeInfo`: `"change": "modified"` and `"before"` with the old
+  type expression. Wires that carry it show as affected.
 - A `removed` wire may point at a port that only exists in `before`.
 - Changing a node's `kind` = one `removed` node + one `new` node.
 
@@ -170,6 +176,14 @@ writing down.
 `<subject>.layout.json`, next to the diagram, holds the positions a person set by dragging blocks
 in the viewer. The viewer writes it; never edit it. Commit it with the diagram. Blocks it doesn't
 mention are laid out automatically, so editing the diagram needs no change to it.
+
+## Draft and review files (written by the viewer)
+
+Edits made in the viewer are kept in `<subject>.draft.json` (the edited document, plus the
+diagram's text when editing started) until the user saves. If the diagram changed on disk
+meanwhile, the save keeps the user's version and puts the other one in `<subject>.review.json`.
+Never write either file. While a draft exists, don't edit the diagram. A review file is for you
+to merge into the saved diagram and then delete. Neither should be committed.
 
 ## IDs
 

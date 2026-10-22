@@ -46,7 +46,8 @@ to the same area updates that file. Old versions live in git history, not as cop
 
 A `logic/<subject-id>.layout.json` next to it holds positions the user set by dragging blocks in
 the viewer. Never write or edit it, and leave it in place when you change the diagram; commit it
-along with the diagram.
+along with the diagram. The viewer also writes `<subject-id>.draft.json` and
+`<subject-id>.review.json` (see "When the user edits in the viewer"); never write those either.
 
 Before writing a file for the first time in a session, read `<base>/references/format.md` (the
 full format) and one example: `<base>/examples/auth-gate.logic.json` (understand) or
@@ -139,6 +140,22 @@ the code:
 3. The user asks for changes in the chat, or pastes a request copied from the viewer. Edit the
    JSON, validate, and say what changed; the viewer reloads by itself.
 
+## When the user edits in the viewer
+
+The user can make small edits in the viewer: rename a block, port or function, change a type or
+a trigger, remove a block or wire, leave a `note`. Edits are kept in `<subject>.draft.json` until
+the user saves, and are written with the usual Design marks. They are requests for you.
+
+- **Before editing a diagram, check for `<subject>.draft.json`.** If it exists, the user has
+  unsaved edits: don't edit the diagram; say so and wait, or work on something else.
+- The request arrives as the pasted **Copy for agent** text. If the user only says they edited
+  the diagram, read `git diff` on the file. A renamed block, port or function means rename it in
+  the code; an added field means add it to the model; a removed block means remove it from the
+  design.
+- A `note` is a request: implement it, then delete the note.
+- If `<subject>.review.json` exists, a save set your own edits aside. Compare it with the diagram,
+  re-apply what still makes sense on top of the user's version, then delete it.
+
 ## After implementation
 
 When the designed change has been implemented, fold the diagram back into living documentation:
@@ -146,7 +163,7 @@ When the designed change has been implemented, fold the diagram back into living
 - set `mode: "understand"`;
 - remove `change` (new and modified become existing);
 - delete removed items;
-- drop `before` and `changeNote`;
+- drop `before` and `changeNote`, any remaining `note`, and `change`/`before` in `typeInfo`;
 - drop resolved risks and keep open ones;
 - update `code` references to the real files and symbols.
 
