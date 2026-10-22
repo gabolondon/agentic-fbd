@@ -34,6 +34,9 @@ export interface NodeBefore {
   code?: CodeRef;
   parent?: string;
   valueType?: TypeExpr;
+  /** trigger only */
+  source?: TriggerSource;
+  context?: Record<string, unknown>;
 }
 
 /** A short guide to how a block works: one paragraph, or ordered steps. */
@@ -68,6 +71,8 @@ export interface LogicNode {
   explored?: boolean;
   /** Another diagram in the same folder that explains this block: "file.logic.json[#node-id]". */
   see?: string;
+  /** A request left for the agent in the viewer. Not a change: the agent deletes it once done. */
+  note?: string;
 }
 
 export type WireOp = 'read' | 'write';
@@ -89,6 +94,8 @@ export interface Wire {
   op?: WireOp;
   draw?: WireDraw;
   before?: WireBefore;
+  /** A request left for the agent in the viewer. */
+  note?: string;
 }
 
 export interface Body {

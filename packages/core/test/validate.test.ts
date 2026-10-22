@@ -112,6 +112,32 @@ describe('validate', () => {
     expect(result.issues.find((i) => i.code === 'missing-store')).toBeUndefined();
   });
 
+  it('accepts notes on nodes and wires and trigger fields in before', () => {
+    const doc = {
+      version: '0.1',
+      subject: { id: 's', title: 'S', intent: 'I', mode: 'design' },
+      nodes: [
+        {
+          id: 't',
+          kind: 'trigger',
+          source: 'http',
+          context: { from: 'POST /x' },
+          label: 'T',
+          desc: 'd',
+          outputs: { x: 'string' },
+          note: 'Should be a scheduled job.',
+          change: 'modified',
+          before: { source: 'user', context: { from: 'Form' } },
+        },
+        { id: 'f', kind: 'result', label: 'F', desc: 'd', inputs: { x: 'string' } },
+      ],
+      wires: [{ id: 'w', from: 't.x', to: 'f.x', note: 'Check this one.' }],
+    };
+    const result = validate(doc);
+    expect(result.issues.filter((i) => i.level !== 'notice')).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
   it('reports a state without store as a notice', () => {
     const doc = {
       version: '0.1',
