@@ -68,6 +68,8 @@ export interface ViewNode {
   connector?: Connector;
   /** Another diagram that explains this block (`see`). */
   see?: string;
+  /** A note left for the agent in the viewer. */
+  note?: string;
 }
 
 export interface ViewEdge {
@@ -352,6 +354,7 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
       openRisk: risks.has(riskKey(f.id)),
       enterable: true,
       ref: { scope: resolved.scope, id: f.id },
+      note: f.node.note,
     });
   }
 
@@ -370,6 +373,7 @@ export function buildView(doc: LogicDoc, path: ViewPath, mode: ViewMode = 'after
       openRisk: risks.has(riskKey(n.id)),
       ref: { scope: resolved.scope, id: n.id },
       see: n.node.see,
+      note: n.node.note,
     };
     if (n.kind === 'state') {
       const t = n.node.valueType;

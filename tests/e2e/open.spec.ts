@@ -270,34 +270,143 @@ test('shows a collapsed Data box with reads and where they live', async ({ page 
   }
 });
 
-test('keeps edits in a draft until Save', async ({ page }) => {
+/** Clicks a block on the canvas away from its ports. */
+async function pick(page: Page, id: string): Promise<void> {
+  await page.locator(`.react-flow__node[data-id="${id}"]`).click({ position: { x: 24, y: 10 } });
+}
+
+/** Opens the Data box and one of its sections, and returns the row of a port. */
+async function dataRow(page: Page, section: string, port: string) {
+  const data = page.locator('.lb-data');
+  await data.locator('.lb-data-head').click();
+  await data.locator('.lb-data-section-head', { hasText: section }).click();
+  return data.locator('.lb-data-row').filter({ has: page.locator('.lb-data-name', { hasText: port }) });
+}
+
+test('renames a block and a port from the panel and saves', async ({ page }) => {
   const opened = await open(join(examples, 'auth-gate.logic.json'));
   const draftFile = opened.file.replace(/\.logic\.json$/, '.draft.json');
   const before = readFileSync(opened.file, 'utf8');
   const errors = trackErrors(page);
   const bar = page.locator('.lb-editbar');
   try {
-    await page.goto(`${opened.url}?test#/`);
-    await expect(rendered(page).filter({ hasText: 'Forward or deny' })).toBeVisible();
-    await page.waitForFunction(() => typeof (window as unknown as { __lbEdit?: unknown }).__lbEdit === 'function');
-    const refused = await page.evaluate(() =>
-      (window as unknown as { __lbEdit: (e: unknown) => string | null }).__lbEdit({ op: 'setLabel', at: { scope: '', id: 'proxy' }, value: 'Forward request' }),
-    );
-    expect(refused).toBeNull();
+    await page.goto(`${opened.url}#/`);
+    await pick(page, 'proxy');
+    await page.locator('.lb-panel h3').getByRole('button', { name: 'Edit' }).click();
+    await page.getByRole('textbox', { name: 'Block name' }).fill('Forward request');
+    await page.keyboard.press('Enter');
     await expect(bar).toContainText('1 unsaved change');
     await expect(rendered(page).filter({ hasText: 'Forward request' })).toBeVisible();
     await expect.poll(() => existsSync(draftFile)).toBe(true);
     expect(readFileSync(opened.file, 'utf8')).toBe(before);
 
+    // A reload keeps the draft on screen.
     await page.reload();
     await expect(bar).toContainText('1 unsaved change');
     await expect(rendered(page).filter({ hasText: 'Forward request' })).toBeVisible();
 
+    await pick(page, 'proxy');
+    const row = await dataRow(page, 'Reads', 'decision');
+    await row.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByRole('textbox', { name: 'Rename decision' }).fill('verdict');
+    await page.keyboard.press('Enter');
+    await expect(bar).toContainText('2 unsaved changes');
+
     await bar.getByRole('button', { name: 'Save' }).click();
     await expect(bar.getByRole('button', { name: 'Copy for agent' })).toBeVisible();
-    expect(JSON.parse(readFileSync(opened.file, 'utf8')).nodes.find((n: { id: string }) => n.id === 'proxy').label).toBe('Forward request');
+    const saved = JSON.parse(readFileSync(opened.file, 'utf8'));
+    const proxy = saved.nodes.find((n: { id: string }) => n.id === 'proxy');
+    expect(proxy).toMatchObject({ label: 'Forward request', change: 'modified', before: { label: 'Forward or deny' } });
+    expect(Object.keys(proxy.inputs)).toContain('verdict');
+    expect(proxy.before.inputs).toHaveProperty('decision');
+    expect(saved.subject.mode).toBe('design');
     expect(existsSync(draftFile)).toBe(false);
     expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('adds a field to a named type', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const bar = page.locator('.lb-editbar');
+  try {
+    await page.goto(`${opened.url}#/`);
+    await pick(page, 'proxy');
+    const row = await dataRow(page, 'Reads', 'target');
+    await row.locator('.lb-data-row-head').click();
+    await row.getByRole('button', { name: '+ field' }).click();
+    await page.getByRole('textbox', { name: 'New field name' }).fill('port');
+    await page.getByRole('textbox', { name: 'New field type' }).fill('number');
+    await row.getByRole('button', { name: 'Add' }).click();
+    await expect(bar).toContainText('1 unsaved change');
+    await bar.getByRole('button', { name: 'Save' }).click();
+    await expect(bar.getByRole('button', { name: 'Copy for agent' })).toBeVisible();
+    const saved = JSON.parse(readFileSync(opened.file, 'utf8'));
+    expect(saved.types.AppTarget).toEqual({ appId: 'AppId', url: 'string', port: 'number' });
+    expect(saved.typeInfo.AppTarget).toEqual({ change: 'modified', before: { appId: 'AppId', url: 'string' } });
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('blocks a duplicate port name with a message', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  try {
+    await page.goto(`${opened.url}#/`);
+    await pick(page, 'proxy');
+    const row = await dataRow(page, 'Reads', 'decision');
+    await row.getByRole('button', { name: 'Edit' }).first().click();
+    await page.getByRole('textbox', { name: 'Rename decision' }).fill('target');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('alert').filter({ hasText: 'already has an input named "target"' })).toBeVisible();
+    await expect(page.locator('.lb-editbar')).toHaveCount(0);
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('leaves a note and shows the badge', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  try {
+    await page.goto(`${opened.url}#/`);
+    await pick(page, 'proxy');
+    await page.locator('.lb-note-section').getByRole('button', { name: 'Edit' }).click();
+    await page.getByRole('textbox', { name: 'Note for agent' }).fill('Log every denial too.');
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(page.locator('.react-flow__node[data-id="proxy"] .lb-note-badge')).toBeVisible();
+    await expect(page.locator('.lb-editbar')).toContainText('1 unsaved change');
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('removes and restores a block', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const bar = page.locator('.lb-editbar');
+  try {
+    await page.goto(`${opened.url}#/`);
+    await pick(page, 'proxy');
+    await page.locator('.lb-panel-footer').getByRole('button', { name: 'Remove' }).click();
+    await expect(page.locator('.react-flow__node[data-id="proxy"] .lb-ghost, .react-flow__node[data-id="proxy"].lb-ghost, .react-flow__node[data-id="proxy"] > .lb-ghost')).toHaveCount(1);
+    await expect(bar).toContainText('1 unsaved change');
+    await page.locator('.lb-panel-footer').getByRole('button', { name: 'Restore' }).click();
+    await expect(bar).toContainText('No changes left');
+  } finally {
+    opened.child.kill();
+  }
+});
+
+test('no pencils in the Before view', async ({ page }) => {
+  const opened = await open(join(examples, 'other-free-text.logic.json'));
+  try {
+    await page.goto(`${opened.url}#/`);
+    await pick(page, 'review');
+    await expect(page.locator('.lb-panel .lb-pencil').first()).toBeAttached();
+    await page.getByRole('button', { name: 'Before' }).click();
+    await pick(page, 'review');
+    await expect(page.locator('.lb-panel h3')).toHaveText(/^Review/);
+    await expect(page.locator('.lb-panel .lb-pencil')).toHaveCount(0);
   } finally {
     opened.child.kill();
   }

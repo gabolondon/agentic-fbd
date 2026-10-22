@@ -90,6 +90,11 @@ function Badges({ data }: { data: NodeData }) {
           ↗
         </span>
       )}
+      {v.note && (
+        <span className="lb-note-badge" title={`Note for agent: ${v.note}`}>
+          ✎
+        </span>
+      )}
     </>
   );
 }

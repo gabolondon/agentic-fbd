@@ -1417,3 +1417,189 @@ div.lb-data-row-head {
   background: var(--mod);
   margin-left: auto;
 }
+
+/* ---- Editing in the side panel (phase 2e) ---------------------------------------------------- */
+
+.lb-editable {
+  position: relative;
+}
+
+.lb-pencil {
+  border: 0;
+  background: none;
+  padding: 0 3px;
+  margin-left: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+/* The glyph comes from CSS so it never becomes part of the value's text. */
+.lb-pencil::before {
+  content: '✎';
+}
+
+.lb-editable:hover > .lb-pencil,
+.lb-pencil:focus-visible {
+  opacity: 1;
+}
+
+.lb-pencil:hover {
+  color: var(--sel);
+}
+
+.lb-editing {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.lb-input {
+  flex: 1 1 140px;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid var(--sel);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+}
+
+textarea.lb-input {
+  flex-basis: 100%;
+  resize: vertical;
+}
+
+.lb-input-mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+}
+
+.lb-input-error {
+  border-color: var(--risk);
+}
+
+.lb-edit-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.lb-edit-error {
+  flex-basis: 100%;
+  color: var(--risk);
+  font-size: 12px;
+}
+
+.lb-pill-small,
+.lb-button-small {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.lb-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #fdf8ec;
+  border: 1px solid #f0dca8;
+  font-size: 12px;
+}
+
+.lb-select {
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+}
+
+.lb-context-row {
+  margin-bottom: 3px;
+}
+
+.lb-panel-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.lb-panel section.lb-note-section {
+  background: #fffbea;
+  border: 1px solid #f3e3a6;
+  border-radius: 8px;
+  padding: 6px 10px 8px;
+}
+
+.lb-panel .lb-note-section h4 {
+  color: #8a6a00;
+}
+
+.lb-caret-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.lb-data-row-head {
+  cursor: pointer;
+}
+
+.lb-field-remove {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.lb-field-remove:hover {
+  color: var(--risk);
+}
+
+.lb-field-table .lb-field-name {
+  font-weight: 500;
+}
+
+.lb-panel .lb-field-add {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.lb-field-new {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lb-field-new .lb-input {
+  flex: 1 1 80px;
+}
+
+.lb-note-badge {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #f6d860;
+  color: #5c4500;
+  font-size: 10px;
+  line-height: 17px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}

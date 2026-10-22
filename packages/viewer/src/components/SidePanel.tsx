@@ -1,7 +1,20 @@
 import { useState } from 'react';
-import { describeType, type LogicDoc, type LogicGuide, type Ports, type Risk, type ViewMode, type ViewNode, type ViewPath } from '@logic-builder/core';
+import {
+  describeType,
+  type Edit,
+  type LogicDoc,
+  type LogicGuide,
+  type LogicNode,
+  type Ports,
+  type Risk,
+  type TriggerSource,
+  type ViewMode,
+  type ViewNode,
+  type ViewPath,
+} from '@logic-builder/core';
 import { findNode, instancesOf, risksFor } from '../state/lookup.ts';
 import { DataBox } from './DataBox.tsx';
+import { EditableText } from './Editable.tsx';
 import { KIND_LABEL } from './nodes.tsx';
 
 export type Panel =
@@ -24,6 +37,10 @@ interface Props {
   activeRisk: string | null;
   /** Opens the level that shows a block and selects it. */
   onSelect: (scope: string, id: string) => void;
+  /** Applies an edit to the draft; returns why it was refused, or null. */
+  edit: (e: Edit) => string | null;
+  /** The diagram when editing started, while there is a draft. */
+  original: LogicDoc | null;
 }
 
 export function SidePanel(props: Props) {
@@ -36,7 +53,7 @@ export function SidePanel(props: Props) {
             ×
           </button>
           {panel.type === 'risks' && <RisksPanel {...props} />}
-          {panel.type === 'node' && <NodePanel {...props} node={panel.node} />}
+          {panel.type === 'node' && <NodePanel key={panel.node.id} {...props} node={panel.node} />}
           {panel.type === 'unexplored' && <UnexploredPanel {...props} node={panel.node} />}
         </div>
       )}
@@ -59,16 +76,18 @@ function PortList({ title, ports, doc }: { title: string; ports: Ports | undefin
   );
 }
 
-function Explanation({ desc, logic }: { desc?: string; logic?: LogicGuide }) {
-  if (!desc && !logic) {
-    return <p className="lb-muted lb-no-explanation">No explanation yet. Ask Claude to describe this block.</p>;
+function Explanation({ desc, logic, onDesc }: { desc?: string; logic?: LogicGuide; onDesc?: (v: string) => string | null }) {
+  if (!desc && !logic && !onDesc) {
+    return <p className="lb-muted lb-no-explanation">No explanation yet. Ask the agent to describe this block.</p>;
   }
   return (
     <div className="lb-explanation">
-      {desc && (
+      {(desc || onDesc) && (
         <section>
           <h4>What it does</h4>
-          <p className="lb-desc">{desc}</p>
+          <div className="lb-desc">
+            <EditableText value={desc ?? ''} multiline placeholder="Add a description" label="What it does" onCommit={onDesc} />
+          </div>
         </section>
       )}
       {logic && (
@@ -89,9 +108,114 @@ function Explanation({ desc, logic }: { desc?: string; logic?: LogicGuide }) {
   );
 }
 
+const SOURCES: TriggerSource[] = ['user', 'schedule', 'http', 'agent', 'system'];
+
+/** A trigger's source and context; `from` and `modes` can be edited. */
+function TriggerContext({ node, onCommit }: { node: LogicNode; onCommit?: (source: TriggerSource, context: Record<string, unknown>) => string | null }) {
+  const context = node.context ?? {};
+  const source = node.source ?? 'user';
+  const setKey = (key: string, value: unknown): string | null => {
+    const next = { ...context };
+    if (value === '' || (Array.isArray(value) && value.length === 0)) delete next[key];
+    else next[key] = value;
+    return onCommit!(source, next);
+  };
+  const shown = (val: unknown): string => (Array.isArray(val) ? val.join(', ') : String(val ?? ''));
+  const keys = [...new Set([...(onCommit ? ['from', 'modes'] : []), ...Object.keys(context)])];
+  return (
+    <section>
+      <h4>Context</h4>
+      <div className="lb-context-row">
+        source:{' '}
+        {onCommit ? (
+          <select className="lb-select" aria-label="Trigger source" value={source} onChange={(e) => onCommit(e.target.value as TriggerSource, context)}>
+            {SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <code>{source}</code>
+        )}
+      </div>
+      {keys.map((k) => {
+        const editable = onCommit && (k === 'from' || (k === 'modes' && (context.modes === undefined || Array.isArray(context.modes))));
+        const commit = !editable
+          ? undefined
+          : k === 'modes'
+            ? (v: string) => setKey(k, v.split(',').map((m) => m.trim()).filter(Boolean))
+            : (v: string) => setKey(k, v.trim());
+        return (
+          <div key={k} className="lb-context-row">
+            {k}:{' '}
+            <code>
+              <EditableText value={shown(context[k])} mono placeholder={k === 'modes' ? 'create, edit' : 'where it starts'} label={`Trigger ${k}`} onCommit={commit} />
+            </code>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+/** Remove, with a confirm for a group; Restore for a block removed while editing. */
+function RemoveFooter({ inside, restorable, onRemove, onRestore }: { inside: number; restorable: boolean; onRemove?: () => string | null; onRestore: () => string | null }) {
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <section className="lb-panel-footer">
+      {restorable ? (
+        <button className="lb-pill" onClick={() => setError(onRestore())}>
+          Restore
+        </button>
+      ) : confirming ? (
+        <div className="lb-confirm">
+          <span>
+            Removes this block and {inside} inside it
+          </span>
+          <span className="lb-spacer" />
+          <button className="lb-pill lb-pill-small" onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+          <button className="lb-pill lb-pill-small lb-pill-danger" onClick={() => setError(onRemove!())}>
+            Remove
+          </button>
+        </div>
+      ) : (
+        onRemove && (
+          <button className="lb-pill lb-pill-danger" onClick={() => (inside > 0 ? setConfirming(true) : setError(onRemove()))}>
+            Remove
+          </button>
+        )
+      )}
+      {error && (
+        <span className="lb-edit-error" role="alert">
+          {error}
+        </span>
+      )}
+    </section>
+  );
+}
+
+/** How many blocks sit inside a group, at any depth. */
+function countInside(nodes: LogicNode[], id: string): number {
+  const inside = new Set([id]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const n of nodes) {
+      if (n.parent !== undefined && inside.has(n.parent) && !inside.has(n.id)) {
+        inside.add(n.id);
+        grew = true;
+      }
+    }
+  }
+  return inside.size - 1;
+}
+
 const CHANGE_TAG: Record<string, string> = { new: 'new', modified: 'modified', removed: 'removed', affected: 'affected' };
 
-function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSelect }: Props & { node: ViewNode }) {
+function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSelect, edit, original }: Props & { node: ViewNode }) {
   if (!node.ref) {
     return (
       <>
@@ -103,22 +227,36 @@ function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSel
       </>
     );
   }
-  const source = findNode(doc, node.ref.scope, node.ref.id);
+  const at = node.ref;
+  const source = findNode(doc, at.scope, at.id);
   if (!source) return null;
   const type = source.kind === 'instance' && source.of ? doc.blockTypes?.[source.of] : undefined;
   const code = source.code ?? type?.code;
-  const risks = risksFor(doc, node.ref.scope, node.ref.id);
+  const risks = risksFor(doc, at.scope, at.id);
   const uses = source.kind === 'instance' && source.of ? instancesOf(doc, source.of) : [];
   const mark = showChanges ? node.mark : undefined;
   const changeNote = showChanges ? (source.changeNote ?? (node.mark === 'affected' ? type?.changeNote : undefined)) : undefined;
+
+  // Edits happen in the After view, never on pins or on removed blocks (design spec §6.9).
+  const removed = source.change === 'removed';
+  const canEdit = mode === 'after' && source.kind !== 'pin' && !removed;
+  const commit = (e: Edit): string | null => edit(e);
+  const was = original ? findNode(original, at.scope, at.id) : undefined;
+  const restorable = mode === 'after' && removed && !!was && was.change !== 'removed';
+  const scopeNodes = (at.scope ? doc.blockTypes?.[at.scope]?.body?.nodes : doc.nodes) ?? [];
+
   return (
     <>
       <div className="lb-kind">{KIND_LABEL[source.kind]}</div>
       <h3>
-        {source.label}
+        <EditableText value={source.label} label="Block name" onCommit={canEdit ? (value) => commit({ op: 'setLabel', at, value }) : undefined} />
         {mark && <span className={`lb-tag lb-tag-${mark}`}>{CHANGE_TAG[mark]}</span>}
       </h3>
-      <Explanation desc={source.desc ?? type?.desc} logic={source.logic ?? type?.logic} />
+      <Explanation
+        desc={source.desc ?? type?.desc}
+        logic={source.logic ?? type?.logic}
+        onDesc={canEdit ? (value) => commit({ op: 'setDesc', at, value }) : undefined}
+      />
       {source.see && (
         <section>
           <h4>Explained in another diagram</h4>
@@ -128,26 +266,26 @@ function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSel
         </section>
       )}
       {source.kind === 'trigger' && (
-        <section>
-          <h4>Context</h4>
-          <div>
-            source: <code>{source.source}</code>
-          </div>
-          {Object.entries(source.context ?? {}).map(([k, val]) => (
-            <div key={k}>
-              {k}: <code>{Array.isArray(val) ? val.join(', ') : String(val)}</code>
-            </div>
-          ))}
-        </section>
+        <TriggerContext node={source} onCommit={canEdit ? (src, context) => commit({ op: 'setTrigger', at, source: src, context }) : undefined} />
       )}
-      <DataBox key={`${node.ref.scope}/${node.ref.id}`} doc={doc} scope={node.ref.scope} id={node.ref.id} mode={mode} onSelect={onSelect} />
+      <DataBox
+        key={`${at.scope}/${at.id}`}
+        doc={doc}
+        scope={at.scope}
+        id={at.id}
+        mode={mode}
+        onSelect={onSelect}
+        edit={canEdit ? commit : undefined}
+        shared={source.kind === 'instance' && source.of ? { typeName: source.of, uses: uses.length } : undefined}
+      />
       {(code || source.ref) && (
         <section>
           <h4>Code</h4>
           {code ? (
             <code>
               {code.file}
-              {code.symbol ? ` › ${code.symbol}` : ''}
+              {(code.symbol || canEdit) && ' › '}
+              <EditableText value={code.symbol ?? ''} mono placeholder="name a function" label="Function name" onCommit={canEdit ? (value) => commit({ op: 'setSymbol', at, value }) : undefined} />
             </code>
           ) : (
             <span>{source.ref}</span>
@@ -185,7 +323,21 @@ function NodePanel({ node, doc, mode, showChanges, onNavigate, onOpenLink, onSel
           ))}
         </section>
       )}
+      {(canEdit || source.note) && (
+        <section className="lb-note-section">
+          <h4>Note for agent</h4>
+          <EditableText value={source.note ?? ''} multiline placeholder="Add a note" label="Note for agent" onCommit={canEdit ? (value) => commit({ op: 'setNote', at, value }) : undefined} />
+        </section>
+      )}
       {node.enterable && node.type !== 'frame' && !node.unexplored && <p className="lb-muted">Double-click to see inside.</p>}
+      {(canEdit || restorable) && (
+        <RemoveFooter
+          inside={source.kind === 'group' ? countInside(scopeNodes, at.id) : 0}
+          restorable={restorable}
+          onRemove={canEdit ? () => commit({ op: 'remove', at }) : undefined}
+          onRestore={() => commit({ op: 'restore', at })}
+        />
+      )}
     </>
   );
 }

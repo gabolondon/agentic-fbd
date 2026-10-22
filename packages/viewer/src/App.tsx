@@ -26,7 +26,7 @@ import { layoutReadable, type Box, type Layout } from './layout/elk.ts';
 import { applySaved, fitFrames, snapToWires, snapshot } from './layout/arrange.ts';
 import { nodeSize } from './layout/sizes.ts';
 import { readHash, writeHash, type Location } from './state/hash.ts';
-import { locateNode, locateRef, riskTarget, type TreeItem } from './state/lookup.ts';
+import { findNode, locateNode, locateRef, riskTarget, type TreeItem } from './state/lookup.ts';
 import { NavPanel } from './components/NavPanel.tsx';
 import { useDocument, type DocHandle } from './state/useDocument.ts';
 import { flowType, nodeTypes, type LogicFlowNode } from './components/nodes.tsx';
@@ -405,12 +405,17 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
     const timer = setTimeout(() => setSaved(null), 20_000);
     return () => clearTimeout(timer);
   }, [saved]);
-  // Lets end-to-end tests drive edits before the panel has editing controls.
+
+  // The panel follows the block through edits; a block an edit deleted closes it.
   useEffect(() => {
-    if (import.meta.env.DEV || new URLSearchParams(window.location.search).has('test')) {
-      (window as unknown as { __lbEdit?: (e: Edit) => string | null }).__lbEdit = edit;
-    }
-  }, [edit]);
+    if (!doc || !panel || panel.type === 'risks' || !panel.node.ref) return;
+    if (!findNode(doc, panel.node.ref.scope, panel.node.ref.id)) setPanel(null);
+  }, [doc, panel]);
+  const shownPanel = useMemo<Panel>(() => {
+    if (!panel || panel.type === 'risks') return panel;
+    const live = flow.nodes.find((n) => n.id === panel.node.id)?.data.view;
+    return live && live !== panel.node ? { ...panel, node: live } : panel;
+  }, [panel, flow.nodes]);
 
   const openRisks = (doc?.risks ?? []).filter((r) => r.status === 'open').length;
   const errors = state.issues.filter((i) => i.level === 'error');
@@ -551,7 +556,7 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
         </div>
         {doc && (
           <SidePanel
-            panel={panel}
+            panel={shownPanel}
             doc={doc}
             filePath={state.path}
             mode={mode}
@@ -566,6 +571,8 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
             onRisk={onRisk}
             activeRisk={activeRisk}
             onSelect={selectNode}
+            edit={edit}
+            original={state.draft?.original ?? null}
           />
         )}
       </div>
