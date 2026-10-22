@@ -185,6 +185,7 @@ One file per subject (a feature, flow, tool, pipeline…). Example in Appendix A
 version     string                 format version, "0.1"
 subject     { id, title, intent, scope, mode: "understand" | "design" }
 types       { Name: Type }         named types that travel on wires
+typeInfo?   { Name: TypeInfo }     notes on named types: desc, code (added in phase 2d, §6.8)
 blockTypes  { Name: BlockType }    reusable blocks (FB types)
 nodes       Node[]
 wires       Wire[]
@@ -197,7 +198,8 @@ from `understand` to `design` when the user starts designing on top of it.
 ### 5.2 Nodes
 
 Common fields: `id`, `kind`, `label`, `desc?`, `logic?`, `parent?`, `inputs?`, `outputs?`, `code?`,
-`change?`, `changeNote?`, `before?`.
+`change?`, `changeNote?`, `before?`, `note?` (a request left for the agent, added in phase 2e,
+§6.9).
 
 **Explanations (added after the M6 review).** Every block carries a short explanation for the
 reader, shown when the block is clicked:
@@ -218,7 +220,7 @@ across it. Each blockType `body` is its own scope. A risk refers to something in
 |---|---|---|
 | `trigger` | What starts a flow | `source`: `user` \| `schedule` \| `http` \| `agent` \| `system`. `context?`: `{ from, modes, ... }` — where it comes from (step, depth) and in which mode (create/edit). |
 | `function` | A function, handler or component | Typed inputs and outputs. |
-| `state` | A store, variable or persisted state | `valueType`. Read and written through wires with `op`. |
+| `state` | A store, variable or persisted state | `valueType`. `store` (added in phase 2d, §6.8): where it lives, e.g. `"Zustand store · lost on reload"`. Read and written through wires with `op`. |
 | `decision` | if / switch | One output per branch. |
 | `external` | API, database, third-party service, or code outside the subject | The boundary with the rest of the repo, kept as a closed box. |
 | `result` | What the user sees or what gets persisted | |
@@ -266,7 +268,7 @@ When a `blockType` changes (`change: modified`), all its instances are marked as
 
 ### 5.4 Wires
 
-`{ id, from: "node.port", to: "node.port", change?, op? }`.
+`{ id, from: "node.port", to: "node.port", change?, op?, note? }`.
 - A `state` node is referenced by its id alone, without a port.
 - `op`: `read` \| `write`, for wires touching a `state`.
 - `draw?` (added in phase 2a): `line` \| `label`. How the viewer draws the wire: as a line, or as
@@ -377,7 +379,7 @@ the direction of the approved prototype.
 
 ### 6.4 Phase 2 (not in the first delivery)
 - Editing directly in the UI, saved back to the JSON: rename blocks and ports, change a port's type,
-  edit descriptions. Then create and delete wires.
+  edit descriptions (done in phase 2e, §6.9, which leaves creating wires to the agent).
 - Dragging blocks and saving positions (done in phase 2b, §6.6).
 
 Claude sees UI edits by reading the file.
@@ -490,6 +492,212 @@ On the first real diagram (an ingestion pipeline in four linked files), the over
 stg diagrams went from 26 flags to 4 (two wires: the store reads that looped around everything).
 The stg diagram is all lines, in the order the flow runs. The worker level, which is very wide,
 went from 22 flags to 13, on its longest wires.
+
+### 6.8 Phase 2d: seeing the data
+
+**Why.** On Case A (the multi-step wizard), Gabriel kept getting lost in the wizard's state: what
+each step showed, where the answers lived in the browser (component state, a global store, Redux,
+Zustand, browser storage?), and what went to the database. On a backend block (a FastAPI
+endpoint, say) the same question is: what is the request body's model, how do its fields travel
+through the queries, and what comes out (200, 422). Building frontend, knowing the shape of the
+data and where it lives is what keeps you from getting lost. In Design mode it is also what stops
+a new step from creating a second store when an existing one already holds the data it needs.
+
+The format already had most of this (`state` blocks with `valueType`, `read`/`write` wires, named
+types). What was missing: where a state lives, and a clear place in the viewer to see the data.
+
+**Principles (Gabriel's call):**
+- The UI stays clean: everything about data starts collapsed, and each item gets at most two
+  lines of description until it is opened.
+- The JSON stays simple, so Claude has little to get wrong. Almost everything shown is computed
+  from what the file already has.
+
+**Format additions** (§5):
+- `state.store` (string, new): where the state lives and how long it lasts, in a few words of free
+  text, e.g. `"Zustand store · lost on reload"`, `"localStorage · survives reload"`,
+  `"Postgres table bookings"`, `"Redux slice booking"`. Free text, not a catalog, so Claude does
+  not have to fit reality into categories. `validate` reports a missing `store` as a notice
+  (`missing-store`), like `missing-desc`.
+- `typeInfo` (new top-level map, `{ Name: { desc?, code? } }`): optional notes on a named type:
+  `desc` (one or two lines: what it is, where it comes from) and `code` (`{ file, symbol }`, e.g.
+  the Pydantic class or TypeScript interface). `types` itself does not change. A separate map, not a
+  long form of the type entry, because type expressions are already objects (`{ field: Type }`)
+  and a reserved key could clash with a real field name. `validate` errors on a `typeInfo` entry
+  whose name is not in `types`; `--check-code` checks its `code` like any other.
+- HTTP responses are ordinary outputs named by status code (`"200"`, `"422"`). No new field.
+
+**The Data box.** When a block is clicked, the side panel shows a **Data** section, visually
+distinct from the rest of the panel (its own tinted box, so it is clearly "the data part"),
+between the explanation and the code reference. Collapsed by default, it shows one summary line
+("Reads 3 · Writes 2"). Opened, it has:
+
+- **Reads:** what the block takes in: every input port and every `read` wire from a `state`.
+- **Writes:** what it puts out: every output port and every `write` wire to a `state`.
+- **Responses** (only when present): outputs whose name is a 3-digit HTTP status code.
+
+Each item is one collapsed row:
+- the port or state name and its type name;
+- where it lives, as a small badge: the state's `store`, or for a port the block on the other end
+  of its wires ("from Step 1: Trip", "to Save answers");
+- up to two lines of description: the state's `desc`, else the type's `typeInfo.desc`;
+- opened, the row shows the type's fields as a small table (field, type), nested objects as
+  expandable rows, and a link to the type's `code` when `typeInfo` has one.
+
+Rows and sections remember nothing between clicks; everything opens collapsed again.
+
+**On a `state` block**, the Data box shows **Read by** and **Written by** instead: the blocks on
+its wires, in flow order, each clickable. That answers "who already uses this store?".
+
+**On a group or closed box**, the Data box shows only the data that crosses its edge: the
+boundary ports the viewer already computes and the states inside read or written from outside
+(or the other way round). This is how one section relates to another. What happens inside is not
+listed: a muted line ("+5 more inside · double-click to open") says there is more.
+
+**Skill rules (Gabriel's call, wording Claude's):**
+- Every `state` gets a `store`. Write what the code actually uses (the library and, when it
+  matters, whether it survives a reload); never guess a category.
+- Give `typeInfo.desc` and `code` to the types that matter for understanding (request and
+  response models, the wizard's draft object), not to every primitive alias.
+- **Reuse before creating.** In Design mode, before proposing a new `state`, look for an existing
+  store in the area that already holds that data, and wire the new blocks to it. A new store needs
+  a reason in its `changeNote`.
+- `validate` helps: a notice (`similar-store`) when a `new` state has the same `valueType` as an
+  existing one in the file.
+
+**Not in this phase** (see §6.10): showing shared data for several selected blocks, a canvas
+strip grouping states by where they live, and a canvas mode that follows one piece of data.
+
+### 6.9 Phase 2e: small edits in the viewer, as proposals for the agent
+
+**Why.** When Claude proposes a diagram, many corrections are small and faster to make by hand
+than to describe in chat: add a field Claude missed to the data on an input, rename a block, a
+variable or a function so it reads in the team's own words, change how a trigger behaves, drop a
+block, or leave a note on a block saying what should change. Bigger changes (a function's
+internals, the architecture, new blocks and wires) stay in the chat with the agent.
+
+**What an edit means (Gabriel's call).** An edit in the viewer is a **proposal for the agent to
+implement**, not just a nicer drawing. Renaming a block, port or function means "use this name in
+the code". So edits are written into the diagram with the Design-mode marks the format already
+has, and the agent reads them from the file.
+
+**What can be edited** (in the side panel; each editable field shows a pencil on hover, there is no
+separate edit mode):
+- a block's `label`, `desc` and `code.symbol`;
+- port names (wires that use the port are updated; on a blockType, its body's pins too);
+- a port's type, as a type expression (checked as you type);
+- the fields of a named type: add, remove or rename a field, change a field's type;
+- a trigger's `source` and its `context` (`from`, `modes`);
+- remove a block or a wire;
+- a **note** on a block or a wire.
+
+Edge cases (Claude's calls):
+- **Instances.** An instance's ports come from its blockType, so renaming or retyping a port on
+  an instance edits the blockType, and the field says so before the edit applies ("Changes all N
+  uses of OtherOption"). The same code is used in every place, so one rename is one rename in the
+  code. `label`, `desc` and `note` edited on an instance stay on the instance. BlockTypes have no
+  block of their own on the canvas, so they are edited through any of their instances.
+- **Types.** Only plain object types (`{ field: Type }`), named or written inline on a port, get
+  the field table editor. Unions, records, arrays and aliases are edited as one type expression.
+- **Groups.** Removing a group marks it and everything inside it removed, and the panel says how
+  many blocks that is before applying it.
+- **Restore.** A block or wire marked `removed` by an edit shows **Restore** in its panel, which
+  takes the mark back. Undoing other single edits stays in §6.10.
+- **Wires can be selected.** Today a wire click only shows the tooltip. A click now selects the
+  wire and opens a small wire panel (type, `from → to`, note, remove, copy).
+- **Linked files.** A draft belongs to one file. Several files can have drafts at once; the
+  structure panel shows a dot on each file with unsaved edits, and the bar covers the file on
+  screen.
+
+Not editable in this phase: adding blocks or wires, changing a block's `kind` or `parent`, risks,
+blockType bodies beyond their port names. These are asked of the agent, in a note or in chat.
+
+**How edits are marked** (Claude's call, following §5.2):
+- Editing an `existing` node, wire or blockType sets `change: "modified"` and stores the field's
+  original value in `before` (only the first time; `before` always holds the value before any
+  edit). Setting a field back to its original value removes it from `before`, and the mark goes
+  when `before` is empty.
+- Editing a `new` item changes it in place, with no `before`.
+- Removing an `existing` block or wire sets `change: "removed"` (its wires are removed with it).
+  Removing a `new` one deletes it.
+- Editing a named type's fields marks it in `typeInfo` (`change: "modified"`, `before`: the old
+  type expression), and the wires carrying that type show as affected.
+- The first edit on a file in `understand` mode switches it to `design`.
+- A **note** is not a change: it adds `note` (string, new, on nodes and wires) without marking
+  anything or switching the mode. A block with a note shows a small note badge.
+- Edits happen in the After view. Before is read-only.
+
+**The draft (Gabriel's idea, details Claude's call).** The file in the repo is not touched while
+the user edits:
+- The first edit creates `<subject>.draft.json` next to the diagram, holding the edited document
+  and a copy of the original file as it was when editing started. The copy is used to detect
+  changes on disk and to list what the user changed. Every edit rewrites it
+  (debounced). A reload of the viewer picks the draft up, so nothing is lost.
+- The draft file is also how the agent knows someone is editing (see the skill rules below).
+- A bar at the bottom of the viewer shows "N unsaved changes · Save · Discard". Discard deletes the
+  draft.
+- **Save** validates the draft first. If it has errors (two ports with the same name, a type that
+  doesn't parse), Save is disabled and the bar says what is wrong. Otherwise the server writes the
+  draft over the diagram atomically and deletes the draft.
+- **If the diagram changed on disk while the user was editing** (the agent edited it), the user's
+  version wins: the save goes through, and the other version is kept as `<subject>.review.json`
+  for the agent to review. The bar says so before saving ("The diagram changed on disk while you
+  edited. Saving keeps your version; the other one is kept for review."). Until then, the viewer
+  keeps showing the draft.
+- The names end in `.draft.json` and `.review.json`, not `.logic.json`, so neither shows up as a
+  diagram in the structure panel or in links. The server watches them too.
+- Server: the endpoints follow the layout file's rules (§6.6): JSON content type, same-origin
+  only, atomic writes.
+
+**Copy for agent.** Every way of handing something to the agent says "agent", not "Claude", in
+the UI, so the same viewer works with Codex later. The existing "Copy request for Claude" button
+and the "Ask Claude…" hints are renamed accordingly.
+- **After a save**, the bar offers **Copy for agent**: a short request listing what the user
+  changed. It is built from a diff of the draft against the original copy, not from the marks, so
+  on a file already in Design mode it lists only the user's edits, including edits to the agent's
+  own `new` items, which carry no mark. Example:
+  ```
+  I edited logic/booking.logic.json in the viewer. Please review and implement:
+  - Renamed "Step 2" → "Travelers step" (step2)
+  - TravelersIn: added field leadPhone: string
+  - Removed "Legacy check" (legacyCheck)
+  - Note on "Save answers" (saveAnswers): save the draft before calling the API
+  ```
+- **One block:** a small copy icon in the side panel header, tooltip "Copy reference for agent".
+  It copies a reference, not the JSON:
+  ```
+  logic/booking.logic.json
+  - "Step 2: Travelers" (id: step2Travelers, function) → src/steps/Travelers.tsx · Travelers
+  ```
+  The file path comes first because a subject can be split into several linked files.
+- **Several blocks:** when more than one block is selected (§6.6), the side panel shows
+  "N blocks selected" with a **Copy for agent** button: the same reference, one line per block,
+  under the file.
+- **A wire:** the wire's tooltip has the same copy icon (`from → to`, its id and type).
+
+**Skill rules** (the agent's side of the deal):
+- Before editing a diagram, check for `<subject>.draft.json`. If it exists, the user has unsaved
+  edits in the viewer: don't edit the diagram; say so and wait (or work on something else).
+- The user's request arrives as the pasted "Copy for agent" text; when the user only says "I
+  edited the diagram", read `git diff` on the file. Treat what changed as requests: a renamed
+  block, port or symbol means rename it in the code;
+  an added field means add it to the model; a removed block means remove it from the design.
+- A `note` is a request. Implement it, then delete the note.
+- If `<subject>.review.json` exists, the agent's own edits were set aside by a save. Compare it
+  with the diagram, re-apply what still makes sense on top of the user's version, then delete it.
+- §8.6 (fold back after implementing) also drops any remaining `note` and the `typeInfo` marks.
+
+### 6.10 Open improvements
+
+Ideas kept for later, to be picked up as real use shows which matter. Gabriel adds to this list
+as he tries the skill.
+
+- Shared data when several blocks are selected.
+- A canvas strip that groups states by where they live (component, store, browser, server,
+  database).
+- A canvas Data mode that follows one piece of data through every block that reads or writes it.
+- Adding blocks and wires from the UI.
+- Undo for single edits (today: Discard drops the whole draft).
+- An audit trail of edits beyond what git history and the change marks already give.
 
 ## 7. CLI
 
