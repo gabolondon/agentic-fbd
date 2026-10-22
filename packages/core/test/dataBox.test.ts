@@ -5,12 +5,6 @@ import { examplesDir, readJson } from './helpers.ts';
 
 const example = (): LogicDoc => structuredClone(readJson(join(examplesDir, 'other-free-text.logic.json')) as LogicDoc);
 
-function withStore(doc: LogicDoc): LogicDoc {
-  const answers = doc.nodes.find((n) => n.id === 'answers')!;
-  answers.store = 'Zustand store · lost on reload';
-  return doc;
-}
-
 function block(box: DataBox | null): Extract<DataBox, { kind: 'block' }> {
   expect(box?.kind).toBe('block');
   return box as Extract<DataBox, { kind: 'block' }>;
@@ -33,7 +27,7 @@ describe('dataBox', () => {
   });
 
   it('a port fed by a state shows the store as where', () => {
-    const box = block(dataBox(withStore(example()), '', 'review', 'after'));
+    const box = block(dataBox(example(), '', 'review', 'after'));
     expect(box.reads[0]).toMatchObject({
       name: 'answers',
       where: 'Zustand store · lost on reload',
@@ -61,7 +55,7 @@ describe('dataBox', () => {
   });
 
   it('state shows readBy and writtenBy in wire order', () => {
-    const box = dataBox(withStore(example()), '', 'answers', 'after');
+    const box = dataBox(example(), '', 'answers', 'after');
     expect(box).toMatchObject({
       kind: 'state',
       holds: { name: 'answers (store)', typeName: 'Answers', where: 'Zustand store · lost on reload' },

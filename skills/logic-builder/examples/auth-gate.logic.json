@@ -47,6 +47,22 @@
       "at": "string"
     }
   },
+  "typeInfo": {
+    "Session": {
+      "desc": "The verified user behind the session cookie.",
+      "code": {
+        "file": "server/auth/session.ts",
+        "symbol": "Session"
+      }
+    },
+    "Decision": {
+      "desc": "The policy's verdict: allow, with the role that granted it, or deny, with a reason the user sees.",
+      "code": {
+        "file": "server/policy.ts",
+        "symbol": "Decision"
+      }
+    }
+  },
   "nodes": [
     {
       "id": "t-request",
@@ -186,6 +202,7 @@
       "label": "access log",
       "desc": "Append-only log of every access decision.",
       "valueType": "AccessEvent",
+      "store": "Postgres table access_log · kept forever",
       "code": {
         "file": "server/audit.ts",
         "symbol": "accessLog"

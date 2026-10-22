@@ -17,6 +17,7 @@ Validate with `node "<base>/../../dist/cli.mjs" validate <file>`. Schema: `logic
     "focus": "some-group"              // optional: group or instance the viewer opens on
   },
   "types": { "Name": "<type>" },       // named types that travel on wires
+  "typeInfo": { "Name": { } },         // optional: what a named type means and where it lives in code
   "blockTypes": { "Name": { } },       // reusable blocks (see below)
   "nodes": [ ],
   "wires": [ ],
@@ -33,7 +34,7 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
 |---|---|---|
 | `trigger` | What starts a flow | `source`: `user` \| `schedule` \| `http` \| `agent` \| `system` (required). `context`: free object, e.g. `{ "from": "Vaccinations › List", "modes": ["create", "edit"] }` |
 | `function` | A function, handler, component, tool | typed `inputs` / `outputs` |
-| `state` | A store, variable, cache, table | `valueType`. No ports: wires reference it by bare id, with `op` |
+| `state` | A store, variable, cache, table | `valueType`, `store`. No ports: wires reference it by bare id, with `op` |
 | `decision` | if / switch | one output per branch |
 | `external` | API, database, third-party service, code outside the subject | the boundary; stays a closed box |
 | `result` | What the user sees or what gets persisted | |
@@ -47,6 +48,12 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
 - `desc` (**what it does**, 1–2 sentences) on every block except pins.
 - `logic` (**how it works**): a string, or an array of ordered steps. Required on `function`,
   `decision` and blockTypes.
+- `store` (state only): where the data lives and how long it lasts, in a few words of free text:
+  `"Zustand store · lost on reload"`, `"localStorage · survives reload"`, `"Redux slice booking"`,
+  `"Postgres table bookings"`. Write what the code actually uses; never guess a category.
+  `validate` reports states without it as a `missing-store` notice.
+- HTTP responses are ordinary outputs named by status code: `"outputs": { "200": "Booking",
+  "422": "ValidationError" }`. The viewer lists them as Responses.
 - `see`: another diagram in the same folder that explains this block, `"other.logic.json"` or
   `"other.logic.json#node-id"` (a block at that file's root level). The viewer shows a ↗ badge and
   opens the other diagram on double-click. Not allowed on pins.
@@ -116,6 +123,24 @@ modified (amber), and shows removed items as red dashed ghosts.
 `severity`: `high` | `medium` | `low`. `status`: `open` | `resolved`.
 
 ## Types
+
+### `typeInfo`
+
+```json
+"typeInfo": {
+  "BookingIn": {
+    "desc": "The request body of POST /bookings, validated by FastAPI.",
+    "code": { "file": "api/models.py", "symbol": "BookingIn" }
+  }
+}
+```
+
+Optional notes on names in `types`: `desc` (one or two lines: what it is, where it comes from)
+and `code`. Give them to the types that matter for understanding (request and response models,
+the wizard's draft object), not to every alias. A key that is not in `types` is an error. The
+viewer shows them in the Data box of every block that reads or writes the type.
+
+### Syntax
 
 | Syntax | Meaning |
 |---|---|

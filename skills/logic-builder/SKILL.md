@@ -31,7 +31,8 @@ node "<base>/../../dist/cli.mjs" open logic/<subject-id>.logic.json
 ```
 
 - `validate` exits 0 when valid (warnings and notices are allowed), 1 when invalid. Fix every
-  error and rerun until it exits 0. Also resolve `missing-desc` / `missing-logic` notices.
+  error and rerun until it exits 0. Also resolve `missing-desc`, `missing-logic` and
+  `missing-store` notices.
 - `--check-code <repo-root>` warns about `code` references that no longer exist. Run it before you
   reuse an existing diagram.
 - `open` serves the viewer and reloads it live whenever the file changes. Start it **once per file,
@@ -60,7 +61,9 @@ Explain how an existing feature, section, flow, tool or pipeline works.
    (APIs, databases, other modules). Do not map the whole repo.
 2. **Read only that code**, in one focused pass.
 3. **Find the state and the triggers.** Every trigger gets its `source` and a `context` (where it
-   comes from, which step or depth, create or edit mode).
+   comes from, which step or depth, create or edit mode). Every `state` gets a `store`: where the
+   data really lives and whether it survives a reload (`"Zustand store · lost on reload"`,
+   `"Postgres table bookings"`), read from the code, never a guessed category.
 4. **Draw the top level as a short story** (see "Structure" below): a few triggers and one group
    per system or stage. Each block is a real piece of code (a handler, function, component,
    store, endpoint, tool) with `code: { file, symbol }`.
@@ -68,7 +71,9 @@ Explain how an existing feature, section, flow, tool or pipeline works.
 6. **Leave sub-areas as unexplored groups**: `kind: "group"`, `explored: false`, a `desc`, and
    declared `inputs`/`outputs` so wires can reach them.
 7. **Name the types** that travel on wires in `types`. Use names for things that mean something
-   (`OptionId`, not just `number`).
+   (`OptionId`, not just `number`). Give `typeInfo` (`desc`, `code`) only to the types that matter
+   for understanding: request and response models, the wizard's draft object. HTTP responses are
+   outputs named by status code (`"200"`, `"422"`).
 8. **Note fragile spots** as `risks` pointing at the blocks and wires involved.
 9. **Expand on request, one layer at a time.** To explore a group: add its children (`parent`),
    rewire the wires that ended on the group's ports to the real children, delete the group's ports,
@@ -85,10 +90,14 @@ run Understand first or reuse the existing file.
 3. **Mark the change**: `change: "new" | "modified" | "removed"` on nodes, wires and blockTypes.
    Give modified items a `changeNote` and a `before` with the fields as they were (for example the
    old `inputs`). Removed wires may point at ports that exist only in `before`.
-4. **Explain** new and modified blocks.
-5. **Hunt for risks**, especially where a type changes: follow every wire it travels on. A bare
+4. **Reuse before creating.** Before proposing a new `state`, look for an existing store in the
+   area that already holds that data and wire the new blocks to it. A new store needs a reason in
+   its `changeNote`. `validate` flags a new state with the same type as an existing one
+   (`similar-store`).
+5. **Explain** new and modified blocks.
+6. **Hunt for risks**, especially where a type changes: follow every wire it travels on. A bare
    `number` flowing into `OptionId` is the kind of bug this catches.
-6. When the user approves the diagram, **ask** whether to continue to the implementation plan
+7. When the user approves the diagram, **ask** whether to continue to the implementation plan
    using the diagram as its basis.
 
 ## Structure: keep every level readable

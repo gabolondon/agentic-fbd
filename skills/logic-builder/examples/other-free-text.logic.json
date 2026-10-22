@@ -25,6 +25,18 @@
     },
     "Answers": "Record<QuestionId, Answer>"
   },
+  "typeInfo": {
+    "Answer": {
+      "desc": "One answer, tagged by kind, so typed text is never read as an option id.",
+      "code": {
+        "file": "src/questionnaire/types.ts",
+        "symbol": "Answer"
+      }
+    },
+    "Answers": {
+      "desc": "Every answer of the questionnaire, by question id. This is what the wizard sends to the backend."
+    }
+  },
   "blockTypes": {
     "OtherOption": {
       "label": "Other option",
@@ -262,6 +274,7 @@
       "label": "answers (store)",
       "desc": "Every answer of the wizard, by question id.",
       "valueType": "Answers",
+      "store": "Zustand store · lost on reload",
       "change": "modified"
     },
     {

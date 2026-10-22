@@ -17,6 +17,13 @@ describe('validate', () => {
     });
   }
 
+  it('bundled examples give every state a store', () => {
+    for (const file of listJson(examplesDir)) {
+      const missing = validate(readJson(file)).issues.filter((i) => i.code === 'missing-store');
+      expect(missing, baseName(file)).toEqual([]);
+    }
+  });
+
   for (const file of listJson(invalidDir, 'integrity-')) {
     const code = baseName(file).replace('integrity-', '').replace('.logic.json', '');
     it(`rejects ${baseName(file)} with a "${code}" error`, () => {
