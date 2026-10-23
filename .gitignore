@@ -5,3 +5,16 @@ local/
 *.log
 test-results/
 playwright-report/
+
+# Secrets and keys
+.env
+.env.*
+*.pem
+*.key
+
+# Viewer drafts and review copies (local work in progress)
+*.draft.json
+*.review.json
+
+# Hero video renders, hosted as GitHub Release assets
+site/public/media/
