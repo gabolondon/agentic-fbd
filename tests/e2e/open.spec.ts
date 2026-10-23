@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const root = resolve(import.meta.dirname, '../..');
 const cli = join(root, 'dist/cli.mjs');
-const examples = join(root, 'skills/logic-builder/examples');
+const examples = join(root, 'skills/agentic-fbd/examples');
 
 interface Opened {
   url: string;
@@ -14,7 +14,7 @@ interface Opened {
   child: ChildProcess;
 }
 
-/** Copies a file to a temp dir and runs `logic-builder open` on it. */
+/** Copies a file to a temp dir and runs `agentic-fbd open` on it. */
 async function open(source: string | null, contents?: string): Promise<Opened> {
   const dir = mkdtempSync(join(tmpdir(), 'lb-e2e-'));
   const file = join(dir, 'subject.logic.json');
@@ -25,7 +25,7 @@ async function open(source: string | null, contents?: string): Promise<Opened> {
     let out = '';
     child.stdout!.on('data', (chunk) => {
       out += String(chunk);
-      const match = /logic-builder: (http:\/\/127\.0\.0\.1:\d+\/)/.exec(out);
+      const match = /agentic-fbd: (http:\/\/127\.0\.0\.1:\d+\/)/.exec(out);
       if (match) done(match[1]!);
     });
     child.stderr!.on('data', (chunk) => fail(new Error(String(chunk))));

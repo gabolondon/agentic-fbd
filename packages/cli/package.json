@@ -1,9 +1,9 @@
 {
-  "name": "@logic-builder/cli",
+  "name": "@agentic-fbd/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@logic-builder/core": "0.1.0"
+    "@agentic-fbd/core": "0.1.0"
   }
 }

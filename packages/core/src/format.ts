@@ -1,4 +1,4 @@
-// TypeScript model of the logic-builder file format (design spec §5).
+// TypeScript model of the agentic-fbd file format (design spec §5).
 
 /** A type expression: a string ("number", "Answer[]", "Record<K, V>", "'option'")
  *  or an object (a struct, or a union written as { oneOf: [...] }). */

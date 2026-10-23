@@ -7,7 +7,7 @@ import { startServer, staticPath, type RunningServer } from '../src/server.ts';
 // Minimal shape of /api/doc used by these tests
 type Payload = { valid: boolean; doc: { subject: { id: string; title: string } }; issues: { code: string }[] };
 
-const example = resolve(import.meta.dirname, '../../../skills/logic-builder/examples/auth-gate.logic.json');
+const example = resolve(import.meta.dirname, '../../../skills/agentic-fbd/examples/auth-gate.logic.json');
 
 describe('staticPath', () => {
   const root = mkdtempSync(join(tmpdir(), 'lb-static-'));

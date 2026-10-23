@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { countEdits, type Issue, type LogicDoc } from '@logic-builder/core';
+import { countEdits, type Issue, type LogicDoc } from '@agentic-fbd/core';
 import type { DraftState } from '../state/useDocument.ts';
 
 // The bar at the bottom of the canvas while the user edits (design spec §6.9): how many changes

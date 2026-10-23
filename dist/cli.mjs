@@ -7459,11 +7459,11 @@ var require__ = __commonJS({
 import { existsSync as existsSync3, readFileSync as readFileSync4 } from "node:fs";
 import { basename as basename3, resolve as resolve3 } from "node:path";
 
-// skills/logic-builder/references/logic.schema.json
+// skills/agentic-fbd/references/logic.schema.json
 var logic_schema_default = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://github.com/logic-builder/logic-builder/logic.schema.json",
-  title: "logic-builder file",
+  $id: "https://github.com/gabolondon/agentic-fbd/logic.schema.json",
+  title: "agentic-fbd file",
   description: "A logic diagram (function block diagram) of one subject: a feature, flow, tool or pipeline.",
   type: "object",
   required: [
@@ -9126,11 +9126,11 @@ function staticPath(root, url) {
 }
 
 // packages/cli/src/main.ts
-var USAGE = `logic-builder \u2014 logic diagrams for humans and coding agents
+var USAGE = `agentic-fbd \u2014 logic diagrams for humans and coding agents
 
 Usage:
-  logic-builder validate <file.logic.json>... [--check-code <repo-root>] [--json]
-  logic-builder open <file.logic.json> [--port <n>] [--no-open]
+  agentic-fbd validate <file.logic.json>... [--check-code <repo-root>] [--json]
+  agentic-fbd open <file.logic.json> [--port <n>] [--no-open]
 
 Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage error.`;
 function parseArgs(argv, valued) {
@@ -9206,7 +9206,7 @@ ${USAGE}`);
       return 2;
     }
     if (!existsSync3(file)) {
-      io.err(`logic-builder: ${file} does not exist`);
+      io.err(`agentic-fbd: ${file} does not exist`);
       return 1;
     }
     const portFlag = args.flags.get("port");
@@ -9217,7 +9217,7 @@ ${USAGE}`);
     }
     const viewerDir = findViewerDir();
     if (!viewerDir) {
-      io.err('logic-builder: the viewer is not built (dist/viewer is missing); run "npm run build"');
+      io.err('agentic-fbd: the viewer is not built (dist/viewer is missing); run "npm run build"');
       return 1;
     }
     const report = validateFile(file);
@@ -9225,10 +9225,10 @@ ${USAGE}`);
     try {
       running = await startServer({ file, port, viewerDir });
     } catch (e) {
-      io.err(`logic-builder: cannot start the server: ${e instanceof Error ? e.message : String(e)}`);
+      io.err(`agentic-fbd: cannot start the server: ${e instanceof Error ? e.message : String(e)}`);
       return 1;
     }
-    io.out(`logic-builder: ${running.url}`);
+    io.out(`agentic-fbd: ${running.url}`);
     io.out(`watching ${file} (${report.valid ? "valid" : "has errors, shown in the viewer"}); press Ctrl+C to stop`);
     if (!args.flags.has("no-open")) openBrowser(running.url);
     await new Promise((done) => {

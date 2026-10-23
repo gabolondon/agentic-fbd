@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import type { Issue, LogicDoc, LogicNode } from '@logic-builder/core';
+import type { Issue, LogicDoc, LogicNode } from '@agentic-fbd/core';
 
 /** Warns when a `see` link names a diagram or block that does not exist next to the file. */
 export function checkLinks(doc: LogicDoc, file: string): Issue[] {

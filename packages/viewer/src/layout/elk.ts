@@ -1,6 +1,6 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { ElkExtendedEdge, ElkNode, ElkPort } from 'elkjs/lib/elk-api';
-import type { ViewModel, ViewNode } from '@logic-builder/core';
+import type { ViewModel, ViewNode } from '@agentic-fbd/core';
 import { FRAME_PADDING, nodeSize, portY } from './sizes.ts';
 
 export interface Box {

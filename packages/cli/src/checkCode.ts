@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { CodeRef, Issue, LogicDoc, LogicNode } from '@logic-builder/core';
+import type { CodeRef, Issue, LogicDoc, LogicNode } from '@agentic-fbd/core';
 
 /**
  * Warns when a code reference no longer matches the repo: the file is missing, or the symbol

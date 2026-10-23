@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildView, type LogicDoc, type ViewEdge, type ViewModel } from '@logic-builder/core';
+import { buildView, type LogicDoc, type ViewEdge, type ViewModel } from '@agentic-fbd/core';
 import { hardEdges, LONG_LOOP, LONG_WIRE, layoutReadable, layoutView, VERY_LONG_WIRE, type Box, type Layout, type Point } from '../src/layout/elk.ts';
 
-const examples = resolve(import.meta.dirname, '../../../skills/logic-builder/examples');
+const examples = resolve(import.meta.dirname, '../../../skills/agentic-fbd/examples');
 const load = (name: string) => JSON.parse(readFileSync(join(examples, name), 'utf8')) as LogicDoc;
 
 const overlaps = (a: Box, b: Box) =>

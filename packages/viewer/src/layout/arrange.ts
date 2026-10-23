@@ -1,4 +1,4 @@
-import type { SavedPosition, ViewEdge, ViewModel, ViewNode } from '@logic-builder/core';
+import type { SavedPosition, ViewEdge, ViewModel, ViewNode } from '@agentic-fbd/core';
 import type { Box, Layout, Point } from './elk.ts';
 import { FRAME_PADDING, frameMinWidth, portY } from './sizes.ts';
 

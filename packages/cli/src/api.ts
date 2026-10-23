@@ -16,9 +16,9 @@ import {
   type LayoutFile,
   type LogicDoc,
   type Mode,
-} from '@logic-builder/core';
+} from '@agentic-fbd/core';
 
-// The endpoints the viewer talks to. Shared by `logic-builder open` and the Vite dev server.
+// The endpoints the viewer talks to. Shared by `agentic-fbd open` and the Vite dev server.
 // Every *.logic.json next to the opened file is served, so diagrams can link to each other.
 
 export interface DocPayload {

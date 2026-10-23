@@ -1,4 +1,4 @@
-import { describeType, type LogicDoc, type ViewEdge } from '@logic-builder/core';
+import { describeType, type LogicDoc, type ViewEdge } from '@agentic-fbd/core';
 
 export interface TooltipState {
   edge: ViewEdge;

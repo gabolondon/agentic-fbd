@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { LogicDoc } from '@logic-builder/core';
+import type { LogicDoc } from '@agentic-fbd/core';
 import { buildTree, type TreeItem } from '../src/state/lookup.ts';
 
-const examples = resolve(import.meta.dirname, '../../../skills/logic-builder/examples');
+const examples = resolve(import.meta.dirname, '../../../skills/agentic-fbd/examples');
 const design = JSON.parse(readFileSync(join(examples, 'other-free-text.logic.json'), 'utf8')) as LogicDoc;
 
 const find = (items: TreeItem[], label: string): TreeItem | undefined => {

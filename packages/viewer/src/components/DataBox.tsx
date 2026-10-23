@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { dataBox, parseType, typeToString, type DataField, type DataItem, type DataUse, type Edit, type LogicDoc, type Side, type TypeExpr, type ViewMode } from '@logic-builder/core';
+import { dataBox, parseType, typeToString, type DataField, type DataItem, type DataUse, type Edit, type LogicDoc, type Side, type TypeExpr, type ViewMode } from '@agentic-fbd/core';
 import { EditableText, FieldTable, isPlainObject, typeText } from './Editable.tsx';
 
 // The Data section of the side panel (design spec §6.8): what a block reads and writes and where

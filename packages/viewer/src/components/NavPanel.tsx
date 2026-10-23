@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { LogicDoc, ViewPath } from '@logic-builder/core';
+import type { LogicDoc, ViewPath } from '@agentic-fbd/core';
 import { buildTree, type TreeItem } from '../state/lookup.ts';
 import type { DiagramFile } from '../state/useDocument.ts';
 import { KIND_ICON, KIND_LABEL } from './nodes.tsx';

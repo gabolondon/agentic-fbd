@@ -1,5 +1,5 @@
 {
-  "name": "logic-builder-monorepo",
+  "name": "agentic-fbd-monorepo",
   "version": "0.1.0",
   "private": true,
   "description": "Logic diagrams for humans and coding agents",
@@ -14,8 +14,8 @@
     "typecheck": "tsc -p packages/core && tsc -p packages/cli && tsc -p packages/viewer",
     "build:cli": "node packages/cli/build.mjs",
     "build": "npm run build:viewer && npm run build:cli",
-    "dev": "npm run dev -w @logic-builder/viewer",
-    "build:viewer": "npm run build -w @logic-builder/viewer",
+    "dev": "npm run dev -w @agentic-fbd/viewer",
+    "build:viewer": "npm run build -w @agentic-fbd/viewer",
     "test:e2e": "playwright test",
     "check:dist": "npm run build && git diff --exit-code -- dist"
   },

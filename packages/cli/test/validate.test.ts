@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { run } from '../src/main.ts';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
-const examples = join(repoRoot, 'skills/logic-builder/examples');
+const examples = join(repoRoot, 'skills/agentic-fbd/examples');
 const invalid = join(repoRoot, 'tests/fixtures/invalid');
 const codeRepo = join(repoRoot, 'tests/fixtures/code-repo');
 
@@ -15,7 +15,7 @@ async function cli(...argv: string[]): Promise<{ code: number; out: string; err:
   return { code, out: out.join('\n'), err: err.join('\n') };
 }
 
-describe('logic-builder validate', () => {
+describe('agentic-fbd validate', () => {
   it('exits 0 on the bundled examples', async () => {
     const files = readdirSync(examples).map((f) => join(examples, f));
     const { code, out } = await cli('validate', ...files);
@@ -73,7 +73,7 @@ describe('logic-builder validate', () => {
   });
 });
 
-describe('logic-builder validate — links between diagrams', () => {
+describe('agentic-fbd validate — links between diagrams', () => {
   it('warns about links to missing diagrams or blocks, without failing', async () => {
     const { mkdtempSync, readFileSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');

@@ -4,7 +4,7 @@
     "id": "phase-2d-2e",
     "title": "Phase 2d + 2e: Data box and edits in the viewer",
     "intent": "Explain the implementation plan before building it: how a click becomes a Data box, and how an edit becomes a draft, a saved diagram and a request for the agent",
-    "scope": "logic-builder: core, CLI server, viewer and skill",
+    "scope": "agentic-fbd: core, CLI server, viewer and skill",
     "mode": "design",
     "focus": "g-edit"
   },
@@ -849,7 +849,7 @@
       "label": "Skill: the agent's side",
       "desc": "What the agent does with the new fields and with the user's edits (Tasks 4 and 13).",
       "code": {
-        "file": "skills/logic-builder/SKILL.md"
+        "file": "skills/agentic-fbd/SKILL.md"
       }
     },
     {
@@ -870,7 +870,7 @@
         "requests": "string[]"
       },
       "code": {
-        "file": "skills/logic-builder/SKILL.md"
+        "file": "skills/agentic-fbd/SKILL.md"
       },
       "change": "new"
     },
@@ -893,7 +893,7 @@
         "go": "string[]"
       },
       "code": {
-        "file": "skills/logic-builder/SKILL.md"
+        "file": "skills/agentic-fbd/SKILL.md"
       },
       "change": "new"
     },
@@ -916,7 +916,7 @@
         "go": "string[]"
       },
       "code": {
-        "file": "skills/logic-builder/SKILL.md"
+        "file": "skills/agentic-fbd/SKILL.md"
       },
       "change": "new"
     },
@@ -939,7 +939,7 @@
         "text": "DiagramText"
       },
       "code": {
-        "file": "skills/logic-builder/SKILL.md"
+        "file": "skills/agentic-fbd/SKILL.md"
       },
       "change": "modified",
       "changeNote": "Adds store, typeInfo and reuse-before-create to the rules"

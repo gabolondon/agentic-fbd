@@ -15,7 +15,7 @@ import {
   type ViewEdge,
   type ViewNode,
   type ViewPath,
-} from '@logic-builder/core';
+} from '@agentic-fbd/core';
 import { findNode, instancesOf, risksFor } from '../state/lookup.ts';
 import { DataBox, DataRow } from './DataBox.tsx';
 import { EditableText } from './Editable.tsx';

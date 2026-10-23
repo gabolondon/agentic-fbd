@@ -1,8 +1,8 @@
-# logic-builder
+# agentic-fbd
 
 ## Purpose (do not lose sight of this)
 
-logic-builder is a **logic visualizer and a two-way translation layer between logic and code**:
+agentic-fbd is a **logic visualizer and a two-way translation layer between logic and code**:
 
 - What Claude understands about existing code, or plans to build, is shown as a **Function Block
   Diagram** (FBD, the IEC 61131-3 PLC language): blocks with typed inputs and outputs, wired

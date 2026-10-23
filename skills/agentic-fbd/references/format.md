@@ -1,4 +1,4 @@
-# logic-builder format reference (v0.1)
+# agentic-fbd format reference (v0.1)
 
 One JSON file per subject. Keys are English; labels and explanations use the user's language.
 Validate with `node "<base>/../../dist/cli.mjs" validate <file>`. Schema: `logic.schema.json`.

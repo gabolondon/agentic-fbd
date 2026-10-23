@@ -21,7 +21,7 @@ import {
   type ViewModel,
   type ViewNode,
   type ViewPath,
-} from '@logic-builder/core';
+} from '@agentic-fbd/core';
 import { layoutReadable, type Box, type Layout } from './layout/elk.ts';
 import { applySaved, fitFrames, snapToWires, snapshot } from './layout/arrange.ts';
 import { nodeSize } from './layout/sizes.ts';
@@ -470,7 +470,7 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
               <strong>{view.breadcrumb[view.breadcrumb.length - 1]!.label}</strong>
             </>
           ) : (
-            <strong>{doc ? 'Overview' : 'logic-builder'}</strong>
+            <strong>{doc ? 'Overview' : 'agentic-fbd'}</strong>
           )}
         </div>
         <div className="lb-spacer" />

@@ -1,12 +1,12 @@
 {
-  "name": "logic-builder",
+  "name": "agentic-fbd",
   "description": "Logic diagrams for humans and coding agents.",
   "owner": {
     "name": "Gabriel Londoño"
   },
   "plugins": [
     {
-      "name": "logic-builder",
+      "name": "agentic-fbd",
       "description": "Explain and design software logic as PLC-style function block diagrams, with a live viewer.",
       "version": "0.1.0",
       "source": "./",

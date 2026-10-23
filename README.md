@@ -1,6 +1,8 @@
-# logic-builder
+# agentic-fbd
 
-**Logic diagrams for humans and coding agents.** logic-builder lets Claude Code explain how
+Website: https://afbd.gabocodes.com
+
+**Logic diagrams for humans and coding agents.** agentic-fbd lets Claude Code explain how
 your code works, or how it is about to change, as a **function block diagram**: the block
 language used to program PLCs, with typed inputs and outputs, wires, and layers you open with a
 double-click. You read the diagram in a live local viewer, catch logic flaws **before** code is
@@ -30,7 +32,7 @@ free text was added. When someone typed a number (an age, a year), the code read
 option id and saved the wrong answer. The same pattern appeared in many steps and at different
 depths of the question tree, so the bug was hard to find.
 
-In logic-builder, "Other" is one **reusable block** with several instances. The wire that carries
+In agentic-fbd, "Other" is one **reusable block** with several instances. The wire that carries
 a bare `number` into an `OptionId` port is flagged, because it fits by shape but means something
 else. The **Before / After** view shows exactly what the change touches.
 
@@ -49,18 +51,22 @@ code.
 
 ## Install
 
-logic-builder is a [Claude Code](https://claude.com/claude-code) plugin. It needs Node.js 20 or
+agentic-fbd is a [Claude Code](https://claude.com/claude-code) plugin. It needs Node.js 20 or
 later. Nothing is installed into your projects: the viewer and the CLI ship prebuilt.
 
 ```text
-/plugin marketplace add <this repository's git URL or a local path>
-/plugin install logic-builder@logic-builder
+/plugin marketplace add gabolondon/agentic-fbd
+/plugin install agentic-fbd@agentic-fbd
 ```
+
+If you installed the plugin under its old name, remove it first with
+`/plugin uninstall logic-builder@logic-builder` and `/plugin marketplace remove logic-builder`,
+then install it again as above.
 
 To work on the plugin itself, load it straight from a checkout:
 
 ```bash
-claude --plugin-dir /path/to/logic-builder
+claude --plugin-dir /path/to/agentic-fbd
 ```
 
 Installed plugins run from a cached copy, so reinstall after pulling a new version.
@@ -142,9 +148,9 @@ One JSON file per subject. The pieces are:
 There are no coordinates; the viewer lays everything out. Positions you set by dragging live in
 a separate `<subject>.layout.json` that only the viewer writes.
 
-- Full reference: [`skills/logic-builder/references/format.md`](skills/logic-builder/references/format.md)
-- JSON Schema: [`skills/logic-builder/references/logic.schema.json`](skills/logic-builder/references/logic.schema.json)
-- Examples: [`skills/logic-builder/examples/`](skills/logic-builder/examples/)
+- Full reference: [`skills/agentic-fbd/references/format.md`](skills/agentic-fbd/references/format.md)
+- JSON Schema: [`skills/agentic-fbd/references/logic.schema.json`](skills/agentic-fbd/references/logic.schema.json)
+- Examples: [`skills/agentic-fbd/examples/`](skills/agentic-fbd/examples/)
 - Design document: [`docs/superpowers/specs/2026-10-18-logic-builder-design.md`](docs/superpowers/specs/2026-10-18-logic-builder-design.md)
 
 ## Development
@@ -166,8 +172,8 @@ Layout:
 | `packages/core` | Format types, schema validation, type checking and the view model. Browser-safe TypeScript |
 | `packages/viewer` | React + React Flow + elkjs app |
 | `packages/cli` | Node CLI and local server, bundled with esbuild into `dist/cli.mjs` |
-| `skills/logic-builder` | The skill, format reference, schema and examples |
-| `logic` | Diagrams of logic-builder itself, made with logic-builder (`node dist/cli.mjs open logic/phase-2d-2e.logic.json`) |
+| `skills/agentic-fbd` | The skill, format reference, schema and examples |
+| `logic` | Diagrams of agentic-fbd itself, made with agentic-fbd (`node dist/cli.mjs open logic/phase-2d-2e.logic.json`) |
 | `.claude-plugin` | Plugin and marketplace manifests |
 
 The format, CLI and viewer don't depend on Claude Code; only `skills/` and `.claude-plugin/` are

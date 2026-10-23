@@ -1,4 +1,4 @@
-import { resolvePath, type LogicDoc, type LogicNode, type Mark, type NodeKind, type Risk, type ViewPath } from '@logic-builder/core';
+import { resolvePath, type LogicDoc, type LogicNode, type Mark, type NodeKind, type Risk, type ViewPath } from '@agentic-fbd/core';
 
 export interface TreeItem {
   key: string;

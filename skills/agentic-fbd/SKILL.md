@@ -1,9 +1,9 @@
 ---
-name: logic-builder
+name: agentic-fbd
 description: Explains or designs software logic as a PLC-style function block diagram (typed blocks and wires, in layers) shown in a live local viewer. Use it without asking when the user explicitly asks to explain, map, diagram or visualize how something works, to design a feature or change as a logic diagram, or to express their own idea as a diagram; also when they ask to explain a block of an existing logic diagram or paste a request copied from the viewer. For a feature or change with non-trivial logic that the user did not ask to diagram, offer this skill in one line and wait for a yes. Never use it for simple tasks, and never start it on your own.
 ---
 
-# logic-builder
+# agentic-fbd
 
 A two-way translation layer between logic and code. You describe how something works, or how it
 is about to change, as a **function block diagram** (blocks with typed inputs and outputs, wired

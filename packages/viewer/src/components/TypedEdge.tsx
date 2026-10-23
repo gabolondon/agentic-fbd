@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { BaseEdge, getSmoothStepPath, type Edge, type EdgeProps } from '@xyflow/react';
-import type { ViewEdge } from '@logic-builder/core';
+import type { ViewEdge } from '@agentic-fbd/core';
 import type { Point } from '../layout/elk.ts';
 
 export interface EdgeData extends Record<string, unknown> {

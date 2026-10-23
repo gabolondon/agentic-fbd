@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { validateText, type Issue } from '@logic-builder/core';
+import { validateText, type Issue } from '@agentic-fbd/core';
 import { checkCode } from './checkCode.ts';
 import { checkLinks } from './checkLinks.ts';
 import { openBrowser } from './openBrowser.ts';
@@ -11,11 +11,11 @@ export interface Io {
   err: (line: string) => void;
 }
 
-const USAGE = `logic-builder — logic diagrams for humans and coding agents
+const USAGE = `agentic-fbd — logic diagrams for humans and coding agents
 
 Usage:
-  logic-builder validate <file.logic.json>... [--check-code <repo-root>] [--json]
-  logic-builder open <file.logic.json> [--port <n>] [--no-open]
+  agentic-fbd validate <file.logic.json>... [--check-code <repo-root>] [--json]
+  agentic-fbd open <file.logic.json> [--port <n>] [--no-open]
 
 Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage error.`;
 
@@ -101,7 +101,7 @@ register({
       return 2;
     }
     if (!existsSync(file)) {
-      io.err(`logic-builder: ${file} does not exist`);
+      io.err(`agentic-fbd: ${file} does not exist`);
       return 1;
     }
     const portFlag = args.flags.get('port');
@@ -112,7 +112,7 @@ register({
     }
     const viewerDir = findViewerDir();
     if (!viewerDir) {
-      io.err('logic-builder: the viewer is not built (dist/viewer is missing); run "npm run build"');
+      io.err('agentic-fbd: the viewer is not built (dist/viewer is missing); run "npm run build"');
       return 1;
     }
 
@@ -122,10 +122,10 @@ register({
     try {
       running = await startServer({ file, port, viewerDir });
     } catch (e) {
-      io.err(`logic-builder: cannot start the server: ${e instanceof Error ? e.message : String(e)}`);
+      io.err(`agentic-fbd: cannot start the server: ${e instanceof Error ? e.message : String(e)}`);
       return 1;
     }
-    io.out(`logic-builder: ${running.url}`);
+    io.out(`agentic-fbd: ${running.url}`);
     io.out(`watching ${file} (${report.valid ? 'valid' : 'has errors, shown in the viewer'}); press Ctrl+C to stop`);
     if (!args.flags.has('no-open')) openBrowser(running.url);
 

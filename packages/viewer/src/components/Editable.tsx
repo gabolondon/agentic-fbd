@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { parseType, typeToString, type TypeExpr } from '@logic-builder/core';
+import { parseType, typeToString, type TypeExpr } from '@agentic-fbd/core';
 
 // Editing in the side panel (design spec §6.9): every editable field shows a pencil on hover;
 // there is no separate edit mode. A commit returns why it was refused, or null.

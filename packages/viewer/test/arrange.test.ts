@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildView, type LogicDoc, type SavedPosition, type ViewModel } from '@logic-builder/core';
+import { buildView, type LogicDoc, type SavedPosition, type ViewModel } from '@agentic-fbd/core';
 import { layoutView, type Box, type Layout } from '../src/layout/elk.ts';
 import { absolutePosition, applySaved, snapToWires, snapshot, WIRE_SNAP } from '../src/layout/arrange.ts';
 import { FRAME_PADDING, portY } from '../src/layout/sizes.ts';
 
-const examples = resolve(import.meta.dirname, '../../../skills/logic-builder/examples');
+const examples = resolve(import.meta.dirname, '../../../skills/agentic-fbd/examples');
 const load = (name: string) => JSON.parse(readFileSync(join(examples, name), 'utf8')) as LogicDoc;
 
 const overlaps = (a: Box, b: Box) =>

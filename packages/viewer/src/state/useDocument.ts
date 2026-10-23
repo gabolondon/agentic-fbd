@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { applyEdit, summarizeEdits, validate, type Edit, type Issue, type LayoutFile, type LogicDoc, type Mode } from '@logic-builder/core';
+import { applyEdit, summarizeEdits, validate, type Edit, type Issue, type LayoutFile, type LogicDoc, type Mode } from '@agentic-fbd/core';
 
 export interface DiagramFile {
   file: string;
@@ -20,7 +20,7 @@ export interface DraftState {
 }
 
 export interface DocState {
-  /** The file path as passed to `logic-builder open` (or the sibling's path). */
+  /** The file path as passed to `agentic-fbd open` (or the sibling's path). */
   path: string;
   /** The file's name in its folder; links and the URL use it. */
   file: string;
@@ -280,7 +280,7 @@ export function useDocument(file?: string): DocHandle {
       void refresh();
       return { ok: true, summary: summarizeEdits(original, doc, pathOf(target)), review };
     } catch {
-      return { ok: false, message: 'The viewer lost its connection to logic-builder; nothing was saved.' };
+      return { ok: false, message: 'The viewer lost its connection to agentic-fbd; nothing was saved.' };
     }
   }, [flushDraft, pathOf, refresh]);
 

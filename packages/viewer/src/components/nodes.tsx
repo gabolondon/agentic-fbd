@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import type { NodeKind, ViewNode, ViewPort } from '@logic-builder/core';
+import type { NodeKind, ViewNode, ViewPort } from '@agentic-fbd/core';
 import { portY } from '../layout/sizes.ts';
 
 export interface NodeData extends Record<string, unknown> {

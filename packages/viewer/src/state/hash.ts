@@ -1,4 +1,4 @@
-import type { ViewMode, ViewPath } from '@logic-builder/core';
+import type { ViewMode, ViewPath } from '@agentic-fbd/core';
 
 // The current diagram, level and mode live in the URL hash:
 // #/vaccines/other-vaccines?mode=before&file=other.logic.json

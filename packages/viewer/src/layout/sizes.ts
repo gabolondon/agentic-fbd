@@ -1,4 +1,4 @@
-import type { ViewNode } from '@logic-builder/core';
+import type { ViewNode } from '@agentic-fbd/core';
 
 // Node geometry is computed, not measured, so layout runs in one pass (and in Node for tests).
 // The React components use the same constants to place handles.
