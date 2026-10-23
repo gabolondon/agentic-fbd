@@ -1,0 +1,31 @@
+# Source of truth for this project's versions.
+# Only `chore(release): vX.Y.Z` commits change the version values here.
+# Structural edits (adding a component, fixing a path) belong in normal commits.
+# On each release, copy the skill version into .claude-plugin/plugin.json and
+# .claude-plugin/marketplace.json: Claude Code reads the plugin version from there.
+project: agentic-fbd
+version: 0.1.0            # root version, derived from the largest component bump
+
+components:
+  core:
+    path: packages/core   # format types, schema validation, type checking, view model
+    version: 0.1.0
+
+  cli:
+    path: packages/cli    # CLI and local server, bundled into dist/cli.mjs
+    version: 0.1.0
+    depends_on: [core]
+
+  viewer:
+    path: packages/viewer # the diagram viewer, bundled into dist/viewer
+    version: 0.1.0
+    depends_on: [core]
+
+  skill:
+    path: skills/agentic-fbd # the skill, format reference, schema and examples
+    version: 0.1.0
+    depends_on: [cli, viewer]
+
+  landing:
+    path: site            # the website at afbd.gabocodes.com
+    version: 0.1.0
