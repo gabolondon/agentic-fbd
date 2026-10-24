@@ -1,0 +1,66 @@
+# Builds and deploys afbd.gabocodes.com to GitHub Pages. The hero videos are not in the repo:
+# they are assets of the media-hero-1 Release and are downloaded at build time. A missing video
+# fails the deploy instead of shipping a page without its hero.
+# The Try it demo is the committed viewer (dist/viewer) plus its diagrams, copied by the site build.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'packages/theme/**'
+      - 'dist/viewer/**'
+      - 'logic/landing-page.*'
+      - 'package-lock.json'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push waits rather than cancelling one in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  HERO_MEDIA: media-hero-1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download the hero videos
+        run: gh release download "$HERO_MEDIA" --dir site/public/media
+
+      - run: npm run build:site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
