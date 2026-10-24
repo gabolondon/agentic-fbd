@@ -1,6 +1,7 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
+import { blurredShadows, colorLiterals, rawShapes, read, stripComments } from '../../../tests/helpers/css.ts';
 
 const tokensCss = resolve(import.meta.dirname, '../../theme/tokens.css');
 const viewerSrc = resolve(import.meta.dirname, '../src');
@@ -8,9 +9,6 @@ const stylesCss = join(viewerSrc, 'styles.css');
 const viewerCodeFiles = (readdirSync(viewerSrc, { recursive: true }) as string[])
   .filter((f) => /\.tsx?$/.test(f))
   .map((f) => join(viewerSrc, f));
-
-const read = (file: string) => readFileSync(file, 'utf8');
-const stripComments = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 function parseTokens(css: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -52,34 +50,14 @@ test.each(['--new', '--mod', '--sel', '--trigger', '--violet'])('%s stands out o
 
 // Colors live in packages/theme/tokens.css only.
 test('viewer styles and components hold no color literals', () => {
-  for (const file of [stylesCss, ...viewerCodeFiles]) {
-    const code = stripComments(read(file));
-    expect(code.match(/#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})\b|rgba?\(|hsla?\(/gi), file).toBeNull();
-  }
+  for (const file of [stylesCss, ...viewerCodeFiles]) expect(colorLiterals(file), file).toEqual([]);
 });
-
-// [selector, value] for every box-shadow declaration in a stylesheet.
-function boxShadows(file: string): [string, string][] {
-  const out: [string, string][] = [];
-  for (const rule of stripComments(read(file)).matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-    for (const d of rule[2]!.matchAll(/box-shadow:\s*([^;]+);/g)) out.push([rule[1]!.trim(), d[1]!.trim()]);
-  }
-  return out;
-}
 
 // Depth comes from 1px borders; zero-blur shadows (rings, the stacked card) are allowed.
 test('no blurred shadows', () => {
-  for (const [selector, value] of boxShadows(stylesCss)) {
-    for (const layer of value.split(/,(?![^(]*\))/)) {
-      const lengths = layer.replace(/var\([^)]*\)|inset/g, '').trim().split(/\s+/).filter((t) => /^-?\d/.test(t));
-      expect(parseFloat(lengths[2] ?? '0'), `${selector}: ${layer}`).toBe(0);
-    }
-  }
-  expect(stripComments(read(stylesCss)).match(/drop-shadow\(/g)).toBeNull();
+  expect(blurredShadows(stylesCss)).toEqual([]);
 });
 
 test('shapes and fonts come from tokens', () => {
-  const css = stripComments(read(stylesCss));
-  expect(css.match(/border-radius: *(?![ ]|var\(|50%|0;)[^;]+;/g)).toBeNull();
-  expect(css.match(/font-family: *(?![ ]|var\()[^;]+;/g)).toBeNull();
+  expect(rawShapes(stylesCss)).toEqual([]);
 });
