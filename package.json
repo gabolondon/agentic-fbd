@@ -7,17 +7,20 @@
   "author": "Gabriel Londoño",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "site"
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core && tsc -p packages/cli && tsc -p packages/viewer",
+    "typecheck": "tsc -p packages/core && tsc -p packages/cli && tsc -p packages/viewer && tsc -p site",
     "build:cli": "node packages/cli/build.mjs",
     "build": "npm run build:viewer && npm run build:cli",
     "dev": "npm run dev -w @agentic-fbd/viewer",
     "build:viewer": "npm run build -w @agentic-fbd/viewer",
     "test:e2e": "playwright test",
-    "check:dist": "npm run build && git diff --exit-code -- dist"
+    "check:dist": "npm run build && git diff --exit-code -- dist",
+    "dev:site": "npm run dev -w @agentic-fbd/site",
+    "build:site": "npm run build -w @agentic-fbd/site"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

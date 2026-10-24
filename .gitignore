@@ -18,3 +18,6 @@ playwright-report/
 
 # Hero video renders, hosted as GitHub Release assets
 site/public/media/
+
+# Website build output
+site/dist/

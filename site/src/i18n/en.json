@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "menu": "Menu",
+    "close": "Close",
+    "features": "Features",
+    "example": "Example",
+    "install": "Install",
+    "github": "GitHub",
+    "language": "Language",
+    "home": "agentic-fbd, back to top"
+  },
+  "hero": {
+    "intro": {
+      "title": "Did your app's logic break after it was built?",
+      "subtitle": "Even with brainstorming or grill-me, the plan missed how states, data and functions really connect."
+    },
+    "b": {
+      "title": "Your code, as logic.",
+      "subtitle": "Ask your agent to explain a flow. It comes back as a function block diagram: typed blocks, wires, and where every piece of data lives."
+    },
+    "a": {
+      "title": "Catch the flaw before it's code.",
+      "subtitle": "A bare number wired into an OptionId port fits by shape but means something else. The diagram flags it while it's still a plan."
+    },
+    "c": {
+      "title": "Open only what matters.",
+      "subtitle": "Double-click a group to go one layer deeper. Every block points at the file and symbol it maps to."
+    },
+    "install": "Install the plugin",
+    "pause": "Pause the video",
+    "play": "Play the video"
+  },
+  "statement": {
+    "title": "Blocks. Wires. Types. Logic you can read.",
+    "lead": "Logic diagrams for engineers who build with coding agents. Not vibe coding — or vibe coding done right.",
+    "agents": "For any coding agent (Claude Code package only).",
+    "codex": "Codex support in progress."
+  },
+  "features": {
+    "label": "Features",
+    "understand-design": {
+      "title": "Understand first. Then design.",
+      "body": "Ask your agent to explain a feature and it draws the logic as it works today, one layer at a time. Then design the change on the same diagram, with new, modified and removed blocks marked. You review the plan as logic, not as a wall of text, and the agent builds what you agreed on.",
+      "alt": "An Understand diagram of a sign-in flow, with one group still unexplored",
+      "altDesign": "A Design diagram of a questionnaire, with the new and modified blocks marked"
+    },
+    "data-box": {
+      "title": "Where every piece of data lives.",
+      "body": "Under each block, the Data box lists what it reads and writes, with types and fields. It says where that data lives: a Zustand store lost on reload, a Postgres table. A state lists everyone who reads and writes it, because most logic bugs hide in data nobody knew was shared.",
+      "alt": "A block's Data box open on what it writes and where that data lives"
+    },
+    "before-after": {
+      "title": "See the change. See the risk.",
+      "body": "Flip between Before and After to see exactly what a change touches. The agent lists the risks it found, and clicking one highlights the blocks and wires involved. A wire that fits by shape but means something else gets flagged while it is still a plan.",
+      "alt": "A design with a risk selected and the blocks it touches highlighted"
+    },
+    "code-locations": {
+      "title": "Every block points at code.",
+      "body": "Each block names the file and symbol it maps to. Open it to read what it does and how, step by step. To point your agent at something, copy a reference to the blocks and paste it into your prompt.",
+      "alt": "A block's panel with what it does and the file and symbol it maps to"
+    },
+    "edit-copy": {
+      "title": "Edit the logic. Hand it back.",
+      "body": "Rename blocks and ports, change types, remove wires and leave notes, right in the viewer. Edits stay in a draft until you save. Copy for agent turns them into one precise request, and the agent changes the code to match.",
+      "alt": "A draft with a renamed block and the Copy for agent button"
+    },
+    "living-docs": {
+      "title": "Docs that stay alive.",
+      "body": "Once a change ships, the diagram is folded back into an Understand diagram and committed next to the code. The next person, or the next agent session, starts from the logic instead of rereading everything. Big subjects split into linked diagrams, one per system.",
+      "alt": "The structure panel listing the diagrams committed in a project"
+    }
+  },
+  "example": {
+    "label": "A real example",
+    "titleStart": "One wire",
+    "titleEnd": "caught the bug.",
+    "thumbAlt": "The flagged wire, a number going into an OptionId port",
+    "story": "A multi-step questionnaire stored selected options by numeric id. Later an \"Other\" option with free text was added. When someone typed a number, an age or a year, the code read it as an option id and saved the wrong answer, in many steps and at different depths of the question tree.",
+    "fix": "In the diagram, \"Other\" is one reusable block, and the wire that carries a bare number into an OptionId port is flagged: it fits by shape but means something else. Before / After shows exactly what the fix touches, before any code changes."
+  },
+  "install": {
+    "label": "Install",
+    "title": "Two commands.",
+    "lead": "agentic-fbd is a Claude Code plugin. Run these in Claude Code:",
+    "note": "Needs Node.js 20 or later. Nothing is installed into your projects.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "github": "View on GitHub"
+  },
+  "footer": {
+    "license": "MIT License",
+    "madeBy": "made by Gabriel Londoño"
+  }
+}

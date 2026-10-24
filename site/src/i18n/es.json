@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "menu": "Menú",
+    "close": "Cerrar",
+    "features": "Funciones",
+    "example": "Ejemplo",
+    "install": "Instalar",
+    "github": "GitHub",
+    "language": "Idioma",
+    "home": "agentic-fbd, volver arriba"
+  },
+  "hero": {
+    "intro": {
+      "title": "¿La lógica de tu app se rompió después de construirla?",
+      "subtitle": "Incluso con brainstorming o grill-me, el plan no mostró cómo se conectan de verdad los estados, los datos y las funciones."
+    },
+    "b": {
+      "title": "Tu código, como lógica.",
+      "subtitle": "Pídele a tu agente que te explique un flujo. Vuelve como un diagrama de bloques de funciones: bloques con tipos, cables y dónde vive cada dato."
+    },
+    "a": {
+      "title": "Encuentra el error antes de que sea código.",
+      "subtitle": "Un número suelto conectado a un puerto OptionId encaja por forma, pero significa otra cosa. El diagrama lo marca cuando todavía es un plan."
+    },
+    "c": {
+      "title": "Abre solo lo que importa.",
+      "subtitle": "Doble clic en un grupo para bajar una capa. Cada bloque apunta al archivo y al símbolo que representa."
+    },
+    "install": "Instala el plugin",
+    "pause": "Pausar el video",
+    "play": "Reproducir el video"
+  },
+  "statement": {
+    "title": "Bloques. Cables. Tipos. Lógica que se lee.",
+    "lead": "Diagramas de lógica para ingenieros que construyen con agentes de código. No es vibe coding — o es vibe coding bien hecho.",
+    "agents": "Para cualquier agente de código (paquete solo para Claude Code).",
+    "codex": "Soporte para Codex en camino."
+  },
+  "features": {
+    "label": "Funciones",
+    "understand-design": {
+      "title": "Primero entiende. Luego diseña.",
+      "body": "Pídele a tu agente que te explique una función y dibuja la lógica como funciona hoy, capa por capa. Después diseña el cambio sobre el mismo diagrama, con los bloques nuevos, modificados y eliminados marcados. Revisas el plan como lógica, no como un muro de texto, y el agente construye lo que acordaron.",
+      "alt": "Un diagrama Understand de un flujo de inicio de sesión, con un grupo sin explorar",
+      "altDesign": "Un diagrama Design de un cuestionario, con los bloques nuevos y modificados marcados"
+    },
+    "data-box": {
+      "title": "Dónde vive cada dato.",
+      "body": "Debajo de cada bloque, el Data box lista lo que lee y escribe, con tipos y campos. Dice dónde viven esos datos: un store de Zustand que se pierde al recargar, una tabla de Postgres. Un estado lista a todos los que lo leen y escriben, porque la mayoría de los errores de lógica se esconden en datos que nadie sabía que eran compartidos.",
+      "alt": "El Data box de un bloque abierto en lo que escribe y dónde viven esos datos"
+    },
+    "before-after": {
+      "title": "Ve el cambio. Ve el riesgo.",
+      "body": "Cambia entre Before y After para ver exactamente qué toca un cambio. El agente lista los riesgos que encontró, y al hacer clic en uno se resaltan los bloques y cables involucrados. Un cable que encaja por forma pero significa otra cosa queda marcado mientras todavía es un plan.",
+      "alt": "Un diseño con un riesgo seleccionado y los bloques que toca resaltados"
+    },
+    "code-locations": {
+      "title": "Cada bloque apunta al código.",
+      "body": "Cada bloque indica el archivo y el símbolo que representa. Ábrelo para leer qué hace y cómo, paso a paso. Para señalarle algo a tu agente, copia una referencia a los bloques y pégala en tu prompt.",
+      "alt": "El panel de un bloque con lo que hace y el archivo y símbolo que representa"
+    },
+    "edit-copy": {
+      "title": "Edita la lógica. Devuélvela.",
+      "body": "Renombra bloques y puertos, cambia tipos, elimina cables y deja notas, directamente en el visor. Las ediciones quedan en un borrador hasta que guardas. Copy for agent las convierte en una sola petición precisa, y el agente cambia el código para que coincida.",
+      "alt": "Un borrador con un bloque renombrado y el botón Copy for agent"
+    },
+    "living-docs": {
+      "title": "Documentación que sigue viva.",
+      "body": "Cuando un cambio sale, el diagrama vuelve a ser un diagrama Understand y se guarda junto al código. La siguiente persona, o la siguiente sesión del agente, empieza por la lógica en vez de releerlo todo. Los temas grandes se dividen en diagramas enlazados, uno por sistema.",
+      "alt": "El panel de estructura con los diagramas guardados en un proyecto"
+    }
+  },
+  "example": {
+    "label": "Un ejemplo real",
+    "titleStart": "Un cable",
+    "titleEnd": "atrapó el error.",
+    "thumbAlt": "El cable marcado, un número que entra a un puerto OptionId",
+    "story": "Un cuestionario de varios pasos guardaba las opciones elegidas por id numérico. Después se agregó una opción \"Otro\" con texto libre. Cuando alguien escribía un número, una edad o un año, el código lo leía como id de opción y guardaba la respuesta equivocada, en muchos pasos y a distintas profundidades del árbol de preguntas.",
+    "fix": "En el diagrama, \"Otro\" es un solo bloque reutilizable, y el cable que lleva un número suelto a un puerto OptionId queda marcado: encaja por forma, pero significa otra cosa. Before / After muestra exactamente qué toca la corrección, antes de cambiar una línea de código."
+  },
+  "install": {
+    "label": "Instalar",
+    "title": "Dos comandos.",
+    "lead": "agentic-fbd es un plugin de Claude Code. Ejecuta esto en Claude Code:",
+    "note": "Necesita Node.js 20 o superior. No se instala nada en tus proyectos.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "github": "Ver en GitHub"
+  },
+  "footer": {
+    "license": "Licencia MIT",
+    "madeBy": "hecho por Gabriel Londoño"
+  }
+}
