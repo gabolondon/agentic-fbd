@@ -182,3 +182,5 @@ agent-specific.
 ## License
 
 [MIT](LICENSE) © 2026 Gabriel Londoño
+
+The viewer bundles the Inter typeface by Rasmus Andersson (SIL Open Font License 1.1).

@@ -478,3 +478,26 @@ test('the viewer never says Claude', async ({ page }) => {
     opened.child.kill();
   }
 });
+
+test('the viewer wears the agentic-fbd theme', async ({ page }) => {
+  const opened = await open(join(examples, 'auth-gate.logic.json'));
+  const errors = trackErrors(page);
+  try {
+    await page.goto(opened.url);
+    await rendered(page).filter({ hasText: 'Authorization' }).first().dblclick();
+    await expect(page.getByRole('button', { name: 'Copy for agent' })).toBeVisible();
+    const style = (selector: string, prop: string) =>
+      page.locator(selector).first().evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), prop);
+    expect(await style('html', 'background-color')).toBe('rgb(247, 244, 232)');
+    expect(await style('.lb-node', 'border-radius')).toBe('4px');
+    expect(await style('.lb-button', 'border-radius')).toBe('20px');
+    // Inter ships with the viewer; the CLI serves it offline.
+    expect(await page.evaluate(async () => {
+      await document.fonts.ready;
+      return [...document.fonts].some((f) => f.family.includes('Inter Variable') && f.status === 'loaded');
+    })).toBe(true);
+    expect(errors).toEqual([]);
+  } finally {
+    opened.child.kill();
+  }
+});
