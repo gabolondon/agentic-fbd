@@ -4,7 +4,7 @@
 # On each release, copy the skill version into .claude-plugin/plugin.json and
 # .claude-plugin/marketplace.json: Claude Code reads the plugin version from there.
 project: agentic-fbd
-version: 0.2.0            # root version, derived from the largest component bump
+version: 0.2.1            # root version, derived from the largest component bump
 
 components:
   core:
@@ -18,19 +18,19 @@ components:
 
   theme:
     path: packages/theme  # design tokens shared by the viewer and the website
-    version: 0.2.0
+    version: 0.2.1
 
   viewer:
     path: packages/viewer # the diagram viewer, bundled into dist/viewer
-    version: 0.2.0
+    version: 0.2.1
     depends_on: [core, theme]
 
   skill:
     path: skills/agentic-fbd # the skill, format reference, schema and examples
-    version: 0.1.1
+    version: 0.1.2
     depends_on: [cli, viewer]
 
   landing:
     path: site            # the website at afbd.gabocodes.com
-    version: 0.1.1
+    version: 0.1.2
     depends_on: [theme]

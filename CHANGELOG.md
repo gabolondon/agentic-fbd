@@ -1,5 +1,24 @@
 # Changelog — agentic-fbd
 
+## [0.2.1] - 2026-10-24
+_Previous release: 0.2.0_
+
+### theme 0.2.0 -> 0.2.1 (patch)
+- Widen the block radius token to boxes in the panels and the structure button
+
+### viewer 0.2.0 -> 0.2.1 (patch)
+- Give the Data box, wire carries, notes, risks, confirmations and the edit bar the same 4px corners as the blocks
+- Give the structure button 4px corners; the other buttons stay as pills
+
+### skill 0.1.1 -> 0.1.2 (patch)
+- Bumped because viewer changed
+
+### landing 0.1.1 -> 0.1.2 (patch)
+- Bumped because theme changed
+
+### Unchanged
+core 0.1.0 · cli 0.1.0
+
 ## [0.2.0] - 2026-10-24
 _Previous release: 0.1.0_
 
