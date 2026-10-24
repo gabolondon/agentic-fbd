@@ -1,0 +1,38 @@
+# Publishes a GitHub Release for each root version tag (v0.2.0), the live version of the
+# whole project. Component tags (viewer-v0.2.0) stay plain tags with no Release of their own.
+# Run it by hand (Actions → Release → Run workflow) to publish a tag pushed before this existed.
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Root tag to publish, for example v0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write the notes from versions.yaml and CHANGELOG.md at the tag
+        run: node scripts/release-notes.mjs "$TAG" > notes.md
+
+      - name: Create or update the Release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --title "agentic-fbd $TAG" --notes-file notes.md --latest
+          else
+            gh release create "$TAG" --title "agentic-fbd $TAG" --notes-file notes.md --verify-tag --latest
+          fi
