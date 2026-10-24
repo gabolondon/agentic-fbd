@@ -11,6 +11,16 @@ export const SEGMENTS: readonly { id: SegmentId; start: number }[] = [
   { id: 'c', start: 26 }, // layer by layer
 ];
 
+/** The intro question is the longest title, so the video holds still for a while on the code
+ *  just before it turns into blocks: about 8 s on the intro instead of 3. */
+export const INTRO_HOLD = { at: 2.2, seconds: 5 };
+
+/** True when playback moved from before the hold point to just past it. A seek or a loop that
+ *  jumps further on doesn't count. */
+export function crossesHold(previous: number, now: number): boolean {
+  return previous < INTRO_HOLD.at && now >= INTRO_HOLD.at && now < INTRO_HOLD.at + 0.5;
+}
+
 export function segmentAt(time: number): SegmentId {
   if (!Number.isFinite(time) || time < 0) return 'intro';
   const t = time % HERO_DURATION;

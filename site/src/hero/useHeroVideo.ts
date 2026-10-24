@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { segmentAt, type SegmentId } from './segments.ts';
+import { crossesHold, INTRO_HOLD, segmentAt, type SegmentId } from './segments.ts';
 
 export type HeroLayout = 'wide' | 'tall';
 
@@ -16,12 +16,42 @@ export function useHeroVideo(lang: string) {
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  // The pending resume while the video holds on the intro; the video is paused but still "playing".
+  const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
-    const onTime = () => setSegment(segmentAt(video.currentTime));
+    let last = video.currentTime;
+    // Once per loop: after the resume the video sits right on the hold point again.
+    let held = false;
+    const check = (now: number) => {
+      if (now < INTRO_HOLD.at - 1) held = false;
+      if (crossesHold(last, now) && !held) {
+        held = true;
+        hold.current = setTimeout(() => {
+          hold.current = undefined;
+          video.play().catch(() => setPlaying(false));
+        }, INTRO_HOLD.seconds * 1000);
+        video.pause();
+      }
+      last = now;
+    };
+    const onTime = () => {
+      setSegment(segmentAt(video.currentTime));
+      check(video.currentTime);
+    };
+    // Per-frame checks stop the video right on the hold point; timeupdate alone can be 250 ms late.
+    let frame = 0;
+    const onFrame = (_: number, meta: { mediaTime: number }) => {
+      check(meta.mediaTime);
+      frame = video.requestVideoFrameCallback(onFrame);
+    };
+    if ('requestVideoFrameCallback' in video) frame = video.requestVideoFrameCallback(onFrame);
     const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    const onPause = () => {
+      if (hold.current === undefined) setPlaying(false);
+    };
     video.addEventListener('timeupdate', onTime);
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
@@ -30,6 +60,9 @@ export function useHeroVideo(lang: string) {
     if (!reducedMotion) video.play().catch(() => setPlaying(false));
     setPlaying(!video.paused);
     return () => {
+      clearTimeout(hold.current);
+      hold.current = undefined;
+      if ('cancelVideoFrameCallback' in video) video.cancelVideoFrameCallback(frame);
       video.removeEventListener('timeupdate', onTime);
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
@@ -39,6 +72,13 @@ export function useHeroVideo(lang: string) {
   function toggle() {
     const video = ref.current;
     if (!video) return;
+    // Pause pressed during the intro hold: cancel the resume, the video is already still.
+    if (hold.current !== undefined) {
+      clearTimeout(hold.current);
+      hold.current = undefined;
+      setPlaying(false);
+      return;
+    }
     // play() rejects when the media is missing or the browser blocks it; the poster stays.
     if (video.paused) video.play().catch(() => setPlaying(false));
     else video.pause();

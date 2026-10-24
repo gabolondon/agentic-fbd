@@ -117,6 +117,43 @@ test('hero titles follow the video', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('the video holds on the intro for 5 s, still showing Pause', async ({ page }) => {
+  await page.clock.install();
+  await page.goto(base);
+  const video = page.locator('.hero-video');
+  // Stubbed time and play(): what matters is when the hook pauses and resumes, not the media.
+  await video.evaluate((v: HTMLVideoElement & { plays?: number }) => {
+    v.plays = 0;
+    v.play = () => ((v.plays! += 1), Promise.resolve());
+  });
+  for (const time of [2.1, 2.25]) {
+    await video.evaluate((v, t) => {
+      Object.defineProperty(v, 'currentTime', { get: () => t, configurable: true });
+      v.dispatchEvent(new Event('timeupdate'));
+    }, time);
+  }
+  await expect(page.locator('.hero-title')).toHaveText(en.hero.intro.title);
+  await expect(page.getByRole('button', { name: en.hero.pause })).toBeVisible();
+  const plays = () => video.evaluate((v: HTMLVideoElement & { plays?: number }) => v.plays);
+  await page.clock.runFor(4900);
+  expect(await plays()).toBe(0);
+  await page.clock.runFor(200);
+  expect(await plays()).toBe(1);
+  // After the resume the video sits on the hold point again; it doesn't hold twice in a loop.
+  const paused = () => video.evaluate((v: HTMLVideoElement & { pauses?: number }) => v.pauses);
+  await video.evaluate((v: HTMLVideoElement & { pauses?: number }) => {
+    v.pauses = 0;
+    v.pause = () => void (v.pauses! += 1);
+  });
+  for (const time of [2.19, 2.24]) {
+    await video.evaluate((v, t) => {
+      Object.defineProperty(v, 'currentTime', { get: () => t, configurable: true });
+      v.dispatchEvent(new Event('timeupdate'));
+    }, time);
+  }
+  expect(await paused()).toBe(0);
+});
+
 test.describe('on a portrait phone', () => {
   test.use({ viewport: { width: 375, height: 800 } });
 
@@ -165,7 +202,7 @@ const FEATURES = ['understand-design', 'data-box', 'before-after', 'code-locatio
 
 test('sections come in the approved order', async ({ page }) => {
   await page.goto(base);
-  const ids = await page.locator('main > section').evaluateAll((all) => all.map((s) => s.id));
+  const ids = await page.locator('main section[id]').evaluateAll((all) => all.map((s) => s.id));
   expect(ids).toEqual(['hero', 'statement', 'features', 'example', 'install']);
   expect(await page.locator('#features article').evaluateAll((all) => all.map((a) => a.id))).toEqual(FEATURES);
   await expect(page.locator('#features article h3')).toHaveText(FEATURES.map((id) => en.features[id as keyof typeof en.features] as { title: string }).map((f) => f.title));
@@ -193,7 +230,9 @@ for (const locale of ['en-US', 'es-ES']) {
         await img.scrollIntoViewIfNeeded();
         await expect(img).toHaveJSProperty('complete', true);
         expect(await img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
-        expect(await img.getAttribute('alt')).toBeTruthy();
+        // Content images describe themselves; a decorative one is hidden from screen readers.
+        if ((await img.getAttribute('aria-hidden')) === 'true') expect(await img.getAttribute('alt')).toBe('');
+        else expect(await img.getAttribute('alt')).toBeTruthy();
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
       const small = await page.evaluate(() =>

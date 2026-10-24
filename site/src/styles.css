@@ -319,6 +319,29 @@ img {
   padding: var(--section-gap) var(--gutter) 0;
 }
 
+.statement-band {
+  position: relative;
+  isolation: isolate;
+  padding-bottom: clamp(48px, 8vw, 120px);
+  overflow: hidden;
+}
+
+/* Barely there: transparent above the middle, then a faint, softened diagram that melts back
+   into the canvas at the bottom edge, so the words over it stay easy to read. */
+.statement-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 62%;
+  opacity: 0.3;
+  filter: blur(1.5px);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent 45%, var(--ink) 78%, transparent 100%);
+  pointer-events: none;
+}
+
 .statement {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
