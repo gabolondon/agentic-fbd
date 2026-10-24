@@ -74,7 +74,7 @@
     "label": "Un ejemplo real",
     "titleStart": "Un cable",
     "titleEnd": "atrapó el error.",
-    "thumbAlt": "El cable que entra a Save answer, resaltado por el riesgo que causó",
+    "thumbAlt": "El cable que entra a Save answer, resaltado por su riesgo",
     "story": "Un cuestionario de varios pasos guardaba las opciones elegidas por id numérico. Después se agregó una opción \"Otro\" con texto libre. Cuando alguien escribía un número, una edad o un año, el código lo leía como id de opción y guardaba la respuesta equivocada, en muchos pasos y a distintas profundidades del árbol de preguntas.",
     "fix": "En el diagrama, \"Otro\" es un solo bloque reutilizable, y el cable que lleva un número suelto a un puerto OptionId queda marcado: encaja por forma, pero significa otra cosa. Before / After muestra exactamente qué toca la corrección, antes de cambiar una línea de código."
   },

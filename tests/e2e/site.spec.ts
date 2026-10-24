@@ -152,3 +152,50 @@ test('without media the hero keeps its titles and hides the pause button', async
   await expect(page.locator('.hero-toggle')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+const FEATURES = ['understand-design', 'data-box', 'before-after', 'code-locations', 'edit-copy', 'living-docs'];
+
+test('sections come in the approved order', async ({ page }) => {
+  await page.goto(base);
+  const ids = await page.locator('main > section').evaluateAll((all) => all.map((s) => s.id));
+  expect(ids).toEqual(['hero', 'statement', 'features', 'example', 'install']);
+  expect(await page.locator('#features article').evaluateAll((all) => all.map((a) => a.id))).toEqual(FEATURES);
+  await expect(page.locator('#features article h3')).toHaveText(FEATURES.map((id) => en.features[id as keyof typeof en.features] as { title: string }).map((f) => f.title));
+});
+
+test('install shows the two commands, each with a copy button', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(base);
+  const rows = page.locator('#install .command');
+  await expect(rows.locator('code')).toHaveText(['/plugin marketplace add gabolondon/agentic-fbd', '/plugin install agentic-fbd@agentic-fbd']);
+  await rows.nth(1).getByRole('button', { name: en.install.copy }).click();
+  await expect(rows.nth(1).getByRole('button')).toHaveText(en.install.copied);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('/plugin install agentic-fbd@agentic-fbd');
+  await expect(page.locator('#install').getByRole('link', { name: /View on GitHub/ })).toHaveAttribute('href', 'https://github.com/gabolondon/agentic-fbd');
+});
+
+for (const locale of ['en-US', 'es-ES']) {
+  test.describe(`at phone width (${locale})`, () => {
+    test.use({ viewport: { width: 375, height: 800 }, locale });
+
+    test('no horizontal scroll, display type at least 40px, every image loaded', async ({ page }) => {
+      const errors = trackErrors(page);
+      await page.goto(base);
+      for (const img of await page.locator('img').all()) {
+        await img.scrollIntoViewIfNeeded();
+        await expect(img).toHaveJSProperty('complete', true);
+        expect(await img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+        expect(await img.getAttribute('alt')).toBeTruthy();
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+      const small = await page.evaluate(() =>
+        [...document.querySelectorAll('body *')]
+          .filter((el) => getComputedStyle(el).fontFamily.startsWith('Anton') && el.textContent?.trim())
+          .filter((el) => parseFloat(getComputedStyle(el).fontSize) < 40)
+          .map((el) => `${el.tagName}.${el.className}: ${getComputedStyle(el).fontSize}`),
+      );
+      expect(small).toEqual([]);
+      expect(errors).toEqual([]);
+    });
+  });
+}

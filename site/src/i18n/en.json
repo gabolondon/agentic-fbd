@@ -74,7 +74,7 @@
     "label": "A real example",
     "titleStart": "One wire",
     "titleEnd": "caught the bug.",
-    "thumbAlt": "The wire into Save answer, highlighted by the risk it caused",
+    "thumbAlt": "The wire into Save answer, highlighted by its risk",
     "story": "A multi-step questionnaire stored selected options by numeric id. Later an \"Other\" option with free text was added. When someone typed a number, an age or a year, the code read it as an option id and saved the wrong answer, in many steps and at different depths of the question tree.",
     "fix": "In the diagram, \"Other\" is one reusable block, and the wire that carries a bare number into an OptionId port is flagged: it fits by shape but means something else. Before / After shows exactly what the fix touches, before any code changes."
   },

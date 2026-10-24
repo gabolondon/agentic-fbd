@@ -58,7 +58,7 @@ img {
   font-family: var(--font-display);
   font-weight: 400;
   text-transform: uppercase;
-  line-height: 0.85;
+  line-height: 0.92;
   letter-spacing: 0;
   margin: 0;
 }
@@ -254,7 +254,7 @@ img {
   justify-items: start;
   gap: 24px;
   width: 100%;
-  max-width: var(--max);
+  max-width: calc(var(--max) - 2 * var(--gutter));
   margin: 0 auto;
 }
 
@@ -309,6 +309,223 @@ img {
   }
 }
 
+/* ---- Sections ---- */
+
+.section {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: var(--section-gap) var(--gutter) 0;
+}
+
+.statement {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+}
+
+.statement-title {
+  max-width: 12ch;
+  font-size: clamp(48px, 9vw, 152px);
+}
+
+.statement-text {
+  display: grid;
+  gap: 16px;
+  max-width: 40rem;
+  justify-self: end;
+}
+
+.statement-lead {
+  margin: 0;
+  font-size: clamp(20px, 2vw, 26px);
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+.statement-agents {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.statement-codex {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- Features ---- */
+
+.features {
+  display: grid;
+  gap: clamp(64px, 9vw, 128px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature {
+  display: grid;
+  gap: 32px;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .feature {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 56px;
+  }
+
+  .feature.pair {
+    grid-template-columns: 1fr;
+  }
+
+  .feature.pair .feature-text {
+    max-width: 48rem;
+  }
+
+  .feature.pair .feature-shots {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.feature.violet {
+  padding: clamp(24px, 4vw, 56px);
+  border-radius: var(--radius-panel);
+  background: var(--violet);
+  color: var(--on-ink);
+}
+
+.feature-text {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+.feature-text p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.feature.violet .feature-text p {
+  color: var(--on-ink);
+}
+
+.feature-number {
+  font: 600 13px/1 var(--font-mono);
+  color: var(--muted);
+}
+
+.feature.violet .feature-number {
+  color: var(--on-ink);
+}
+
+.feature-title {
+  font-size: clamp(40px, 4.6vw, 68px);
+}
+
+.feature-shots {
+  display: grid;
+  gap: 16px;
+}
+
+.feature-shots img {
+  width: 100%;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-block);
+  background: var(--cream);
+}
+
+/* ---- Example ---- */
+
+.example-title {
+  font-size: clamp(40px, 8vw, 128px);
+}
+
+.example-thumb {
+  display: inline-block;
+  height: 0.8em;
+  width: auto;
+  vertical-align: -0.04em;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-block);
+  background: var(--cream);
+}
+
+.example-text {
+  display: grid;
+  gap: 24px;
+  margin-top: 48px;
+}
+
+.example-text p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+@media (min-width: 900px) {
+  .example-text {
+    grid-template-columns: 1fr 1fr;
+    gap: 56px;
+  }
+}
+
+/* ---- Install ---- */
+
+.install {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  gap: 24px;
+  padding-bottom: var(--section-gap);
+}
+
+.install-title {
+  font-size: clamp(48px, 9vw, 152px);
+}
+
+.install-lead,
+.install-note {
+  max-width: 100%;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.install-note {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.commands {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 44rem;
+}
+
+.command {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 20px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+
+.command code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  font: 500 15px/1.4 var(--font-mono);
+  white-space: nowrap;
+}
+
 /* ---- Footer ---- */
 
 .footer {
@@ -317,9 +534,9 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  max-width: var(--max);
+  max-width: calc(var(--max) - 2 * var(--gutter));
   margin: 0 auto;
-  padding: 32px var(--gutter) 40px;
+  padding: 32px 0 40px;
   border-top: 1px solid var(--stone);
   font-size: 14px;
 }
