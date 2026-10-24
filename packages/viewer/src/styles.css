@@ -6,7 +6,7 @@
   --frame-border: var(--stone);
   --frame-ink: var(--muted);
   --ghost: var(--risk);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   color: var(--ink);
   background: var(--bg);
 }
@@ -28,7 +28,7 @@ button {
 }
 
 code {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
@@ -138,7 +138,7 @@ code {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
 }
 
 .lb-mode-design {
@@ -173,7 +173,7 @@ code {
   width: 100%;
   padding: 5px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: none;
   text-align: left;
   font-size: 13px;
@@ -224,7 +224,7 @@ code {
 .lb-tree-row {
   display: flex;
   align-items: center;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   min-height: 28px;
 }
 
@@ -291,7 +291,7 @@ code {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-small);
   background: var(--k-bg);
   color: var(--k);
   font-size: 11px;
@@ -405,13 +405,13 @@ code {
 /* ---- Top bar -------------------------------------------------------------------------------- */
 
 .lb-icon-button {
-  border: 1px solid var(--border);
-  background: var(--paper);
-  border-radius: 7px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  border-radius: var(--radius-panel);
   width: 32px;
   height: 32px;
   cursor: pointer;
-  color: var(--ink-soft);
+  color: var(--ink);
 }
 
 .lb-level {
@@ -429,18 +429,18 @@ code {
 }
 
 .lb-up {
-  border: 0;
-  background: var(--cream-dim);
-  border-radius: 6px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  border-radius: var(--radius-panel);
   padding: 3px 8px;
   font-size: 12px;
-  color: var(--ink-soft);
+  color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .lb-up:hover {
-  background: var(--cream-deep);
+  background: var(--cream-dim);
 }
 
 /* ---- Explanation in the side panel ------------------------------------------------------------ */
@@ -489,14 +489,14 @@ code {
 
 .lb-segmented {
   display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-panel);
   overflow: hidden;
 }
 
 .lb-segmented button {
   border: 0;
-  background: var(--paper);
+  background: transparent;
   padding: 6px 12px;
   font-size: 13px;
   cursor: pointer;
@@ -508,16 +508,17 @@ code {
 }
 
 .lb-pill {
-  border: 1px solid var(--border);
-  background: var(--paper);
-  border-radius: 7px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  border-radius: var(--radius-panel);
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
 }
 
 .lb-pill.lb-on {
-  border-color: var(--ink);
+background: var(--ink);
+  color: var(--cream);
 }
 
 .lb-pill b {
@@ -529,10 +530,24 @@ code {
   color: var(--risk);
 }
 
+.lb-pill.lb-on b {
+  color: var(--on-ink-muted);
+}
+
+.lb-pill.lb-on b.lb-count-open {
+  color: var(--on-ink-error);
+}
+
+.lb-icon-button:hover,
+.lb-pill:hover:not(.lb-on):not(:disabled),
+.lb-segmented button:hover:not(.lb-on) {
+  background: var(--cream-dim);
+}
+
 .lb-chip {
   font-size: 12px;
   padding: 3px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
 }
 
 .lb-chip-offline {
@@ -570,6 +585,11 @@ code {
 /* React Flow reads its own colors from these variables. */
 .lb-canvas .react-flow {
   --xy-background-pattern-color: var(--stone);
+  --xy-controls-button-background-color: var(--paper);
+  --xy-controls-button-background-color-hover: var(--cream-dim);
+  --xy-controls-button-color: var(--ink);
+  --xy-controls-button-border-color: var(--stone);
+  --xy-attribution-background-color: transparent;
 }
 
 .lb-empty {
@@ -627,7 +647,7 @@ code {
 .lb-panel code {
   background: var(--cream-dim);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   word-break: break-word;
 }
 
@@ -655,7 +675,7 @@ code {
 }
 
 .lb-type {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--new-ink);
   word-break: break-word;
@@ -670,7 +690,7 @@ code {
   font-size: 11px;
   font-weight: 500;
   padding: 1px 7px;
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   color: var(--paper);
   margin-left: 8px;
   vertical-align: middle;
@@ -714,7 +734,7 @@ code {
   border: 0;
   border-left: 3px solid var(--risk);
   background: var(--risk-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   padding: 6px 9px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -752,8 +772,8 @@ code {
   border: 1px solid var(--ink);
   background: var(--ink);
   color: var(--cream);
-  border-radius: 7px;
-  padding: 7px 12px;
+  border-radius: var(--radius-panel);
+  padding: 7px 14px;
   font-size: 13px;
   cursor: pointer;
 }
@@ -769,7 +789,7 @@ code {
   font-size: 12px;
   line-height: 1.45;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   max-width: 380px;
   box-shadow: none;
 }
@@ -807,8 +827,8 @@ code {
   width: 100%;
   height: 100%;
   background: var(--block);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-block);
   font-size: 13px;
   box-shadow: none;
 }
@@ -819,7 +839,7 @@ code {
   top: 6px;
   bottom: 6px;
   width: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-small);
   background: transparent;
 }
 
@@ -849,7 +869,7 @@ code {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: var(--k-bg);
   color: var(--k);
   font-size: 12px;
@@ -863,7 +883,7 @@ code {
 
 .lb-kind-trigger {
   background: var(--trigger-bg);
-  border-radius: 20px;
+  border-radius: var(--radius-block);
 }
 
 .lb-kind-trigger > .lb-accent {
@@ -970,7 +990,7 @@ code {
 
 /* State: a flat register */
 .lb-state {
-  border-radius: 4px;
+  border-radius: var(--radius-block);
   background: var(--paper);
   border-width: 1px 1px 3px;
 }
@@ -988,8 +1008,8 @@ code {
 /* Closed group: a stacked card */
 .lb-box {
   box-shadow:
-    3px 3px 0 -1px var(--paper),
-    3px 3px 0 0 var(--border);
+    3px 3px 0 -1px var(--cream),
+    3px 3px 0 0 var(--ink);
 }
 
 .lb-unexplored {
@@ -1001,7 +1021,7 @@ code {
 .lb-frame {
   background: var(--frame-bg);
   border: 1px dashed var(--frame-border);
-  border-radius: 12px;
+  border-radius: var(--radius-block);
   box-shadow: none;
 }
 
@@ -1014,7 +1034,7 @@ code {
   color: var(--frame-ink);
   background: var(--paper);
   border: 1px solid var(--frame-border);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   padding: 1px 9px;
   white-space: nowrap;
 }
@@ -1189,7 +1209,7 @@ code {
   margin-top: 16px;
   border: 1px solid var(--violet-line);
   background: var(--violet-bg);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: 2px 4px;
 }
 
@@ -1238,7 +1258,7 @@ code {
 .lb-data-row {
   background: var(--paper);
   border: 1px solid var(--violet-line);
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   margin: 0 0 5px;
 }
 
@@ -1254,7 +1274,7 @@ div.lb-data-row-head {
 }
 
 .lb-data-type {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
   overflow: hidden;
@@ -1273,7 +1293,7 @@ div.lb-data-row-head {
   font-size: 11px;
   color: var(--violet-ink);
   background: var(--violet-bg);
-  border-radius: 9px;
+  border-radius: var(--radius-small);
   padding: 0 7px;
 }
 
@@ -1321,7 +1341,7 @@ div.lb-data-row-head {
 }
 
 .lb-field-name {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
   flex: none;
 }
@@ -1352,7 +1372,7 @@ div.lb-data-row-head {
   width: min(640px, calc(100% - 32px));
   background: var(--paper);
   border: 1px solid var(--mod);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   box-shadow: none;
   padding: 8px 10px;
   font-size: 13px;
@@ -1431,7 +1451,7 @@ div.lb-data-row-head {
   text-align: center;
   color: var(--muted);
   font-size: 12px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 400;
   cursor: pointer;
   opacity: 0;
@@ -1469,7 +1489,7 @@ div.lb-data-row-head {
   font-size: 13px;
   padding: 4px 6px;
   border: 1px solid var(--sel);
-  border-radius: 5px;
+  border-radius: var(--radius-small);
   background: var(--paper);
   color: var(--ink);
 }
@@ -1480,7 +1500,7 @@ textarea.lb-input {
 }
 
 .lb-input-mono {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
 }
 
@@ -1512,7 +1532,7 @@ textarea.lb-input {
   gap: 6px;
   margin: 4px 0;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: var(--mod-bg);
   border: 1px solid var(--mod-line);
   font-size: 12px;
@@ -1523,7 +1543,7 @@ textarea.lb-input {
   font-size: 12px;
   padding: 1px 4px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-small);
   background: var(--paper);
 }
 
@@ -1539,7 +1559,7 @@ textarea.lb-input {
 .lb-panel section.lb-note-section {
   background: var(--note-bg);
   border: 1px solid var(--note-line);
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   padding: 6px 10px 8px;
 }
 
@@ -1610,9 +1630,9 @@ textarea.lb-input {
   position: absolute;
   top: 9px;
   right: 40px;
-  border: 1px solid var(--border);
-  background: var(--paper);
-  border-radius: 6px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  border-radius: var(--radius-panel);
   padding: 1px 7px;
   font-size: 12px;
   color: var(--muted);

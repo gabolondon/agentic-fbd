@@ -36,7 +36,7 @@ test('brand tokens carry the spec values', () => {
   expect(tokens['--ink']).toBe('#000000');
   expect(tokens['--stone']).toBe('#c6c3ba');
   expect(tokens['--violet']).toBe('#643aed');
-  expect(tokens['--radius-block']).toBe('10px');
+  expect(tokens['--radius-block']).toBe('4px');
   expect(tokens['--radius-panel']).toBe('20px');
   expect(tokens['--font-ui']).toMatch(/^'Inter Variable', Inter,/);
 });
@@ -56,4 +56,30 @@ test('viewer styles and components hold no color literals', () => {
     const code = stripComments(read(file));
     expect(code.match(/#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})\b|rgba?\(|hsla?\(/gi), file).toBeNull();
   }
+});
+
+// [selector, value] for every box-shadow declaration in a stylesheet.
+function boxShadows(file: string): [string, string][] {
+  const out: [string, string][] = [];
+  for (const rule of stripComments(read(file)).matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    for (const d of rule[2]!.matchAll(/box-shadow:\s*([^;]+);/g)) out.push([rule[1]!.trim(), d[1]!.trim()]);
+  }
+  return out;
+}
+
+// Depth comes from 1px borders; zero-blur shadows (rings, the stacked card) are allowed.
+test('no blurred shadows', () => {
+  for (const [selector, value] of boxShadows(stylesCss)) {
+    for (const layer of value.split(/,(?![^(]*\))/)) {
+      const lengths = layer.replace(/var\([^)]*\)|inset/g, '').trim().split(/\s+/).filter((t) => /^-?\d/.test(t));
+      expect(parseFloat(lengths[2] ?? '0'), `${selector}: ${layer}`).toBe(0);
+    }
+  }
+  expect(stripComments(read(stylesCss)).match(/drop-shadow\(/g)).toBeNull();
+});
+
+test('shapes and fonts come from tokens', () => {
+  const css = stripComments(read(stylesCss));
+  expect(css.match(/border-radius: *(?![ ]|var\(|50%|0;)[^;]+;/g)).toBeNull();
+  expect(css.match(/font-family: *(?![ ]|var\()[^;]+;/g)).toBeNull();
 });

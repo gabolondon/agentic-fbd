@@ -20,7 +20,7 @@
 - Brand values: cream `#f7f4e8`, ink `#000000`, stone `#c6c3ba` (secondary borders), violet `#643aed` (the one accent; the Data box uses it).
 - Meaning colors stay as meanings: new green, modified amber, risk red, and trigger/selection blue. They are toned to sit on cream. The exact hex values are the builder's call, within the contrast rule in Task 1.
 - Font: Inter for all UI, monospace for code as today. The condensed display face is **not** used in the viewer.
-- Radii: 10px for blocks on the canvas, 20px for panels, buttons and pills.
+- Radii: blocks on the canvas use 4px, triggers included (Gabriel's call on 2026-10-23, replacing the spec's 10px); 20px for panels, buttons and pills.
 - Buttons: the primary is a pill with a black fill and cream text; the secondary is a ghost pill with a 1px ink outline.
 - No blurred shadows. Depth comes from 1px borders.
 - Light only. The viewer has no dark mode today, so `color-scheme: light` is set explicitly.
@@ -52,7 +52,7 @@
   - Text: `--muted` (secondary text).
   - Meaning: `--new`, `--mod`, `--risk`, `--sel`, `--trigger`, each with a `-bg` tint.
   - Kinds: `--k-<kind>` and `--k-<kind>-bg` for every kind that `styles.css` colors today (trigger, function, state, decision, and the rest found under "Kind colors").
-  - Shape and type: `--radius-block: 10px`, `--radius-panel: 20px`, `--radius-small` (tooltips and inline chips; the builder's call, ≤ 10px), `--font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif`, `--font-mono: ui-monospace, 'SF Mono', Menlo, monospace`.
+  - Shape and type: `--radius-block: 4px`, `--radius-panel: 20px`, `--radius-small` (tooltips and inline chips; the builder's call, ≤ 10px), `--font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif`, `--font-mono: ui-monospace, 'SF Mono', Menlo, monospace`.
   - `color-scheme: light`.
 - Tasks 2–4 and the project 3 landing read only these names.
 
@@ -64,7 +64,7 @@ test('brand tokens carry the spec values', () => {
   expect(tokens['--ink']).toBe('#000000');
   expect(tokens['--stone']).toBe('#c6c3ba');
   expect(tokens['--violet']).toBe('#643aed');
-  expect(tokens['--radius-block']).toBe('10px');
+  expect(tokens['--radius-block']).toBe('4px');
   expect(tokens['--radius-panel']).toBe('20px');
   expect(tokens['--font-ui']).toMatch(/^'Inter Variable', Inter,/);
 });
@@ -202,7 +202,7 @@ test('shapes and fonts come from tokens', () => {
 
 - [ ] **Step 1: Add the e2e test** `the viewer wears the agentic-fbd theme`. It opens the design example and checks:
   - `getComputedStyle(document.body).backgroundColor` is `rgb(247, 244, 232)`;
-  - `.lb-node` has `border-radius: 10px`;
+  - `.lb-node` has `border-radius: 4px`, a trigger block too;
   - `.lb-button`, if one is on screen (otherwise open a panel that has one), has `border-radius: 20px`;
   - `await page.evaluate(() => document.fonts.check('13px "Inter Variable"'))` is `true` after `document.fonts.ready`;
   - `trackErrors` is empty.
