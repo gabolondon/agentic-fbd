@@ -326,8 +326,8 @@ img {
   overflow: hidden;
 }
 
-/* Barely there: transparent above the middle, then a faint, softened diagram that melts back
-   into the canvas at the bottom edge, so the words over it stay easy to read. */
+/* Barely there: transparent on the left half, then a faint, slightly softened diagram toward
+   the right; its top and bottom edges melt into the canvas, so the words stay easy to read. */
 .statement-bg {
   position: absolute;
   inset: 0;
@@ -337,8 +337,11 @@ img {
   object-fit: cover;
   object-position: 50% 62%;
   opacity: 0.3;
-  filter: blur(1.5px);
-  mask-image: linear-gradient(to bottom, transparent 0%, transparent 45%, var(--ink) 78%, transparent 100%);
+  filter: blur(0.6px);
+  mask-image:
+    linear-gradient(to right, transparent 0%, transparent 50%, var(--ink) 82%),
+    linear-gradient(to bottom, transparent 0%, var(--ink) 18%, var(--ink) 82%, transparent 100%);
+  mask-composite: intersect;
   pointer-events: none;
 }
 
