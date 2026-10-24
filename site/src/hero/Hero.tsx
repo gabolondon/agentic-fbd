@@ -2,13 +2,15 @@ import { useTranslation } from 'react-i18next';
 import { useHeroVideo } from './useHeroVideo.ts';
 
 export function Hero() {
-  const { t } = useTranslation();
-  const { ref, layout, reducedMotion, segment, playing, failed, toggle, onSourceError } = useHeroVideo();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.resolvedLanguage === 'es' ? 'es' : 'en';
+  const { ref, layout, reducedMotion, segment, playing, failed, toggle, onSourceError } = useHeroVideo(lang);
   const media = `/media/hero-${layout}`;
 
   return (
     <section className={`hero ${layout}`} id="hero">
       <video
+        key={lang}
         ref={ref}
         className="hero-video"
         poster={`${media}-poster.webp`}
@@ -19,8 +21,8 @@ export function Hero() {
         preload={reducedMotion ? 'none' : 'auto'}
         aria-hidden="true"
       >
-        <source src={`${media}.webm`} type="video/webm" />
-        <source src={`${media}.mp4`} type="video/mp4" onError={onSourceError} />
+        <source src={`${media}-${lang}.webm`} type="video/webm" />
+        <source src={`${media}-${lang}.mp4`} type="video/mp4" onError={onSourceError} />
       </video>
       <div className="hero-shade" />
       <div className="hero-copy">

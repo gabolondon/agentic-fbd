@@ -245,7 +245,7 @@ img {
 }
 
 .hero.wide .hero-shade {
-  background: linear-gradient(to right, var(--ink) 0%, transparent 62%);
+  background: linear-gradient(to right, var(--ink) 0%, transparent 45%);
 }
 
 .hero-copy {
@@ -277,11 +277,13 @@ img {
 }
 
 .hero.wide .hero-copy > * {
-  max-width: min(36rem, 40vw);
+  max-width: min(36rem, 34vw);
 }
 
+/* The wide render keeps the diagram in the right 60%, so the title stays in the left 40%. */
 .hero.wide .hero-title {
-  max-width: min(15ch, 40vw);
+  max-width: min(15ch, 30vw);
+  font-size: clamp(40px, 5.2vw, 96px);
 }
 
 .hero-toggle {

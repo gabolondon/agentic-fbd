@@ -5,8 +5,9 @@ export type HeroLayout = 'wide' | 'tall';
 
 const matches = (query: string) => typeof matchMedia === 'function' && matchMedia(query).matches;
 
-/** The hero video's layout, current segment and play state. */
-export function useHeroVideo() {
+/** The hero video's layout, current segment and play state. `lang` picks the render whose
+ *  speech bubbles match the page; a new language mounts a new video element. */
+export function useHeroVideo(lang: string) {
   const ref = useRef<HTMLVideoElement>(null);
   // Chosen once: the tall render keeps the diagram in frame on a portrait phone.
   const [layout] = useState<HeroLayout>(() => (matches('(orientation: portrait)') ? 'tall' : 'wide'));
@@ -33,7 +34,7 @@ export function useHeroVideo() {
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
     };
-  }, [reducedMotion]);
+  }, [reducedMotion, lang]);
 
   function toggle() {
     const video = ref.current;

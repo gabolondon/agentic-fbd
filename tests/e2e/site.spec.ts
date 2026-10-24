@@ -106,7 +106,7 @@ test('hero titles follow the video', async ({ page }) => {
   await page.goto(base);
   const title = page.locator('.hero-title');
   await expect(title).toHaveText(en.hero.intro.title);
-  for (const [time, segment] of [[5, 'b'], [14, 'a'], [25, 'c'], [1, 'intro']] as const) {
+  for (const [time, segment] of [[5, 'b'], [17, 'a'], [30, 'c'], [1, 'intro']] as const) {
     await page.locator('.hero-video').evaluate((video, t) => {
       Object.defineProperty(video, 'currentTime', { get: () => t, configurable: true });
       video.dispatchEvent(new Event('timeupdate'));
@@ -123,14 +123,22 @@ test.describe('on a portrait phone', () => {
   test('the hero picks the tall video', async ({ page }) => {
     await page.goto(base);
     const sources = await page.locator('.hero-video source').evaluateAll((all) => all.map((s) => s.getAttribute('src')));
-    expect(sources).toEqual(['/media/hero-tall.webm', '/media/hero-tall.mp4']);
+    expect(sources).toEqual(['/media/hero-tall-en.webm', '/media/hero-tall-en.mp4']);
     await expect(page.locator('.hero-video')).toHaveAttribute('poster', '/media/hero-tall-poster.webp');
   });
 });
 
 test('a wide window picks the wide video', async ({ page }) => {
   await page.goto(base);
-  await expect(page.locator('.hero-video source').first()).toHaveAttribute('src', '/media/hero-wide.webm');
+  await expect(page.locator('.hero-video source').first()).toHaveAttribute('src', '/media/hero-wide-en.webm');
+});
+
+test('switching to Spanish swaps in the Spanish video', async ({ page }) => {
+  await page.goto(base);
+  await page.locator('.topbar').getByRole('button', { name: 'ES', exact: true }).click();
+  const sources = await page.locator('.hero-video source').evaluateAll((all) => all.map((s) => s.getAttribute('src')));
+  expect(sources).toEqual(['/media/hero-wide-es.webm', '/media/hero-wide-es.mp4']);
+  await expect(page.locator('.hero-video')).toHaveAttribute('poster', '/media/hero-wide-poster.webp');
 });
 
 test.describe('with reduced motion', () => {
