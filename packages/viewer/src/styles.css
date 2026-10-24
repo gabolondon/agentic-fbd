@@ -1293,7 +1293,7 @@ div.lb-data-row-head {
   font-size: 11px;
   color: var(--violet-ink);
   background: var(--violet-bg);
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-block);
   padding: 0 7px;
 }
 
