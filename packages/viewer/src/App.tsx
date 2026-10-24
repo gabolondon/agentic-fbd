@@ -551,7 +551,7 @@ function Viewer({ state, loc, setLoc }: ViewerProps) {
               onEdgeMouseLeave={onEdgeLeave}
               onPaneClick={onPaneClick}
             >
-              <Background gap={18} size={1.2} color="#d5dae3" />
+              <Background gap={18} size={1.2} />
               <Controls showInteractive={false} />
             </ReactFlow>
           ) : (

@@ -1,8 +1,13 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
 const tokensCss = resolve(import.meta.dirname, '../../theme/tokens.css');
+const viewerSrc = resolve(import.meta.dirname, '../src');
+const stylesCss = join(viewerSrc, 'styles.css');
+const viewerCodeFiles = (readdirSync(viewerSrc, { recursive: true }) as string[])
+  .filter((f) => /\.tsx?$/.test(f))
+  .map((f) => join(viewerSrc, f));
 
 const read = (file: string) => readFileSync(file, 'utf8');
 const stripComments = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -43,4 +48,12 @@ test.each(['--ink', '--muted', '--risk'])('%s text is readable on cream', (name)
 });
 test.each(['--new', '--mod', '--sel', '--trigger', '--violet'])('%s stands out on cream', (name) => {
   expect(contrast(tokens[name]!, tokens['--cream']!)).toBeGreaterThanOrEqual(3);
+});
+
+// Colors live in packages/theme/tokens.css only.
+test('viewer styles and components hold no color literals', () => {
+  for (const file of [stylesCss, ...viewerCodeFiles]) {
+    const code = stripComments(read(file));
+    expect(code.match(/#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})\b|rgba?\(|hsla?\(/gi), file).toBeNull();
+  }
 });
