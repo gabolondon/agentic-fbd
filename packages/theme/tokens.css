@@ -71,7 +71,7 @@
   --k-group-bg: #ebedf1;
 
   /* ---- Shape and type ---- */
-  --radius-block: 4px; /* blocks on the canvas */
+  --radius-block: 4px; /* blocks on the canvas, boxes in the panels, the structure button */
   --radius-panel: 20px;
   --radius-small: 6px;
   --font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;

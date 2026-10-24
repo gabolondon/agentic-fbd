@@ -407,7 +407,7 @@ code {
 .lb-icon-button {
   border: 1px solid var(--ink);
   background: transparent;
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-block);
   width: 32px;
   height: 32px;
   cursor: pointer;
@@ -734,7 +734,7 @@ background: var(--ink);
   border: 0;
   border-left: 3px solid var(--risk);
   background: var(--risk-bg);
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-block);
   padding: 6px 9px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -1209,7 +1209,7 @@ background: var(--ink);
   margin-top: 16px;
   border: 1px solid var(--violet-line);
   background: var(--violet-bg);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-block);
   padding: 2px 4px;
 }
 
@@ -1258,7 +1258,7 @@ background: var(--ink);
 .lb-data-row {
   background: var(--paper);
   border: 1px solid var(--violet-line);
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-block);
   margin: 0 0 5px;
 }
 
@@ -1372,7 +1372,7 @@ div.lb-data-row-head {
   width: min(640px, calc(100% - 32px));
   background: var(--paper);
   border: 1px solid var(--mod);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-block);
   box-shadow: none;
   padding: 8px 10px;
   font-size: 13px;
@@ -1532,7 +1532,7 @@ textarea.lb-input {
   gap: 6px;
   margin: 4px 0;
   padding: 6px 8px;
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-block);
   background: var(--mod-bg);
   border: 1px solid var(--mod-line);
   font-size: 12px;
@@ -1559,7 +1559,7 @@ textarea.lb-input {
 .lb-panel section.lb-note-section {
   background: var(--note-bg);
   border: 1px solid var(--note-line);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-block);
   padding: 6px 10px 8px;
 }
 

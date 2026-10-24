@@ -491,6 +491,7 @@ test('the viewer wears the agentic-fbd theme', async ({ page }) => {
     expect(await style('html', 'background-color')).toBe('rgb(247, 244, 232)');
     expect(await style('.lb-node', 'border-radius')).toBe('4px');
     expect(await style('.lb-button', 'border-radius')).toBe('20px');
+    expect(await style('.lb-icon-button', 'border-radius')).toBe('4px');
     // Inter ships with the viewer; the CLI serves it offline.
     expect(await page.evaluate(async () => {
       await document.fonts.ready;
