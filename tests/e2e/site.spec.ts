@@ -100,3 +100,55 @@ test('the menu opens with the section links and closes on Escape', async ({ page
   await page.keyboard.press('Escape');
   await expect(page.locator('#menu')).toHaveCount(0);
 });
+
+test('hero titles follow the video', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(base);
+  const title = page.locator('.hero-title');
+  await expect(title).toHaveText(en.hero.intro.title);
+  for (const [time, segment] of [[5, 'b'], [14, 'a'], [25, 'c'], [1, 'intro']] as const) {
+    await page.locator('.hero-video').evaluate((video, t) => {
+      Object.defineProperty(video, 'currentTime', { get: () => t, configurable: true });
+      video.dispatchEvent(new Event('timeupdate'));
+    }, time);
+    await expect(title).toHaveText(en.hero[segment].title);
+    await expect(page.locator('.hero-subtitle')).toHaveText(en.hero[segment].subtitle);
+  }
+  expect(errors).toEqual([]);
+});
+
+test.describe('on a portrait phone', () => {
+  test.use({ viewport: { width: 375, height: 800 } });
+
+  test('the hero picks the tall video', async ({ page }) => {
+    await page.goto(base);
+    const sources = await page.locator('.hero-video source').evaluateAll((all) => all.map((s) => s.getAttribute('src')));
+    expect(sources).toEqual(['/media/hero-tall.webm', '/media/hero-tall.mp4']);
+    await expect(page.locator('.hero-video')).toHaveAttribute('poster', '/media/hero-tall-poster.webp');
+  });
+});
+
+test('a wide window picks the wide video', async ({ page }) => {
+  await page.goto(base);
+  await expect(page.locator('.hero-video source').first()).toHaveAttribute('src', '/media/hero-wide.webm');
+});
+
+test.describe('with reduced motion', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('the video does not autoplay and offers Play', async ({ page }) => {
+    await page.goto(base);
+    await expect(page.getByRole('button', { name: en.hero.play })).toBeVisible();
+    expect(await page.locator('.hero-video').evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
+    await expect(page.locator('.hero-title')).toHaveText(en.hero.intro.title);
+  });
+});
+
+test('without media the hero keeps its titles and hides the pause button', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.route('**/media/**', (route) => route.fulfill({ status: 404 }));
+  await page.goto(base);
+  await expect(page.locator('.hero-title')).toHaveText(en.hero.intro.title);
+  await expect(page.locator('.hero-toggle')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

@@ -213,6 +213,102 @@ img {
   }
 }
 
+/* ---- Hero ---- */
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 100svh;
+  padding: 120px var(--gutter) clamp(88px, 10vw, 136px);
+  background: var(--ink);
+  color: var(--on-ink);
+  overflow: hidden;
+  /* The curved bottom edge into the cream canvas. */
+  clip-path: ellipse(max(140%, 900px) 100% at 50% 0%);
+}
+
+.hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Keeps the titles readable where they overlap the diagram. */
+.hero-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--ink) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.hero.wide .hero-shade {
+  background: linear-gradient(to right, var(--ink) 0%, transparent 62%);
+}
+
+.hero-copy {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 24px;
+  width: 100%;
+  max-width: var(--max);
+  margin: 0 auto;
+}
+
+.hero-title,
+.hero-subtitle {
+  max-width: 15ch;
+  animation: hero-in 450ms ease-out both;
+}
+
+.hero-title {
+  font-size: clamp(40px, 6.4vw, 96px);
+}
+
+.hero-subtitle {
+  max-width: 34rem;
+  margin: 0;
+  font-size: clamp(16px, 1.4vw, 19px);
+  line-height: 1.5;
+  color: var(--on-ink-muted);
+}
+
+.hero.wide .hero-copy > * {
+  max-width: min(36rem, 40vw);
+}
+
+.hero.wide .hero-title {
+  max-width: min(15ch, 40vw);
+}
+
+.hero-toggle {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(56px, 7vw, 96px);
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-content: center;
+  font-size: 12px;
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-title,
+  .hero-subtitle {
+    animation: none;
+  }
+}
+
 /* ---- Footer ---- */
 
 .footer {
