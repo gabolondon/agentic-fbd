@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyEdit, summarizeEdits, validate, type Edit, type Issue, type LayoutFile, type LogicDoc, type Mode } from '@agentic-fbd/core';
+import { api } from './demo.ts';
 
 export interface DiagramFile {
   file: string;
@@ -138,7 +139,7 @@ export function useDocument(file?: string): DocHandle {
     const ticket = ++inFlight.current;
     const wanted = current.current;
     try {
-      const res = await fetch(wanted ? `api/doc?file=${encodeURIComponent(wanted)}` : 'api/doc', { cache: 'no-store' });
+      const res = await api.fetch(wanted ? `api/doc?file=${encodeURIComponent(wanted)}` : 'api/doc', { cache: 'no-store' });
       const payload = (await res.json()) as Payload;
       if (ticket !== inFlight.current) return;
       loadedFile.current = payload.file;
@@ -179,7 +180,7 @@ export function useDocument(file?: string): DocHandle {
 
   const refreshFiles = useCallback(async () => {
     try {
-      const files = (await (await fetch('api/files', { cache: 'no-store' })).json()) as DiagramFile[];
+      const files = (await (await api.fetch('api/files', { cache: 'no-store' })).json()) as DiagramFile[];
       setInner((prev) => ({ ...prev, files }));
     } catch {
       // The list is a convenience; the diagram itself still loads.
@@ -189,7 +190,7 @@ export function useDocument(file?: string): DocHandle {
   const saveLayout = useCallback((layout: LayoutFile) => {
     const target = loadedFile.current;
     setInner((prev) => ({ ...prev, layout }));
-    void fetch(`api/layout?file=${encodeURIComponent(target)}`, {
+    void api.fetch(`api/layout?file=${encodeURIComponent(target)}`, {
       method: 'PUT',
       headers: JSON_HEADERS,
       body: JSON.stringify(layout),
@@ -206,7 +207,7 @@ export function useDocument(file?: string): DocHandle {
     queued.current = null;
     if (next) {
       putChain.current = putChain.current.then(() =>
-        fetch(`api/draft?file=${encodeURIComponent(next.file)}`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(next.doc) })
+        api.fetch(`api/draft?file=${encodeURIComponent(next.file)}`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(next.doc) })
           .then((res) => res.ok)
           .catch(() => false)
           .then((ok) => setInner((prev) => ({ ...prev, draftSaved: ok }))),
@@ -247,7 +248,7 @@ export function useDocument(file?: string): DocHandle {
     unsentFor.current = target;
     setInner((prev) => ({ ...prev, draftDoc: null, draft: null, draftSaved: true }));
     void putChain.current
-      .then(() => fetch(`api/draft?file=${encodeURIComponent(target)}`, { method: 'DELETE', headers: JSON_HEADERS }))
+      .then(() => api.fetch(`api/draft?file=${encodeURIComponent(target)}`, { method: 'DELETE', headers: JSON_HEADERS }))
       .catch(() => undefined)
       .then(() => {
         unsentFor.current = null;
@@ -269,7 +270,7 @@ export function useDocument(file?: string): DocHandle {
     const doc = s.draftDoc;
     await flushDraft();
     try {
-      const res = await fetch(`api/save?file=${encodeURIComponent(target)}`, { method: 'POST', headers: JSON_HEADERS, body: '{}' });
+      const res = await api.fetch(`api/save?file=${encodeURIComponent(target)}`, { method: 'POST', headers: JSON_HEADERS, body: '{}' });
       const body = (await res.json()) as { review?: string | null; error?: string; issues?: Issue[] };
       if (!res.ok) {
         const first = body.issues?.find((i) => i.level === 'error');
@@ -290,7 +291,7 @@ export function useDocument(file?: string): DocHandle {
 
   useEffect(() => {
     void refreshFiles();
-    const events = new EventSource('api/events');
+    const events = api.events('api/events');
     // Refetch on (re)connect too: changes may have happened while disconnected.
     events.onopen = () => {
       setInner((prev) => ({ ...prev, connected: true }));
