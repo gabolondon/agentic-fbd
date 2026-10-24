@@ -16,10 +16,14 @@ components:
     version: 0.1.0
     depends_on: [core]
 
+  theme:
+    path: packages/theme  # design tokens shared by the viewer and the website
+    version: 0.1.0
+
   viewer:
     path: packages/viewer # the diagram viewer, bundled into dist/viewer
     version: 0.1.0
-    depends_on: [core]
+    depends_on: [core, theme]
 
   skill:
     path: skills/agentic-fbd # the skill, format reference, schema and examples
@@ -29,3 +33,4 @@ components:
   landing:
     path: site            # the website at afbd.gabocodes.com
     version: 0.1.0
+    depends_on: [theme]

@@ -1,0 +1,78 @@
+/* agentic-fbd design tokens: the only place colors, radii and fonts are defined.
+   Shared by the viewer (packages/viewer) and the website (site/). Light only. */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Brand ---- */
+  --cream: #f7f4e8; /* canvas and page background */
+  --paper: #fffdf7; /* raised surfaces: blocks, panels, inputs */
+  --cream-dim: #efebdc; /* hover, code, stripes */
+  --cream-deep: #e5e0cd; /* pressed and current rows */
+  --ink: #000000; /* text, primary borders, primary buttons */
+  --ink-soft: #3d3a33; /* secondary dark text */
+  --muted: #6b6658; /* tertiary text and hints */
+  --line: #8f8a7d; /* wires and handles */
+  --stone: #c6c3ba; /* secondary borders and dividers */
+  --violet: #643aed; /* the one accent; the Data box */
+  --violet-bg: #ece7fd;
+  --violet-line: #d7cbf9;
+  --violet-ink: #4b2bb8;
+
+  /* ---- Meaning ---- */
+  --new: #1e8a4c;
+  --new-bg: #e4f1ea;
+  --mod: #b5790c;
+  --mod-bg: #f6efe2;
+  --mod-line: #ead6a8;
+  --mod-ink: #7a5200;
+  --risk: #c2362e;
+  --risk-bg: #f8e7e6;
+  --risk-line: #eec4bf;
+  --risk-ink: #8c241e;
+  --sel: #2a62c9;
+  --sel-bg: #e5ecf9;
+  --trigger: #2a62c9;
+  --trigger-bg: #e5ecf9;
+  --note: #e0b400;
+  --note-bg: #fbf6e0;
+  --note-line: #efe0a6;
+  --note-ink: #5c4500;
+
+  /* ---- Translucent overlays ---- */
+  --frame-bg: rgba(198, 195, 186, 0.18); /* open group behind its children */
+  --selection-bg: rgba(42, 98, 201, 0.06); /* drag-select rectangle */
+  --risk-ring: rgba(194, 54, 46, 0.35); /* highlighted block */
+
+  /* ---- On dark surfaces (tooltip) ---- */
+  --on-ink: #f7f4e8;
+  --on-ink-muted: #b9b4a6;
+  --on-ink-code: #a8e6b8;
+  --on-ink-error: #ffb0aa;
+  --on-ink-warning: #f6d47a;
+
+  /* ---- Block kinds ---- */
+  --k-trigger: #2a62c9;
+  --k-trigger-bg: #e5ecf9;
+  --k-function: #4b55c8;
+  --k-function-bg: #e9ebf8;
+  --k-state: #0f7f81;
+  --k-state-bg: #e2f0f0;
+  --k-decision: #8a4fc4;
+  --k-decision-bg: #f1eaf8;
+  --k-external: #6b6658;
+  --k-external-bg: #ededeb;
+  --k-result: #1e8a4c;
+  --k-result-bg: #e4f1ea;
+  --k-instance: #a86f00;
+  --k-instance-bg: #f5eee0;
+  --k-group: #5a6b8c;
+  --k-group-bg: #ebedf1;
+
+  /* ---- Shape and type ---- */
+  --radius-block: 10px;
+  --radius-panel: 20px;
+  --radius-small: 6px;
+  --font-ui: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}

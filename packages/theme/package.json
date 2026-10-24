@@ -1,0 +1,9 @@
+{
+  "name": "@agentic-fbd/theme",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Design tokens shared by the agentic-fbd viewer and website.",
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  }
+}
