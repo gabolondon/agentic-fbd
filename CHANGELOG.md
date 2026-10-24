@@ -1,5 +1,29 @@
 # Changelog — agentic-fbd
 
+## [0.2.0] - 2026-10-24
+_Previous release: 0.1.0_
+
+### theme 0.1.0 -> 0.2.0 (minor)
+- Add the agentic-fbd design tokens: cream canvas, ink, stone, one violet accent, toned meaning colors, radii and fonts, in one CSS file shared by the viewer and the website
+
+### viewer 0.1.0 -> 0.2.0 (minor)
+- Wear the new look: cream canvas, blocks with 1px ink borders and 4px corners, 20px panels and pill buttons, and no blurred shadows
+- Ship the Inter typeface with the viewer, so it renders the same offline
+- Keep new, modified, risk and selection colors readable on cream
+
+### skill 0.1.0 -> 0.1.1 (patch)
+- Bumped because viewer changed
+
+### landing 0.1.0 -> 0.1.1 (patch)
+- Bumped because theme changed
+
+### Unchanged
+core 0.1.0 · cli 0.1.0
+
+### Other
+- GitHub Releases are now published automatically for each root version tag
+- The bundled CLI includes fast-uri 3.1.9, which fixes its URI parsing advisories
+
 ## [0.1.0] - 2026-10-23
 _Baseline: first versioned release_
 
