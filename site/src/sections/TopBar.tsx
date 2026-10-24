@@ -31,6 +31,7 @@ export function TopBar() {
           <nav id="menu" className="menu" onClick={() => setOpen(false)}>
             <a href="#features">{t('nav.features')}</a>
             <a href="#example">{t('nav.example')}</a>
+            <a href="#try">{t('nav.try')}</a>
             <a href="#install">{t('nav.install')}</a>
             <a href={GITHUB_URL} rel="noopener">
               {t('nav.github')} <span aria-hidden="true">↗</span>
@@ -42,6 +43,10 @@ export function TopBar() {
         agentic-fbd
       </a>
       <div className="topbar-side end">
+        {/* For visitors who want the tool before the pitch: straight to the live demo. */}
+        <a className="pill solid try-jump" href="#try-demo">
+          {t('nav.try')}
+        </a>
         <LanguageSwitch onDark />
         <a className="pill ghost on-dark github" href={GITHUB_URL} rel="noopener">
           {t('nav.github')} <span aria-hidden="true">↗</span>

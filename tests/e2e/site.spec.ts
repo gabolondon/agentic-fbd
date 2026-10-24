@@ -96,7 +96,7 @@ test('blocked storage still renders and switches language', async ({ page }) => 
 test('the menu opens with the section links and closes on Escape', async ({ page }) => {
   await page.goto(base);
   await page.getByRole('button', { name: en.nav.menu }).click();
-  await expect(page.locator('#menu a')).toHaveText([en.nav.features, en.nav.example, en.nav.install, /GitHub/]);
+  await expect(page.locator('#menu a')).toHaveText([en.nav.features, en.nav.example, en.nav.try, en.nav.install, /GitHub/]);
   await page.keyboard.press('Escape');
   await expect(page.locator('#menu')).toHaveCount(0);
 });
@@ -203,7 +203,7 @@ const FEATURES = ['understand-design', 'data-box', 'before-after', 'code-locatio
 test('sections come in the approved order', async ({ page }) => {
   await page.goto(base);
   const ids = await page.locator('main section[id]').evaluateAll((all) => all.map((s) => s.id));
-  expect(ids).toEqual(['hero', 'statement', 'features', 'example', 'install']);
+  expect(ids).toEqual(['hero', 'statement', 'features', 'example', 'try', 'install']);
   expect(await page.locator('#features article').evaluateAll((all) => all.map((a) => a.id))).toEqual(FEATURES);
   await expect(page.locator('#features article h3')).toHaveText(FEATURES.map((id) => en.features[id as keyof typeof en.features] as { title: string }).map((f) => f.title));
 });
@@ -217,6 +217,28 @@ test('install shows the two commands, each with a copy button', async ({ page, c
   await expect(rows.nth(1).getByRole('button')).toHaveText(en.install.copied);
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('/plugin install agentic-fbd@agentic-fbd');
   await expect(page.locator('#install').getByRole('link', { name: /View on GitHub/ })).toHaveAttribute('href', 'https://github.com/gabolondon/agentic-fbd');
+});
+
+test('Try it in the top bar lands on the live viewer, behind a cover until clicked', async ({ page }) => {
+  await page.goto(base);
+  await page.locator('.topbar').getByRole('link', { name: en.nav.try }).click();
+  await expect(page).toHaveURL(/#try-demo$/);
+  await expect(page.locator('.try-stage')).toBeInViewport();
+  await expect(page.locator('.try-frame')).toHaveAttribute('src', '/demo/');
+  await page.getByRole('button', { name: en.try.start }).click();
+  await expect(page.locator('.try-cover')).toHaveCount(0);
+  await expect(page.locator('.try-credit a')).toHaveAttribute('href', 'https://github.com/tastejs/todomvc');
+});
+
+test('the demo viewer runs from static files, TodoMVC first', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(`${base}demo/`);
+  await expect(page.locator('.lb-chip-offline')).toHaveCount(0);
+  await expect(page.getByText('TodoMVC (React): how the todo list works').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Risks\s*4/ })).toBeVisible();
+  await page.getByText('Landing page: how afbd.gabocodes.com works').first().click();
+  await expect(page.getByRole('button', { name: /Risks\s*2/ })).toBeVisible();
+  expect(errors).toEqual([]);
 });
 
 for (const locale of ['en-US', 'es-ES']) {

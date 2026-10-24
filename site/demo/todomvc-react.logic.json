@@ -1,0 +1,605 @@
+{
+  "version": "0.1",
+  "subject": {
+    "id": "todomvc-react",
+    "title": "TodoMVC (React): how the todo list works",
+    "intent": "Explain how the React TodoMVC adds, edits, completes, filters and clears todos, and where it departs from the TodoMVC spec",
+    "scope": "examples/react in tastejs/todomvc (MIT)",
+    "mode": "understand"
+  },
+  "types": {
+    "TodoId": "string",
+    "Title": "string",
+    "KeyName": "string",
+    "Count": "number",
+    "Todo": {
+      "id": "TodoId",
+      "title": "Title",
+      "completed": "boolean"
+    },
+    "Todos": "Todo[]",
+    "Route": "'/' | '/active' | '/completed'",
+    "Action": {
+      "oneOf": [
+        { "type": "'ADD_ITEM'", "payload": { "title": "Title" } },
+        { "type": "'UPDATE_ITEM'", "payload": { "id": "TodoId", "title": "Title" } },
+        { "type": "'REMOVE_ITEM'", "payload": { "id": "TodoId" } },
+        { "type": "'TOGGLE_ITEM'", "payload": { "id": "TodoId" } },
+        { "type": "'TOGGLE_ALL'", "payload": { "completed": "boolean" } },
+        { "type": "'REMOVE_COMPLETED_ITEMS'" },
+        { "type": "'REMOVE_ALL_ITEMS'" }
+      ]
+    }
+  },
+  "typeInfo": {
+    "Todo": {
+      "desc": "One todo: a random id, the trimmed title and whether it is done. The spec asks for exactly these keys in localStorage.",
+      "code": {
+        "file": "examples/react/src/todo/reducer.js",
+        "symbol": "todoReducer"
+      }
+    },
+    "Action": {
+      "desc": "What a component asks the store to do. Every change to the list goes through one of these seven actions.",
+      "code": {
+        "file": "examples/react/src/todo/constants.js"
+      }
+    },
+    "Route": {
+      "desc": "The filter in the URL hash: #/ shows all, #/active the open todos, #/completed the done ones. Survives a reload because it is in the URL.",
+      "code": {
+        "file": "examples/react/src/index.js"
+      }
+    }
+  },
+  "blockTypes": {
+    "TextInput": {
+      "label": "Text input",
+      "desc": "The one text field used twice: to type a new todo in the header and to edit a todo in place.",
+      "logic": [
+        "On Enter it trims the text and submits it.",
+        "As the new-todo field it ignores an empty submit and clears itself after submitting.",
+        "As the edit field it submits even an empty title (the item deletes the todo) and also submits on blur.",
+        "Any other key, Escape included, does nothing."
+      ],
+      "inputs": {
+        "key": "KeyName",
+        "text": "string",
+        "editing": "boolean"
+      },
+      "outputs": {
+        "submit": "Title",
+        "blur": "Title"
+      },
+      "code": {
+        "file": "examples/react/src/todo/components/input.jsx",
+        "symbol": "Input"
+      },
+      "body": {
+        "nodes": [
+          { "id": "in-key", "kind": "pin", "label": "key", "outputs": { "key": "KeyName" } },
+          { "id": "in-text", "kind": "pin", "label": "text", "outputs": { "text": "string" } },
+          { "id": "in-editing", "kind": "pin", "label": "editing", "outputs": { "editing": "boolean" } },
+          {
+            "id": "trim",
+            "kind": "function",
+            "label": "Trim",
+            "desc": "Removes spaces at both ends of what was typed.",
+            "logic": "value = text.trim(); a title of only spaces becomes empty.",
+            "code": { "file": "examples/react/src/todo/components/input.jsx", "symbol": "handleKeyDown" },
+            "inputs": { "text": "string" },
+            "outputs": { "value": "Title" }
+          },
+          {
+            "id": "is-enter",
+            "kind": "decision",
+            "label": "Enter?",
+            "desc": "Only Enter submits.",
+            "logic": [
+              "Enter: yes, carry the trimmed value on.",
+              "Any other key, Escape included: no, nothing happens."
+            ],
+            "code": { "file": "examples/react/src/todo/components/input.jsx", "symbol": "handleKeyDown" },
+            "inputs": { "key": "KeyName", "value": "Title" },
+            "outputs": { "yes": "Title", "no": "null" }
+          },
+          {
+            "id": "may-submit",
+            "kind": "decision",
+            "label": "Empty new todo?",
+            "desc": "Lets the edit field submit an empty title but stops the new-todo field from adding one.",
+            "logic": [
+              "Edit field: always submit; an empty title tells the item to delete the todo.",
+              "New-todo field with an empty value: ignore.",
+              "New-todo field with a value: submit, then clear the field."
+            ],
+            "code": { "file": "examples/react/src/todo/components/input.jsx", "symbol": "handleKeyDown" },
+            "inputs": { "value": "Title", "editing": "boolean" },
+            "outputs": { "submit": "Title", "ignore": "null" }
+          },
+          { "id": "out-submit", "kind": "pin", "label": "submit", "inputs": { "submit": "Title" } },
+          { "id": "out-blur", "kind": "pin", "label": "blur", "inputs": { "blur": "Title" } }
+        ],
+        "wires": [
+          { "id": "b1", "from": "in-text.text", "to": "trim.text" },
+          { "id": "b2", "from": "in-key.key", "to": "is-enter.key" },
+          { "id": "b3", "from": "trim.value", "to": "is-enter.value" },
+          { "id": "b4", "from": "is-enter.yes", "to": "may-submit.value" },
+          { "id": "b5", "from": "in-editing.editing", "to": "may-submit.editing" },
+          { "id": "b6", "from": "may-submit.submit", "to": "out-submit.submit" },
+          { "id": "b7", "from": "trim.value", "to": "out-blur.blur" }
+        ]
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "t-add",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Type a todo, press Enter",
+      "desc": "The user writes a new todo in the big field at the top.",
+      "context": {
+        "from": "Header › What needs to be done?"
+      },
+      "outputs": {
+        "key": "KeyName",
+        "text": "string"
+      }
+    },
+    {
+      "id": "t-route",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Pick a filter",
+      "desc": "The user clicks All, Active or Completed, or opens a URL with that hash.",
+      "context": {
+        "from": ["Footer › All, Active, Completed", "URL #/active, #/completed, reload"]
+      },
+      "outputs": {
+        "hash": "string"
+      }
+    },
+
+    {
+      "id": "header",
+      "kind": "group",
+      "label": "Header",
+      "desc": "The title and the field where new todos are typed.",
+      "code": { "file": "examples/react/src/todo/components/header.jsx", "symbol": "Header" }
+    },
+    {
+      "id": "new-input",
+      "kind": "instance",
+      "of": "TextInput",
+      "parent": "header",
+      "label": "New todo field",
+      "desc": "The text input in new-todo mode (editing = false): empty submits are ignored and the field clears after each todo."
+    },
+    {
+      "id": "add-item",
+      "kind": "function",
+      "parent": "header",
+      "label": "Add item",
+      "desc": "Asks the store to add a todo with the submitted title.",
+      "logic": "Dispatches { type: ADD_ITEM, payload: { title } }.",
+      "code": { "file": "examples/react/src/todo/components/header.jsx", "symbol": "Header" },
+      "inputs": { "title": "Title" },
+      "outputs": { "action": "Action" }
+    },
+
+    {
+      "id": "router",
+      "kind": "external",
+      "label": "Hash router",
+      "desc": "react-router's HashRouter: turns the URL hash into a route every component can read with useLocation.",
+      "code": { "file": "examples/react/src/index.js" },
+      "inputs": { "hash": "string" },
+      "outputs": { "route": "Route" }
+    },
+
+    {
+      "id": "store",
+      "kind": "group",
+      "label": "Todo store",
+      "desc": "The list of todos and the one reducer that changes it. Every component sends actions here.",
+      "code": { "file": "examples/react/src/todo/app.jsx", "symbol": "App" }
+    },
+    {
+      "id": "todos",
+      "kind": "state",
+      "parent": "store",
+      "label": "todos",
+      "desc": "Every todo, in the order they were added.",
+      "valueType": "Todos",
+      "store": "useReducer in App · in memory, lost on reload",
+      "code": { "file": "examples/react/src/todo/app.jsx", "symbol": "App" }
+    },
+    {
+      "id": "make-id",
+      "kind": "function",
+      "parent": "store",
+      "label": "Make an id",
+      "desc": "Gives each new todo a random id.",
+      "logic": [
+        "21 characters picked with Math.random from a 64-letter alphabet (a copy of nanoid's non-secure version).",
+        "Unique enough for a local list; not meant for security."
+      ],
+      "code": { "file": "examples/react/src/todo/reducer.js", "symbol": "nanoid" },
+      "outputs": { "id": "TodoId" }
+    },
+    {
+      "id": "reducer",
+      "kind": "function",
+      "parent": "store",
+      "label": "Apply action",
+      "desc": "Builds the next list from the current one and an action, without changing the old list.",
+      "logic": [
+        "ADD_ITEM appends { id, title, completed: false }; UPDATE_ITEM renames one todo; REMOVE_ITEM drops it.",
+        "TOGGLE_ITEM flips one todo; TOGGLE_ALL sets every todo to the given state.",
+        "REMOVE_COMPLETED_ITEMS keeps the open todos; REMOVE_ALL_ITEMS empties the list.",
+        "An unknown action type throws an error."
+      ],
+      "code": { "file": "examples/react/src/todo/reducer.js", "symbol": "todoReducer" },
+      "inputs": { "action": "Action", "id": "TodoId", "todos": "Todos" },
+      "outputs": { "next": "Todos" }
+    },
+
+    {
+      "id": "list",
+      "kind": "group",
+      "label": "Todo list",
+      "desc": "The filtered list, one row per todo, and the Mark all as complete checkbox. Hidden while there are no todos.",
+      "code": { "file": "examples/react/src/todo/components/main.jsx", "symbol": "Main" }
+    },
+    {
+      "id": "filter",
+      "kind": "function",
+      "parent": "list",
+      "label": "Filter by route",
+      "desc": "Picks the todos the current route shows.",
+      "logic": [
+        "/active keeps the todos not completed; /completed keeps the completed ones.",
+        "Any other route shows them all.",
+        "Recomputed when the list or the route changes, so a todo checked under Active disappears at once."
+      ],
+      "code": { "file": "examples/react/src/todo/components/main.jsx", "symbol": "Main" },
+      "inputs": { "todos": "Todos", "route": "Route" },
+      "outputs": { "visible": "Todos" }
+    },
+    {
+      "id": "all-done",
+      "kind": "function",
+      "parent": "list",
+      "label": "All shown are done?",
+      "desc": "Decides whether Mark all as complete appears checked.",
+      "logic": [
+        "Checked when at least one todo is shown and every shown todo is completed.",
+        "It looks only at the shown (filtered) todos."
+      ],
+      "code": { "file": "examples/react/src/todo/components/main.jsx", "symbol": "Main" },
+      "inputs": { "visible": "Todos" },
+      "outputs": { "checked": "boolean" }
+    },
+    {
+      "id": "t-toggle-all",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "list",
+      "label": "Click Mark all as complete",
+      "desc": "The user clicks the chevron left of the new-todo field.",
+      "context": { "from": "Todo list › toggle-all checkbox" },
+      "outputs": { "checked": "boolean" }
+    },
+    {
+      "id": "toggle-all",
+      "kind": "function",
+      "parent": "list",
+      "label": "Toggle all",
+      "desc": "Asks the store to set every todo to the checkbox's new state.",
+      "logic": "Dispatches { type: TOGGLE_ALL, payload: { completed: checked } }, which applies to all todos, shown or not.",
+      "code": { "file": "examples/react/src/todo/components/main.jsx", "symbol": "toggleAll" },
+      "inputs": { "checked": "boolean" },
+      "outputs": { "action": "Action" }
+    },
+    {
+      "id": "r-toggle-all",
+      "kind": "result",
+      "parent": "list",
+      "label": "Mark all checkbox",
+      "desc": "The chevron, dark when every shown todo is done.",
+      "inputs": { "checked": "boolean" }
+    },
+
+    {
+      "id": "item",
+      "kind": "group",
+      "parent": "list",
+      "label": "Todo item",
+      "desc": "One row: checkbox, title, delete button, and an edit field that replaces the row on double-click. Rendered once per shown todo.",
+      "code": { "file": "examples/react/src/todo/components/item.jsx", "symbol": "Item" }
+    },
+    {
+      "id": "t-toggle",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "item",
+      "label": "Click the checkbox",
+      "desc": "The user marks the todo done or open again.",
+      "context": { "from": "Todo item › round checkbox" },
+      "outputs": { "id": "TodoId" }
+    },
+    {
+      "id": "t-destroy",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "item",
+      "label": "Click ×",
+      "desc": "The user deletes the todo with the cross that shows on hover.",
+      "context": { "from": "Todo item › delete button" },
+      "outputs": { "id": "TodoId" }
+    },
+    {
+      "id": "t-edit",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "item",
+      "label": "Double-click the title",
+      "desc": "The user starts editing the todo's title.",
+      "context": { "from": "Todo item › label" },
+      "outputs": { "id": "TodoId" }
+    },
+    {
+      "id": "t-edit-keys",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "item",
+      "label": "Type in the edit field",
+      "desc": "The user changes the title and presses a key or clicks away.",
+      "context": { "from": "Todo item in edit mode", "keys": ["Enter", "Escape", "click away (blur)"] },
+      "outputs": { "key": "KeyName", "text": "string" }
+    },
+    {
+      "id": "toggle-item",
+      "kind": "function",
+      "parent": "item",
+      "label": "Toggle item",
+      "desc": "Asks the store to flip this todo between done and open.",
+      "logic": "Dispatches { type: TOGGLE_ITEM, payload: { id } }.",
+      "code": { "file": "examples/react/src/todo/components/item.jsx", "symbol": "toggleItem" },
+      "inputs": { "id": "TodoId" },
+      "outputs": { "action": "Action" }
+    },
+    {
+      "id": "start-edit",
+      "kind": "function",
+      "parent": "item",
+      "label": "Start editing",
+      "desc": "Swaps the row for the edit field, filled with the current title and focused.",
+      "logic": "Sets isWritable to true; the row gets the editing class and the Input mounts with autoFocus.",
+      "code": { "file": "examples/react/src/todo/components/item.jsx", "symbol": "handleDoubleClick" },
+      "inputs": { "id": "TodoId" },
+      "outputs": { "editing": "boolean" }
+    },
+    {
+      "id": "editing",
+      "kind": "state",
+      "parent": "item",
+      "label": "isWritable",
+      "desc": "Whether this row is in edit mode. Each row has its own, so only the double-clicked one changes.",
+      "valueType": "boolean",
+      "store": "useState in Item · lost on reload",
+      "code": { "file": "examples/react/src/todo/components/item.jsx", "symbol": "Item" }
+    },
+    {
+      "id": "edit-input",
+      "kind": "instance",
+      "of": "TextInput",
+      "parent": "item",
+      "label": "Edit field",
+      "desc": "The text input in edit mode (editing = true): Enter and blur both submit, and an empty title is passed on."
+    },
+    {
+      "id": "commit-edit",
+      "kind": "decision",
+      "parent": "item",
+      "label": "Commit edit",
+      "desc": "Ends the edit once and either renames or deletes the todo.",
+      "logic": [
+        "Not in edit mode any more (Enter already committed, then blur fired): ignore.",
+        "Leaves edit mode.",
+        "Empty title: delete the todo.",
+        "Otherwise: rename it."
+      ],
+      "code": { "file": "examples/react/src/todo/components/item.jsx", "symbol": "commitEdit" },
+      "inputs": { "title": "Title", "editing": "boolean" },
+      "outputs": { "rename": "Title", "empty": "TodoId", "done": "boolean" }
+    },
+    {
+      "id": "update-item",
+      "kind": "function",
+      "parent": "item",
+      "label": "Update item",
+      "desc": "Asks the store to rename this todo.",
+      "logic": "Dispatches { type: UPDATE_ITEM, payload: { id, title } }.",
+      "code": { "file": "examples/react/src/todo/components/item.jsx", "symbol": "updateItem" },
+      "inputs": { "title": "Title" },
+      "outputs": { "action": "Action" }
+    },
+    {
+      "id": "remove-item",
+      "kind": "function",
+      "parent": "item",
+      "label": "Remove item",
+      "desc": "Asks the store to delete this todo.",
+      "logic": "Dispatches { type: REMOVE_ITEM, payload: { id } }. Used by the × button and by an edit that leaves the title empty.",
+      "code": { "file": "examples/react/src/todo/components/item.jsx", "symbol": "removeItem" },
+      "inputs": { "id": "TodoId" },
+      "outputs": { "action": "Action" }
+    },
+    {
+      "id": "r-item",
+      "kind": "result",
+      "parent": "item",
+      "label": "Todo row",
+      "desc": "The title, struck through when completed, or the edit field while editing.",
+      "inputs": { "editing": "boolean" }
+    },
+    {
+      "id": "r-list",
+      "kind": "result",
+      "parent": "list",
+      "label": "Shown todos",
+      "desc": "The rows for the current filter, one Todo item each.",
+      "inputs": { "visible": "Todos" }
+    },
+
+    {
+      "id": "footer",
+      "kind": "group",
+      "label": "Footer",
+      "desc": "The counter, the filter links and Clear completed. Hidden while there are no todos.",
+      "code": { "file": "examples/react/src/todo/components/footer.jsx", "symbol": "Footer" }
+    },
+    {
+      "id": "count",
+      "kind": "function",
+      "parent": "footer",
+      "label": "Count todos",
+      "desc": "Counts the open and the completed todos, over the whole list, whatever the filter.",
+      "logic": [
+        "Open: the todos not completed.",
+        "Completed: all todos minus the open ones."
+      ],
+      "code": { "file": "examples/react/src/todo/components/footer.jsx", "symbol": "Footer" },
+      "inputs": { "todos": "Todos" },
+      "outputs": { "left": "Count", "completed": "Count" }
+    },
+    {
+      "id": "r-count",
+      "kind": "result",
+      "parent": "footer",
+      "label": "Items left",
+      "desc": "\"1 item left!\" or \"N items left!\", with the plural handled.",
+      "inputs": { "left": "Count" }
+    },
+    {
+      "id": "r-filters",
+      "kind": "result",
+      "parent": "footer",
+      "label": "Filter links",
+      "desc": "All, Active and Completed; the one matching the route is outlined.",
+      "inputs": { "route": "Route" }
+    },
+    {
+      "id": "t-clear",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "footer",
+      "label": "Click Clear completed",
+      "desc": "The user removes every completed todo at once.",
+      "context": { "from": "Footer › right" },
+      "outputs": { "click": "null" }
+    },
+    {
+      "id": "clear",
+      "kind": "function",
+      "parent": "footer",
+      "label": "Remove completed",
+      "desc": "Asks the store to drop every completed todo.",
+      "logic": "Dispatches { type: REMOVE_COMPLETED_ITEMS }.",
+      "code": { "file": "examples/react/src/todo/components/footer.jsx", "symbol": "removeCompleted" },
+      "inputs": { "click": "null" },
+      "outputs": { "action": "Action" }
+    },
+    {
+      "id": "r-clear",
+      "kind": "result",
+      "parent": "footer",
+      "label": "Clear completed button",
+      "desc": "Shown only while at least one todo is completed.",
+      "inputs": { "completed": "Count" }
+    }
+  ],
+  "wires": [
+    { "id": "w1", "from": "t-add.key", "to": "new-input.key" },
+    { "id": "w2", "from": "t-add.text", "to": "new-input.text" },
+    { "id": "w3", "from": "new-input.submit", "to": "add-item.title" },
+    { "id": "w4", "from": "add-item.action", "to": "reducer.action" },
+
+    { "id": "w5", "from": "make-id.id", "to": "reducer.id" },
+    { "id": "w6", "from": "todos", "to": "reducer.todos", "op": "read" },
+    { "id": "w7", "from": "reducer.next", "to": "todos", "op": "write" },
+
+    { "id": "w8", "from": "t-route.hash", "to": "router.hash" },
+    { "id": "w9", "from": "router.route", "to": "filter.route" },
+    { "id": "w10", "from": "todos", "to": "filter.todos", "op": "read" },
+    { "id": "w11", "from": "filter.visible", "to": "r-list.visible" },
+    { "id": "w12", "from": "filter.visible", "to": "all-done.visible" },
+    { "id": "w13", "from": "all-done.checked", "to": "r-toggle-all.checked" },
+    { "id": "w14", "from": "t-toggle-all.checked", "to": "toggle-all.checked" },
+    { "id": "w15", "from": "toggle-all.action", "to": "reducer.action" },
+
+    { "id": "w16", "from": "t-toggle.id", "to": "toggle-item.id" },
+    { "id": "w17", "from": "toggle-item.action", "to": "reducer.action" },
+    { "id": "w18", "from": "t-destroy.id", "to": "remove-item.id" },
+    { "id": "w19", "from": "remove-item.action", "to": "reducer.action" },
+    { "id": "w20", "from": "t-edit.id", "to": "start-edit.id" },
+    { "id": "w21", "from": "start-edit.editing", "to": "editing", "op": "write" },
+    { "id": "w22", "from": "t-edit-keys.key", "to": "edit-input.key" },
+    { "id": "w23", "from": "t-edit-keys.text", "to": "edit-input.text" },
+    { "id": "w24", "from": "edit-input.submit", "to": "commit-edit.title" },
+    { "id": "w25", "from": "edit-input.blur", "to": "commit-edit.title" },
+    { "id": "w26", "from": "editing", "to": "commit-edit.editing", "op": "read" },
+    { "id": "w27", "from": "commit-edit.rename", "to": "update-item.title" },
+    { "id": "w28", "from": "commit-edit.empty", "to": "remove-item.id" },
+    { "id": "w29", "from": "commit-edit.done", "to": "editing", "op": "write" },
+    { "id": "w30", "from": "update-item.action", "to": "reducer.action" },
+    { "id": "w31", "from": "editing", "to": "r-item.editing", "op": "read" },
+
+    { "id": "w32", "from": "todos", "to": "count.todos", "op": "read" },
+    { "id": "w33", "from": "count.left", "to": "r-count.left" },
+    { "id": "w34", "from": "count.completed", "to": "r-clear.completed" },
+    { "id": "w35", "from": "router.route", "to": "r-filters.route" },
+    { "id": "w36", "from": "t-clear.click", "to": "clear.click" },
+    { "id": "w37", "from": "clear.action", "to": "reducer.action" }
+  ],
+  "risks": [
+    {
+      "id": "r1",
+      "severity": "medium",
+      "status": "open",
+      "title": "Todos are lost on reload",
+      "detail": "The TodoMVC spec asks every app to persist the todos to localStorage under todos-react. Here the list lives only in useReducer, starting from an empty array, so a reload empties it. The filter survives (it is in the URL), the todos don't.",
+      "resolution": "Initialise useReducer from localStorage['todos-react'] and write the list back in an effect whenever it changes; leave edit mode out of it.",
+      "refs": ["todos", "reducer"]
+    },
+    {
+      "id": "r2",
+      "severity": "medium",
+      "status": "open",
+      "title": "Escape doesn't cancel an edit",
+      "detail": "The spec says Escape leaves edit mode and discards the changes. The text input only reacts to Enter, so Escape does nothing: the edit field stays open, and the next click away saves whatever was typed.",
+      "resolution": "Handle Escape in the edit field: leave edit mode without dispatching, so the title stays as it was.",
+      "refs": ["TextInput", "TextInput/is-enter", "edit-input", "commit-edit"]
+    },
+    {
+      "id": "r3",
+      "severity": "low",
+      "status": "open",
+      "title": "Mark all reads the shown todos but changes all of them",
+      "detail": "The checkbox's state comes from the filtered todos, while TOGGLE_ALL applies to the whole list. Under Completed with nothing completed yet, the box is unchecked and the list is empty; one click completes every open todo, which then appear.",
+      "resolution": "Compute the checkbox from the whole list, or make TOGGLE_ALL act only on the shown todos; the spec describes the whole list.",
+      "refs": ["all-done", "toggle-all", "filter"]
+    },
+    {
+      "id": "r4",
+      "severity": "low",
+      "status": "open",
+      "title": "REMOVE_ALL_ITEMS is never sent",
+      "detail": "The reducer handles REMOVE_ALL_ITEMS, but no component dispatches it: dead code that a reader may take for a feature.",
+      "resolution": "Remove the action and its constant, or wire it to a control if it was meant to be one.",
+      "refs": ["reducer"]
+    }
+  ]
+}

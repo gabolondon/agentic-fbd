@@ -213,6 +213,30 @@ img {
   }
 }
 
+/* Narrow phones fit Menu, the name, Try it and the language switch on one row. */
+@media (max-width: 419px) {
+  .topbar,
+  .topbar-side {
+    gap: 6px;
+  }
+
+  .topbar .pill {
+    padding: 0 12px;
+  }
+
+  .wordmark {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
+/* Below 360px there is no room for the name next to the buttons. */
+@media (max-width: 359px) {
+  .wordmark {
+    display: none;
+  }
+}
+
 /* ---- Hero ---- */
 
 .hero {
@@ -499,6 +523,107 @@ img {
     grid-template-columns: 1fr 1fr;
     gap: 56px;
   }
+}
+
+/* ---- Try it ---- */
+
+.try {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+.try-title {
+  font-size: clamp(40px, 7vw, 112px);
+}
+
+.try-lead {
+  max-width: 44rem;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+/* The live viewer, on screens big enough to use it. */
+.try-stage {
+  position: relative;
+  display: none;
+  aspect-ratio: 16 / 10;
+  max-height: 85svh;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  background: var(--cream);
+}
+
+.try-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.try-demo {
+  display: grid;
+  gap: 24px;
+  /* The top bar's Try it lands here, with a little air above the viewer. */
+  scroll-margin-top: 24px;
+}
+
+.try-cover {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: var(--frame-bg);
+  cursor: pointer;
+}
+
+.try-shot {
+  display: block;
+}
+
+.try-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-panel);
+}
+
+.try-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+}
+
+.try-credit {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .try-stage {
+    display: block;
+  }
+
+  .try-shot {
+    display: none;
+  }
+}
+
+.pill.try-jump {
+  border-color: var(--violet);
+  background: var(--violet);
+  color: var(--cream);
+}
+
+.pill.try-jump:hover {
+  background: var(--violet-ink);
 }
 
 /* ---- Install ---- */

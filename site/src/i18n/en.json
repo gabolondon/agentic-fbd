@@ -7,7 +7,8 @@
     "install": "Install",
     "github": "GitHub",
     "language": "Language",
-    "home": "agentic-fbd, back to top"
+    "home": "agentic-fbd, back to top",
+    "try": "Try it"
   },
   "hero": {
     "intro": {
@@ -77,6 +78,17 @@
     "thumbAlt": "The wire into Save answer, highlighted by its risk",
     "story": "A multi-step questionnaire stored selected options by numeric id. Later an \"Other\" option with free text was added. When someone typed a number, an age or a year, the code read it as an option id and saved the wrong answer, in many steps and at different depths of the question tree.",
     "fix": "In the diagram, \"Other\" is one reusable block, and the wire that carries a bare number into an OptionId port is flagged: it fits by shape but means something else. Before / After shows exactly what the fix touches, before any code changes."
+  },
+  "try": {
+    "label": "Try it",
+    "title": "Click through a real diagram.",
+    "lead": "TodoMVC's React app, explained by agentic-fbd. Double-click a group to go a layer deeper, click a block to read what it does and where its code is, and open Risks: the diagram found four places where the code departs from the TodoMVC spec.",
+    "frameTitle": "The agentic-fbd viewer with a diagram of TodoMVC",
+    "start": "Click to explore",
+    "shotAlt": "The agentic-fbd viewer showing the TodoMVC diagram",
+    "open": "Open full screen",
+    "creditStart": "Diagram of",
+    "creditEnd": "by tastejs (MIT). Edits stay in your browser."
   },
   "install": {
     "label": "Install",

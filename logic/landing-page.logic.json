@@ -1,0 +1,1030 @@
+{
+  "version": "0.1",
+  "subject": {
+    "id": "landing-page",
+    "title": "Landing page: how afbd.gabocodes.com works",
+    "intent": "Show the landing's entry points, the language choice, the hero video that drives the titles, and what happens on clicks and scroll",
+    "scope": "site/ workspace (React + Vite, served by GitHub Pages)",
+    "mode": "understand"
+  },
+  "types": {
+    "Language": "'en' | 'es'",
+    "Orientation": "'portrait' | 'landscape'",
+    "HeroLayout": "'wide' | 'tall'",
+    "SegmentId": "'intro' | 'b' | 'a' | 'c'",
+    "Seconds": "number",
+    "PlayCommand": "'play' | 'pause'",
+    "MediaSources": {
+      "webm": "string",
+      "mp4": "string",
+      "poster": "string"
+    },
+    "SectionId": "'top' | 'features' | 'example' | 'install'",
+    "HoldTimer": "number?"
+  },
+  "typeInfo": {
+    "SegmentId": {
+      "desc": "Which part of the hero loop is on screen: the opening question, code as logic, the caught bug, or the layers. Each one has its own title and subtitle.",
+      "code": {
+        "file": "site/src/hero/segments.ts",
+        "symbol": "SEGMENTS"
+      }
+    },
+    "MediaSources": {
+      "desc": "The hero's video files for one layout and language, e.g. /media/hero-wide-es.webm with an MP4 fallback, plus the poster shared by both languages.",
+      "code": {
+        "file": "site/src/hero/Hero.tsx",
+        "symbol": "Hero"
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "t-load",
+      "kind": "trigger",
+      "source": "system",
+      "label": "Page load",
+      "desc": "The browser opens the page; the app reads what it needs from the browser once.",
+      "context": {
+        "from": "site/index.html → src/main.tsx"
+      },
+      "code": {
+        "file": "site/src/main.tsx"
+      },
+      "outputs": {
+        "browser": "string[]",
+        "orientation": "Orientation",
+        "reducedMotion": "boolean"
+      }
+    },
+    {
+      "id": "t-lang",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Click EN / ES",
+      "desc": "The visitor picks a language with the switch.",
+      "context": {
+        "from": [
+          "Top bar",
+          "Footer"
+        ]
+      },
+      "code": {
+        "file": "site/src/sections/LanguageSwitch.tsx",
+        "symbol": "LanguageSwitch"
+      },
+      "outputs": {
+        "lang": "Language"
+      }
+    },
+    {
+      "id": "t-nav",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Click a section link",
+      "desc": "The visitor follows an in-page link to a section.",
+      "context": {
+        "from": [
+          "Menu: Features, Example, Install",
+          "Wordmark: back to top",
+          "Hero: Install the plugin ↓"
+        ]
+      },
+      "outputs": {
+        "anchor": "SectionId"
+      }
+    },
+    {
+      "id": "t-github",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Click GitHub",
+      "desc": "The visitor follows a link to the repository.",
+      "context": {
+        "from": [
+          "Top bar",
+          "Menu",
+          "Install: View on GitHub",
+          "Footer: MIT License"
+        ]
+      },
+      "code": {
+        "file": "site/src/sections/TopBar.tsx",
+        "symbol": "GITHUB_URL"
+      },
+      "outputs": {
+        "url": "string"
+      }
+    },
+    {
+      "id": "t-copy",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Click Copy",
+      "desc": "The visitor copies one of the two install commands.",
+      "context": {
+        "from": "Install › /plugin marketplace add, /plugin install"
+      },
+      "code": {
+        "file": "site/src/sections/Install.tsx",
+        "symbol": "Command"
+      },
+      "outputs": {
+        "command": "string"
+      }
+    },
+    {
+      "id": "t-toggle",
+      "kind": "trigger",
+      "source": "user",
+      "label": "Click play / pause",
+      "desc": "The visitor stops or restarts the hero video with the round button at the bottom right.",
+      "context": {
+        "from": "Hero, bottom right"
+      },
+      "code": {
+        "file": "site/src/hero/Hero.tsx",
+        "symbol": "Hero"
+      },
+      "outputs": {
+        "click": "null"
+      }
+    },
+    {
+      "id": "language",
+      "kind": "group",
+      "label": "Language",
+      "desc": "Decides whether the page speaks English or Spanish, remembers the choice and switches it."
+    },
+    {
+      "id": "lang-store",
+      "kind": "state",
+      "parent": "language",
+      "label": "Saved language",
+      "desc": "The visitor's last choice, so the page opens in it next time.",
+      "valueType": "Language",
+      "store": "localStorage key afbd.lang · survives reload",
+      "code": {
+        "file": "site/src/i18n/language.ts",
+        "symbol": "storeLanguage"
+      }
+    },
+    {
+      "id": "pick-language",
+      "kind": "function",
+      "parent": "language",
+      "label": "Pick language",
+      "desc": "Chooses the first language when the page loads.",
+      "logic": [
+        "A saved choice of en or es wins.",
+        "Otherwise the first browser language whose primary tag is en or es (es-CO counts as es).",
+        "Otherwise English.",
+        "Blocked storage (private window) reads as no saved choice; the page still works."
+      ],
+      "code": {
+        "file": "site/src/i18n/language.ts",
+        "symbol": "pickLanguage"
+      },
+      "inputs": {
+        "stored": "Language?",
+        "browser": "string[]"
+      },
+      "outputs": {
+        "lang": "Language"
+      }
+    },
+    {
+      "id": "set-language",
+      "kind": "function",
+      "parent": "language",
+      "label": "Set language",
+      "desc": "Switches the page to the clicked language and remembers it.",
+      "logic": [
+        "Tells i18next to change language, which re-renders every text.",
+        "Sets <html lang> for screen readers and search engines.",
+        "Saves the choice; if storage is blocked it is only kept for this visit."
+      ],
+      "code": {
+        "file": "site/src/i18n/index.ts",
+        "symbol": "setLanguage"
+      },
+      "inputs": {
+        "lang": "Language"
+      },
+      "outputs": {
+        "lang": "Language"
+      }
+    },
+    {
+      "id": "current-lang",
+      "kind": "state",
+      "parent": "language",
+      "label": "Current language",
+      "desc": "The language every component renders in; components re-render when it changes.",
+      "valueType": "Language",
+      "store": "i18next instance · in memory, lost on reload",
+      "code": {
+        "file": "site/src/i18n/index.ts",
+        "symbol": "i18n"
+      }
+    },
+    {
+      "id": "hero",
+      "kind": "group",
+      "label": "Hero video",
+      "desc": "The dark first screen: a looping 37 s video behind a title that changes with what the video shows.",
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      }
+    },
+    {
+      "id": "pick-layout",
+      "kind": "function",
+      "parent": "hero",
+      "label": "Pick layout",
+      "desc": "Chooses the tall (4:5) render for portrait screens and the wide (16:9) one otherwise.",
+      "logic": [
+        "Reads matchMedia('(orientation: portrait)') once, on the first render.",
+        "Portrait gives tall, so the diagram stays above the title on a phone; anything else gives wide."
+      ],
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      },
+      "inputs": {
+        "orientation": "Orientation"
+      },
+      "outputs": {
+        "layout": "HeroLayout"
+      }
+    },
+    {
+      "id": "media-urls",
+      "kind": "function",
+      "parent": "hero",
+      "label": "Choose media files",
+      "desc": "Builds the video and poster paths for the layout and the page's language; the speech bubbles in the video are in that language.",
+      "logic": [
+        "Video: /media/hero-<layout>-<lang>.webm, then .mp4 as the fallback.",
+        "Poster: /media/hero-<layout>-poster.webp, the same for both languages (frame 0 is an empty canvas).",
+        "The <video> is keyed by language, so switching EN/ES mounts a new one that starts from 0 s."
+      ],
+      "code": {
+        "file": "site/src/hero/Hero.tsx",
+        "symbol": "Hero"
+      },
+      "inputs": {
+        "layout": "HeroLayout",
+        "lang": "Language"
+      },
+      "outputs": {
+        "sources": "MediaSources"
+      }
+    },
+    {
+      "id": "autoplay",
+      "kind": "decision",
+      "parent": "hero",
+      "label": "Reduced motion?",
+      "desc": "Starts the video by itself unless the visitor asked their system for less motion.",
+      "logic": [
+        "No: mute the video (browsers only autoplay muted video) and play it.",
+        "Yes: no autoplay and no preload; the poster stays and the button offers Play."
+      ],
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      },
+      "inputs": {
+        "reducedMotion": "boolean"
+      },
+      "outputs": {
+        "no": "PlayCommand",
+        "yes": "null"
+      }
+    },
+    {
+      "id": "video",
+      "kind": "external",
+      "parent": "hero",
+      "label": "Browser <video>",
+      "desc": "The browser's video player, muted and looping, behind the hero. It reports the playback time and its play and pause events.",
+      "code": {
+        "file": "site/src/hero/Hero.tsx",
+        "symbol": "Hero"
+      },
+      "inputs": {
+        "sources": "MediaSources",
+        "command": "PlayCommand"
+      },
+      "outputs": {
+        "time": "Seconds",
+        "event": "PlayCommand",
+        "sourceError": "null"
+      }
+    },
+    {
+      "id": "segment-at",
+      "kind": "function",
+      "parent": "hero",
+      "label": "Segment at time",
+      "desc": "Tells which part of the loop the video is in, from its current time.",
+      "logic": [
+        "Runs on every timeupdate event (about 4 times a second).",
+        "Takes the time modulo the 37 s loop.",
+        "Picks the last segment that started: intro 0 s, b 3 s, a 15 s, c 26 s.",
+        "A bad time (NaN, negative) gives the intro."
+      ],
+      "code": {
+        "file": "site/src/hero/segments.ts",
+        "symbol": "segmentAt"
+      },
+      "inputs": {
+        "time": "Seconds"
+      },
+      "outputs": {
+        "segment": "SegmentId"
+      }
+    },
+    {
+      "id": "segment",
+      "kind": "state",
+      "parent": "hero",
+      "label": "Current segment",
+      "desc": "The segment whose title is on screen.",
+      "valueType": "SegmentId",
+      "store": "React state in useHeroVideo · lost on reload",
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      }
+    },
+    {
+      "id": "hold",
+      "kind": "group",
+      "parent": "hero",
+      "label": "Intro hold",
+      "desc": "Keeps the opening question on screen longer: the video stands still for 5 s on the code, just before it turns into blocks.",
+      "code": {
+        "file": "site/src/hero/segments.ts",
+        "symbol": "INTRO_HOLD"
+      }
+    },
+    {
+      "id": "check-hold",
+      "kind": "function",
+      "parent": "hold",
+      "label": "Reached the hold point?",
+      "desc": "Pauses the video when playback crosses 2.2 s, once per loop.",
+      "logic": [
+        "Checks every video frame (requestVideoFrameCallback) and every timeupdate, so it stops right on 2.2 s.",
+        "Holds only when the time moved from before 2.2 s to less than 0.5 s past it: a seek further on doesn't hold.",
+        "A held flag stops it from holding again right after the resume; it resets when the loop starts over.",
+        "Pauses the video and starts the 5 s wait."
+      ],
+      "code": {
+        "file": "site/src/hero/segments.ts",
+        "symbol": "crossesHold"
+      },
+      "inputs": {
+        "time": "Seconds"
+      },
+      "outputs": {
+        "pause": "PlayCommand",
+        "wait": "Seconds",
+        "timer": "HoldTimer"
+      }
+    },
+    {
+      "id": "hold-timer",
+      "kind": "state",
+      "parent": "hold",
+      "label": "Hold timer",
+      "desc": "The pending resume while the video holds; set means the video is paused but still counts as playing.",
+      "valueType": "HoldTimer",
+      "store": "useRef in useHeroVideo · lost on reload",
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      }
+    },
+    {
+      "id": "resume",
+      "kind": "function",
+      "parent": "hold",
+      "label": "Resume after 5 s",
+      "desc": "Plays the video again when the hold is over.",
+      "logic": [
+        "A setTimeout of INTRO_HOLD.seconds (5 s) starts when the hold begins.",
+        "When it fires it clears the timer and plays the video.",
+        "Leaving the page or switching language cancels it."
+      ],
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      },
+      "inputs": {
+        "wait": "Seconds"
+      },
+      "outputs": {
+        "play": "PlayCommand",
+        "cleared": "HoldTimer"
+      }
+    },
+    {
+      "id": "controls",
+      "kind": "group",
+      "parent": "hero",
+      "label": "Play controls",
+      "desc": "The round play/pause button and how it stays truthful during the intro hold and without media."
+    },
+    {
+      "id": "toggle",
+      "kind": "function",
+      "parent": "controls",
+      "label": "Toggle play",
+      "desc": "Plays or pauses the video when the button is clicked.",
+      "logic": [
+        "During the intro hold: cancel the resume and show Play; the video is already still.",
+        "Paused: play; if the browser refuses or the media is missing, show Play.",
+        "Playing: pause."
+      ],
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      },
+      "inputs": {
+        "click": "null",
+        "timer": "HoldTimer"
+      },
+      "outputs": {
+        "command": "PlayCommand",
+        "cleared": "HoldTimer"
+      }
+    },
+    {
+      "id": "track-play",
+      "kind": "function",
+      "parent": "controls",
+      "label": "Track play state",
+      "desc": "Keeps the button's icon in step with the video.",
+      "logic": [
+        "A play event sets playing.",
+        "A pause event clears it, except while the hold timer is set: the hold is not the visitor's pause."
+      ],
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      },
+      "inputs": {
+        "event": "PlayCommand",
+        "timer": "HoldTimer"
+      },
+      "outputs": {
+        "playing": "boolean"
+      }
+    },
+    {
+      "id": "playing",
+      "kind": "state",
+      "parent": "controls",
+      "label": "Playing",
+      "desc": "Whether the button shows Pause (playing) or Play.",
+      "valueType": "boolean",
+      "store": "React state in useHeroVideo · lost on reload"
+    },
+    {
+      "id": "on-error",
+      "kind": "function",
+      "parent": "controls",
+      "label": "No media loaded",
+      "desc": "Handles a page without the video files, like a fresh checkout.",
+      "logic": [
+        "Listens on the last <source> (the MP4): its error means no format loaded.",
+        "Marks the video as failed and not playing; the ink background and titles stay."
+      ],
+      "code": {
+        "file": "site/src/hero/useHeroVideo.ts",
+        "symbol": "useHeroVideo"
+      },
+      "inputs": {
+        "sourceError": "null"
+      },
+      "outputs": {
+        "failed": "boolean"
+      }
+    },
+    {
+      "id": "failed",
+      "kind": "state",
+      "parent": "controls",
+      "label": "Media failed",
+      "desc": "Set when no video format could load.",
+      "valueType": "boolean",
+      "store": "React state in useHeroVideo · lost on reload"
+    },
+    {
+      "id": "r-button",
+      "kind": "result",
+      "parent": "controls",
+      "label": "Play / Pause button",
+      "desc": "Shows ❚❚ with the label Pause while playing, ▶ Play otherwise; hidden when the media failed.",
+      "inputs": {
+        "playing": "boolean",
+        "failed": "boolean"
+      }
+    },
+    {
+      "id": "r-title",
+      "kind": "result",
+      "parent": "hero",
+      "label": "Hero title and subtitle",
+      "desc": "The segment's title and subtitle in the page's language. Each new title fades in (450 ms CSS animation, off with reduced motion).",
+      "code": {
+        "file": "site/src/hero/Hero.tsx",
+        "symbol": "Hero"
+      },
+      "inputs": {
+        "segment": "SegmentId",
+        "lang": "Language"
+      }
+    },
+    {
+      "id": "navigation",
+      "kind": "group",
+      "label": "Navigation",
+      "desc": "The menu, in-page links and how the page scrolls. Nothing on the page reacts to scrolling itself: no scroll listeners, no scroll-driven animation."
+    },
+    {
+      "id": "t-menu",
+      "kind": "trigger",
+      "source": "user",
+      "parent": "navigation",
+      "label": "Click Menu / Escape",
+      "desc": "The visitor opens or closes the menu sheet.",
+      "context": {
+        "from": "Top bar, left"
+      },
+      "outputs": {
+        "toggle": "null"
+      }
+    },
+    {
+      "id": "menu-toggle",
+      "kind": "function",
+      "parent": "navigation",
+      "label": "Open or close menu",
+      "desc": "Flips the menu open or shut.",
+      "logic": [
+        "The Menu button flips it; its label becomes Close.",
+        "While open, Escape closes it (a keydown listener lives only while the menu is open).",
+        "Any click inside the sheet, a link included, closes it."
+      ],
+      "code": {
+        "file": "site/src/sections/TopBar.tsx",
+        "symbol": "TopBar"
+      },
+      "inputs": {
+        "toggle": "null"
+      },
+      "outputs": {
+        "open": "boolean"
+      }
+    },
+    {
+      "id": "menu-open",
+      "kind": "state",
+      "parent": "navigation",
+      "label": "Menu open",
+      "desc": "Whether the menu sheet is showing.",
+      "valueType": "boolean",
+      "store": "React state in TopBar · lost on reload"
+    },
+    {
+      "id": "r-menu",
+      "kind": "result",
+      "parent": "navigation",
+      "label": "Menu sheet",
+      "desc": "Links to Features, Example, Install and GitHub.",
+      "inputs": {
+        "open": "boolean"
+      }
+    },
+    {
+      "id": "anchor-scroll",
+      "kind": "external",
+      "parent": "navigation",
+      "label": "Browser anchor scroll",
+      "desc": "The browser scrolls to the section with that id. CSS makes it smooth (scroll-behavior: smooth) and instant for visitors who asked for reduced motion.",
+      "code": {
+        "file": "site/src/styles.css"
+      },
+      "inputs": {
+        "anchor": "SectionId"
+      },
+      "outputs": {
+        "section": "SectionId"
+      }
+    },
+    {
+      "id": "r-section",
+      "kind": "result",
+      "parent": "navigation",
+      "label": "Section in view",
+      "desc": "The section scrolls into view under the top bar, which stays put.",
+      "inputs": {
+        "section": "SectionId"
+      }
+    },
+    {
+      "id": "github",
+      "kind": "external",
+      "parent": "navigation",
+      "label": "GitHub repository",
+      "desc": "github.com/gabolondon/agentic-fbd, opened in the same tab (rel=noopener); the footer link goes to its LICENSE.",
+      "inputs": {
+        "url": "string"
+      }
+    },
+    {
+      "id": "install",
+      "kind": "group",
+      "label": "Install copy",
+      "desc": "The two install commands and their Copy buttons.",
+      "code": {
+        "file": "site/src/sections/Install.tsx",
+        "symbol": "Command"
+      }
+    },
+    {
+      "id": "clipboard",
+      "kind": "external",
+      "parent": "install",
+      "label": "Clipboard API",
+      "desc": "navigator.clipboard.writeText; refused on plain http or when the browser denies it.",
+      "inputs": {
+        "text": "string"
+      },
+      "outputs": {
+        "ok": "null",
+        "denied": "null"
+      }
+    },
+    {
+      "id": "show-copied",
+      "kind": "function",
+      "parent": "install",
+      "label": "Show Copied",
+      "desc": "Confirms the copy on the button for a moment.",
+      "logic": [
+        "Sets copied, so the button reads Copied.",
+        "After 1.6 s it goes back to Copy."
+      ],
+      "code": {
+        "file": "site/src/sections/Install.tsx",
+        "symbol": "Command"
+      },
+      "inputs": {
+        "ok": "null"
+      },
+      "outputs": {
+        "copied": "boolean"
+      }
+    },
+    {
+      "id": "copied",
+      "kind": "state",
+      "parent": "install",
+      "label": "Copied",
+      "desc": "Whether this command's button says Copied; each command has its own.",
+      "valueType": "boolean",
+      "store": "React state in Command · lost on reload"
+    },
+    {
+      "id": "select-text",
+      "kind": "function",
+      "parent": "install",
+      "label": "Select the command",
+      "desc": "Falls back to selecting the command so the visitor can copy it by hand.",
+      "logic": [
+        "Builds a range over the <code> element.",
+        "Replaces the page selection with it."
+      ],
+      "code": {
+        "file": "site/src/sections/Install.tsx",
+        "symbol": "Command"
+      },
+      "inputs": {
+        "denied": "null"
+      },
+      "outputs": {
+        "selected": "string"
+      }
+    },
+    {
+      "id": "r-copied",
+      "kind": "result",
+      "parent": "install",
+      "label": "Copied, or selected",
+      "desc": "The command is on the clipboard with a Copied label, or selected on the page ready for Cmd/Ctrl+C.",
+      "inputs": {
+        "copied": "boolean",
+        "selected": "string"
+      }
+    },
+    {
+      "id": "r-text",
+      "kind": "result",
+      "label": "Page text in EN or ES",
+      "desc": "Every heading, paragraph, label and alt text in the current language, from en.json or es.json.",
+      "code": {
+        "file": "site/src/i18n/en.json"
+      },
+      "inputs": {
+        "lang": "Language"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "from": "t-load.browser",
+      "to": "pick-language.browser"
+    },
+    {
+      "id": "w2",
+      "from": "lang-store",
+      "to": "pick-language.stored",
+      "op": "read"
+    },
+    {
+      "id": "w3",
+      "from": "pick-language.lang",
+      "to": "current-lang",
+      "op": "write"
+    },
+    {
+      "id": "w4",
+      "from": "t-lang.lang",
+      "to": "set-language.lang"
+    },
+    {
+      "id": "w5",
+      "from": "set-language.lang",
+      "to": "current-lang",
+      "op": "write"
+    },
+    {
+      "id": "w6",
+      "from": "set-language.lang",
+      "to": "lang-store",
+      "op": "write"
+    },
+    {
+      "id": "w7",
+      "from": "current-lang",
+      "to": "r-text.lang",
+      "op": "read"
+    },
+    {
+      "id": "w8",
+      "from": "t-load.orientation",
+      "to": "pick-layout.orientation"
+    },
+    {
+      "id": "w9",
+      "from": "pick-layout.layout",
+      "to": "media-urls.layout"
+    },
+    {
+      "id": "w10",
+      "from": "current-lang",
+      "to": "media-urls.lang",
+      "op": "read"
+    },
+    {
+      "id": "w11",
+      "from": "media-urls.sources",
+      "to": "video.sources"
+    },
+    {
+      "id": "w12",
+      "from": "t-load.reducedMotion",
+      "to": "autoplay.reducedMotion"
+    },
+    {
+      "id": "w13",
+      "from": "autoplay.no",
+      "to": "video.command"
+    },
+    {
+      "id": "w14",
+      "from": "video.time",
+      "to": "segment-at.time"
+    },
+    {
+      "id": "w15",
+      "from": "segment-at.segment",
+      "to": "segment",
+      "op": "write"
+    },
+    {
+      "id": "w16",
+      "from": "segment",
+      "to": "r-title.segment",
+      "op": "read"
+    },
+    {
+      "id": "w17",
+      "from": "current-lang",
+      "to": "r-title.lang",
+      "op": "read"
+    },
+    {
+      "id": "w18",
+      "from": "video.time",
+      "to": "check-hold.time"
+    },
+    {
+      "id": "w19",
+      "from": "check-hold.pause",
+      "to": "video.command"
+    },
+    {
+      "id": "w20",
+      "from": "check-hold.wait",
+      "to": "resume.wait"
+    },
+    {
+      "id": "w21",
+      "from": "check-hold.timer",
+      "to": "hold-timer",
+      "op": "write"
+    },
+    {
+      "id": "w22",
+      "from": "resume.play",
+      "to": "video.command"
+    },
+    {
+      "id": "w46",
+      "from": "resume.cleared",
+      "to": "hold-timer",
+      "op": "write"
+    },
+    {
+      "id": "w23",
+      "from": "t-toggle.click",
+      "to": "toggle.click"
+    },
+    {
+      "id": "w24",
+      "from": "hold-timer",
+      "to": "toggle.timer",
+      "op": "read"
+    },
+    {
+      "id": "w25",
+      "from": "toggle.command",
+      "to": "video.command"
+    },
+    {
+      "id": "w45",
+      "from": "toggle.cleared",
+      "to": "hold-timer",
+      "op": "write"
+    },
+    {
+      "id": "w26",
+      "from": "video.event",
+      "to": "track-play.event"
+    },
+    {
+      "id": "w27",
+      "from": "hold-timer",
+      "to": "track-play.timer",
+      "op": "read"
+    },
+    {
+      "id": "w28",
+      "from": "track-play.playing",
+      "to": "playing",
+      "op": "write"
+    },
+    {
+      "id": "w29",
+      "from": "video.sourceError",
+      "to": "on-error.sourceError"
+    },
+    {
+      "id": "w30",
+      "from": "on-error.failed",
+      "to": "failed",
+      "op": "write"
+    },
+    {
+      "id": "w31",
+      "from": "playing",
+      "to": "r-button.playing",
+      "op": "read"
+    },
+    {
+      "id": "w32",
+      "from": "failed",
+      "to": "r-button.failed",
+      "op": "read"
+    },
+    {
+      "id": "w33",
+      "from": "t-menu.toggle",
+      "to": "menu-toggle.toggle"
+    },
+    {
+      "id": "w34",
+      "from": "menu-toggle.open",
+      "to": "menu-open",
+      "op": "write"
+    },
+    {
+      "id": "w35",
+      "from": "menu-open",
+      "to": "r-menu.open",
+      "op": "read"
+    },
+    {
+      "id": "w36",
+      "from": "t-nav.anchor",
+      "to": "anchor-scroll.anchor"
+    },
+    {
+      "id": "w37",
+      "from": "anchor-scroll.section",
+      "to": "r-section.section"
+    },
+    {
+      "id": "w38",
+      "from": "t-github.url",
+      "to": "github.url"
+    },
+    {
+      "id": "w39",
+      "from": "t-copy.command",
+      "to": "clipboard.text"
+    },
+    {
+      "id": "w40",
+      "from": "clipboard.ok",
+      "to": "show-copied.ok"
+    },
+    {
+      "id": "w41",
+      "from": "show-copied.copied",
+      "to": "copied",
+      "op": "write"
+    },
+    {
+      "id": "w42",
+      "from": "clipboard.denied",
+      "to": "select-text.denied"
+    },
+    {
+      "id": "w43",
+      "from": "copied",
+      "to": "r-copied.copied",
+      "op": "read"
+    },
+    {
+      "id": "w44",
+      "from": "select-text.selected",
+      "to": "r-copied.selected"
+    }
+  ],
+  "risks": [
+    {
+      "id": "r1",
+      "severity": "medium",
+      "status": "open",
+      "title": "Layout is chosen once per load",
+      "detail": "pick-layout reads the orientation only on the first render. Rotating a phone or tablet, or resizing a desktop window to portrait, keeps the first render: a tall video on a landscape screen or the other way round, cropped by object-fit: cover.",
+      "resolution": "Listen to the matchMedia change event and switch the layout (the video remounts, like a language switch).",
+      "refs": [
+        "pick-layout",
+        "w9"
+      ]
+    },
+    {
+      "id": "r2",
+      "severity": "low",
+      "status": "open",
+      "title": "Switching language restarts the video",
+      "detail": "The <video> is keyed by language, so EN/ES mounts a new one at 0 s and the 5 s intro hold runs again. The title keeps the old segment until the new video's first timeupdate.",
+      "resolution": "Acceptable for a background loop; to keep the place, carry currentTime over to the new video.",
+      "refs": [
+        "media-urls",
+        "segment",
+        "check-hold"
+      ]
+    }
+  ]
+}
