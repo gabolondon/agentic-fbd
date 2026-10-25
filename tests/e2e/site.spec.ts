@@ -216,7 +216,27 @@ test('install shows the two commands, each with a copy button', async ({ page, c
   await rows.nth(1).getByRole('button', { name: en.install.copy }).click();
   await expect(rows.nth(1).getByRole('button')).toHaveText(en.install.copied);
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('/plugin install agentic-fbd@agentic-fbd');
-  await expect(page.locator('#install').getByRole('link', { name: /View on GitHub/ })).toHaveAttribute('href', 'https://github.com/gabolondon/agentic-fbd');
+  // No hover on phones, so the install section prints the star hint instead of a tooltip.
+  const star = page.locator('#install').getByRole('link', { name: en.star.label });
+  await expect(star).toHaveAttribute('href', 'https://github.com/gabolondon/agentic-fbd');
+  await expect(star).toHaveAccessibleDescription(en.star.hint);
+  await expect(page.locator('#install .star-hint')).toBeVisible();
+});
+
+test('the star link in the top bar explains itself on hover and on focus', async ({ page }) => {
+  await page.goto(base);
+  const star = page.locator('.topbar').getByRole('link', { name: en.star.label });
+  const tip = page.locator('.topbar').getByRole('tooltip');
+  await expect(star).toHaveAttribute('href', 'https://github.com/gabolondon/agentic-fbd');
+  await expect(star).toHaveAccessibleDescription(en.star.hint);
+  await expect(tip).toBeHidden();
+  await star.hover();
+  await expect(tip).toBeVisible();
+  await expect(tip).toBeInViewport({ ratio: 1 });
+  await page.mouse.move(0, 400);
+  await expect(tip).toBeHidden();
+  await star.focus();
+  await expect(tip).toBeVisible();
 });
 
 test('Try it in the top bar lands on the live viewer, behind a cover until clicked', async ({ page }) => {

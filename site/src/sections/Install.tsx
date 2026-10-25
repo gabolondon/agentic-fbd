@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GITHUB_URL } from './TopBar.tsx';
+import { StarButton } from './StarButton.tsx';
 
 const COMMANDS = ['/plugin marketplace add gabolondon/agentic-fbd', '/plugin install agentic-fbd@agentic-fbd'];
 
@@ -46,9 +46,7 @@ export function Install() {
         ))}
       </div>
       <p className="install-note">{t('install.note')}</p>
-      <a className="pill solid" href={GITHUB_URL} rel="noopener">
-        {t('install.github')} <span aria-hidden="true">↗</span>
-      </a>
+      <StarButton className="solid" hintShown />
     </section>
   );
 }

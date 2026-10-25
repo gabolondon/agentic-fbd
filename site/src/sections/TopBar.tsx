@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitch } from './LanguageSwitch.tsx';
+import { StarButton } from './StarButton.tsx';
 
 export const GITHUB_URL = 'https://github.com/gabolondon/agentic-fbd';
 
@@ -48,9 +49,7 @@ export function TopBar() {
           {t('nav.try')}
         </a>
         <LanguageSwitch onDark />
-        <a className="pill ghost on-dark github" href={GITHUB_URL} rel="noopener">
-          {t('nav.github')} <span aria-hidden="true">↗</span>
-        </a>
+        <StarButton className="ghost on-dark github" />
       </div>
     </header>
   );

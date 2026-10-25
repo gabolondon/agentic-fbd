@@ -96,8 +96,11 @@
     "lead": "agentic-fbd is a Claude Code plugin. Run these in Claude Code:",
     "note": "Needs Node.js 20 or later. Nothing is installed into your projects.",
     "copy": "Copy",
-    "copied": "Copied",
-    "github": "View on GitHub"
+    "copied": "Copied"
+  },
+  "star": {
+    "label": "Star on GitHub",
+    "hint": "Find it useful? Give it a star on GitHub, it helps other engineers find it."
   },
   "footer": {
     "license": "MIT License",

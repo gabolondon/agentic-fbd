@@ -112,6 +112,54 @@ img {
   background: var(--ink-soft);
 }
 
+/* The star link: a tooltip on hover and focus, or the hint printed beside it (.hint-shown). */
+.star {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.star-hint {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: 260px;
+  padding: 10px 12px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-block);
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 13px/1.4 var(--font-ui);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.star:hover .star-hint,
+.star:focus-within .star-hint {
+  opacity: 1;
+  visibility: visible;
+}
+
+.star.hint-shown .star-hint {
+  position: static;
+  width: auto;
+  max-width: 28rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  opacity: 1;
+  visibility: visible;
+}
+
 .lang {
   display: inline-flex;
   border: 1px solid var(--ink);
@@ -204,7 +252,7 @@ img {
 }
 
 @media (max-width: 719px) {
-  .topbar .github {
+  .topbar .star {
     display: none;
   }
 
