@@ -84,100 +84,27 @@ Ask for changes in the chat and the viewer updates live. For a design with non-t
 you didn't ask to diagram, Claude offers the diagram in one line and waits for your yes. For
 simple tasks it doesn't offer it at all.
 
-### The viewer
+## Documentation
 
-- **Structure panel:** the subject, a tree of levels and blocks with change and risk marks, and a
-  legend.
-- **Hover a wire:** see its type, its full shape, and where it comes from and goes.
-- **Click a block:** see *What it does*, *How it works* (step by step), the code it maps to, what
-  changes, and where a reusable block is used.
-- **Data box:** under each block, what it reads and writes, with types, fields and where the data
-  lives ("Zustand store · lost on reload", "Postgres table bookings"). A state lists who reads and
-  writes it, and a group lists only the data that crosses its edge. Everything starts collapsed.
-- **Edit in the viewer:** rename blocks, ports and functions, change types, fields and triggers,
-  remove blocks or wires, and leave notes for the agent. Edits stay in a draft until you save;
-  then **Copy for agent** gives you the request to paste into Claude Code.
-- **Copy reference for agent:** the icon in a block's or wire's panel (or the button when several
-  blocks are selected) copies the file and the blocks' ids and code, to point at them in a prompt.
-- **Double-click** a group or reusable block to go inside it. **Esc** goes back up.
-- **Click a wire:** its panel shows what it carries, with a note and remove.
-- **Unexplored groups** offer a *Copy for agent* button to expand them.
-- **Labeled connectors:** wires are lines, but as in a schematic, a wire that would be hard to
-  follow (very long, looping far back, or crossing several others) is drawn as a pair of arrow
-  flags ("goes to X", "comes from Y"). Click a flag to see the other end. `draw` on a wire
-  forces a line or flags.
-- **Linked diagrams:** a big subject can be split into one diagram per system, linked with
-  `see`. The structure panel lists every diagram in the folder, and a ↗ block opens the one
-  that explains it.
-- **Arrange by hand:** drag blocks (and frames by their label) to tidy a level. A block snaps
-  level with the other end of its wire, so wires can be made straight. Positions are saved in
-  `<subject>.layout.json` next to the diagram; commit it with the diagram. **Auto layout** goes
-  back to the automatic arrangement.
-- **Before / After** and **Risks:** clicking a risk navigates to it and highlights what it
-  touches.
+- [Getting started](docs/getting-started.md): install, a first Understand diagram, a first
+  Design, committing the diagram, troubleshooting.
+- [How the skill behaves](docs/skill.md): when Claude uses it, both modes, the files it writes,
+  the edit loop with the viewer.
+- [The viewer](docs/viewer.md): every panel and control, editing, Copy for agent, arranging by
+  hand.
+- [Blocks, wires and types](docs/blocks.md): every block kind and field, with a complete example.
+- [CLI](docs/cli.md): `validate` and `open`, exit codes, and every issue code.
 
-### The CLI
+The format is one JSON file per subject, with no coordinates; the viewer lays everything out.
+The exact grammar is in [`format.md`](skills/agentic-fbd/references/format.md), the JSON Schema
+in [`logic.schema.json`](skills/agentic-fbd/references/logic.schema.json), and two complete
+diagrams in [`skills/agentic-fbd/examples/`](skills/agentic-fbd/examples/). The design document
+is [`docs/superpowers/specs/2026-10-18-logic-builder-design.md`](docs/superpowers/specs/2026-10-18-logic-builder-design.md).
 
-The plugin bundles a dependency-free CLI that Claude uses. You can run it too:
+## Contributing
 
-```bash
-node dist/cli.mjs validate logic/auth-gate.logic.json [--check-code .] [--json]
-node dist/cli.mjs open logic/auth-gate.logic.json [--port 0] [--no-open]
-```
-
-- `validate` checks the schema, the references and the wire types. It exits 1 on errors.
-  `--check-code` also warns about code references that no longer exist.
-- `open` serves the viewer on `127.0.0.1` and reloads it live when the file changes. Other
-  `*.logic.json` files in the same folder are served too, so links between diagrams work.
-- `validate` also warns about `see` links to diagrams or blocks that don't exist.
-
-## The format
-
-One JSON file per subject. The pieces are:
-
-- **Blocks:** `trigger`, `function`, `state`, `decision`, `external`, `result`, `group`, and
-  `instance` of a reusable block type.
-- **Typed ports**, and **wires** written as `"node.port"`.
-- **Explanations:** `desc` (what a block does) and `logic` (how it works).
-- **Links:** `see` on a block points at another diagram, and `draw` on a wire picks a line or
-  labeled connectors.
-- **Data:** `store` on a state (where it lives), and `typeInfo` notes on named types.
-- **Change marks**, with `before` for modified items, and `note` for requests left in the viewer.
-- **Risks** that point at blocks and wires.
-
-There are no coordinates; the viewer lays everything out. Positions you set by dragging live in
-a separate `<subject>.layout.json` that only the viewer writes.
-
-- Full reference: [`skills/agentic-fbd/references/format.md`](skills/agentic-fbd/references/format.md)
-- JSON Schema: [`skills/agentic-fbd/references/logic.schema.json`](skills/agentic-fbd/references/logic.schema.json)
-- Examples: [`skills/agentic-fbd/examples/`](skills/agentic-fbd/examples/)
-- Design document: [`docs/superpowers/specs/2026-10-18-logic-builder-design.md`](docs/superpowers/specs/2026-10-18-logic-builder-design.md)
-
-## Development
-
-```bash
-npm install
-npm test              # unit tests: types, validator, view model, layout, CLI, server
-npm run typecheck
-npm run dev           # viewer dev server; LB_FILE=path/to/file.logic.json picks the file
-npm run build         # builds dist/viewer and dist/cli.mjs (both are committed)
-npm run test:e2e      # Playwright against the built CLI (run npm run build first)
-npm run check:dist    # rebuilds and fails if committed dist/ is out of date
-```
-
-Layout:
-
-| Path | What it is |
-|---|---|
-| `packages/core` | Format types, schema validation, type checking and the view model. Browser-safe TypeScript |
-| `packages/viewer` | React + React Flow + elkjs app |
-| `packages/cli` | Node CLI and local server, bundled with esbuild into `dist/cli.mjs` |
-| `skills/agentic-fbd` | The skill, format reference, schema and examples |
-| `logic` | Diagrams of agentic-fbd itself, made with agentic-fbd (`node dist/cli.mjs open logic/phase-2d-2e.logic.json`) |
-| `.claude-plugin` | Plugin and marketplace manifests |
-
-The format, CLI and viewer don't depend on Claude Code; only `skills/` and `.claude-plugin/` are
-agent-specific.
+Setup, the checks a pull request must pass and the project rules are in
+[CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## License
 
