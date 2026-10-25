@@ -1,7 +1,7 @@
 {
   "name": "agentic-fbd",
   "description": "Explain and design software logic as PLC-style function block diagrams: a JSON format, a live React Flow viewer, and a skill that teaches Claude to use them before it builds.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": {
     "name": "Gabriel Londoño"
   },

@@ -1,5 +1,26 @@
 # Changelog — agentic-fbd
 
+## [0.3.0] - 2026-10-24
+_Previous release: 0.2.1_
+
+### viewer 0.2.1 -> 0.3.0 (minor)
+- Add a demo mode that runs from static files: a `<meta name="agentic-fbd-demo">` tag points the viewer at a list of diagrams, and edits, layouts and saves stay in the browser
+
+### skill 0.1.2 -> 0.1.3 (patch)
+- Bumped because viewer changed
+
+### landing 0.1.2 -> 0.2.0 (minor)
+- Publish the agentic-fbd website at afbd.gabocodes.com, in English and Spanish, with a top bar, statement, six features, a worked bug example, install steps and a footer
+- Play a looping hero video behind the opening titles, in the page's language and in a wide or tall cut for the screen, holding on the first question long enough to read it
+- Lay a faded diagram behind the statement, fading in from the middle of the width
+- Add a Try it section with the live viewer on a TodoMVC diagram and on a diagram of the website itself, plus a Try it button in the top bar; phones get a picture and a link instead
+
+### Unchanged
+core 0.1.0 · cli 0.1.0 · theme 0.2.1
+
+### Other
+- The website deploys to GitHub Pages on every push to main that touches it; the hero videos come from the media-hero-1 Release
+
 ## [0.2.1] - 2026-10-24
 _Previous release: 0.2.0_
 

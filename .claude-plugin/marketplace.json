@@ -8,7 +8,7 @@
     {
       "name": "agentic-fbd",
       "description": "Explain and design software logic as PLC-style function block diagrams, with a live viewer.",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "source": "./",
       "author": {
         "name": "Gabriel Londoño"
