@@ -39,6 +39,32 @@ describe('agentic-fbd validate', () => {
     expect((await cli('validate', 'x.json', '--check-code')).code).toBe(2);
   });
 
+  it('rejects a flag value that is another flag', async () => {
+    const check = await cli('validate', 'x.json', '--check-code', '--json');
+    expect(check.code).toBe(2);
+    expect(check.err).toContain('--check-code needs a value');
+    const port = await cli('open', 'x.json', '--port', '--no-open');
+    expect(port.code).toBe(2);
+    expect(port.err).toContain('--port needs a value');
+  });
+
+  it('rejects an unknown flag, naming it', async () => {
+    const typo = await cli('validate', join(examples, 'auth-gate.logic.json'), '--jsno');
+    expect(typo.code).toBe(2);
+    expect(typo.err).toContain('unknown flag --jsno');
+    // A flag of another command is unknown here too.
+    expect((await cli('validate', 'x.json', '--no-open')).code).toBe(2);
+    expect((await cli('open', 'x.json', '--json')).code).toBe(2);
+  });
+
+  it('keeps --help working, also after a command', async () => {
+    for (const argv of [['--help'], ['validate', '--help'], ['open', '-h']]) {
+      const { code, out } = await cli(...argv);
+      expect(code, argv.join(' ')).toBe(0);
+      expect(out).toContain('Usage:');
+    }
+  });
+
   it('prints JSON with --json', async () => {
     const { out } = await cli('validate', join(invalid, 'integrity-unknown-port.logic.json'), '--json');
     const report = JSON.parse(out);

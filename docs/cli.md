@@ -54,7 +54,7 @@ Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage error.
 |---|---|
 | 0 | Every file is valid. Warnings and notices do not fail validation. `--help` also exits 0. |
 | 1 | At least one file has an error, a file cannot be read, or `open` could not start. |
-| 2 | Usage error: no command or an unknown command, `validate` with no file, `open` without exactly one file, a flag that needs a value and has none, or a bad `--port`. |
+| 2 | Usage error: no command or an unknown command, `validate` with no file, `open` without exactly one file, a flag that needs a value and has none (the next argument starts with `--`), an unknown flag, or a bad `--port`. |
 
 Flags that the CLI does not know are ignored without an error.
 
@@ -152,9 +152,8 @@ These are warnings, so the exit code stays 0. Things to know:
 - Paths in `code.file` are resolved against `<repo-root>`, not against the diagram's folder.
 - Nodes and block types marked `change: "new"` are skipped. Their code does not exist yet.
 - Block types, nodes inside block bodies and `typeInfo` entries are checked too.
-- The flag needs a value. `--check-code` with nothing after it is a usage error (exit 2). The
-  next argument is always taken as the value, so `--check-code --json` would use `--json` as the
-  repo root. Always write the root right after the flag.
+- The flag needs a value. `--check-code` with nothing after it, or followed by another flag such
+  as `--json`, is a usage error (exit 2). Write the root right after the flag.
 
 ### `--json`
 

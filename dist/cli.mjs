@@ -9192,7 +9192,7 @@ Usage:
   agentic-fbd open <file.logic.json> [--port <n>] [--no-open]
 
 Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage error.`;
-function parseArgs(argv, valued) {
+function parseArgs(argv, valued, switches) {
   const positional = [];
   const flags = /* @__PURE__ */ new Map();
   for (let i = 0; i < argv.length; i++) {
@@ -9204,10 +9204,12 @@ function parseArgs(argv, valued) {
     const name = arg.slice(2);
     if (valued.has(name)) {
       const value = argv[++i];
-      if (value === void 0) return `--${name} needs a value`;
+      if (value === void 0 || value.startsWith("--")) return `--${name} needs a value`;
       flags.set(name, value);
-    } else {
+    } else if (switches.has(name)) {
       flags.set(name, true);
+    } else {
+      return `unknown flag --${name}`;
     }
   }
   return { positional, flags };
@@ -9229,16 +9231,23 @@ async function run(argv, io) {
 ${USAGE}`);
     return 2;
   }
-  const valued = /* @__PURE__ */ new Set(["check-code", "port"]);
-  const args = parseArgs(rest, valued);
+  if (rest.includes("--help") || rest.includes("-h")) {
+    io.out(USAGE);
+    return 0;
+  }
+  const args = parseArgs(rest, new Set(command.valued), new Set(command.switches));
   if (typeof args === "string") {
-    io.err(args);
+    io.err(`${args}
+
+${USAGE}`);
     return 2;
   }
   return command.run(args, io);
 }
 register({
   name: "validate",
+  valued: ["check-code"],
+  switches: ["json"],
   run(args, io) {
     if (args.positional.length === 0) {
       io.err(`validate needs at least one file
@@ -9256,6 +9265,8 @@ ${USAGE}`);
 });
 register({
   name: "open",
+  valued: ["port"],
+  switches: ["no-open"],
   async run(args, io) {
     const [file, ...extra] = args.positional;
     if (!file || extra.length) {

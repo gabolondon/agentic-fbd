@@ -21,6 +21,9 @@ Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage error.`;
 
 export interface Command {
   name: string;
+  /** Flags that take a value (`--port 4000`) and flags that do not (`--json`). Anything else is a usage error. */
+  valued: string[];
+  switches: string[];
   run: (args: ParsedArgs, io: Io) => Promise<number> | number;
 }
 
@@ -29,7 +32,7 @@ export interface ParsedArgs {
   flags: Map<string, string | true>;
 }
 
-export function parseArgs(argv: string[], valued: Set<string>): ParsedArgs | string {
+export function parseArgs(argv: string[], valued: Set<string>, switches: Set<string>): ParsedArgs | string {
   const positional: string[] = [];
   const flags = new Map<string, string | true>();
   for (let i = 0; i < argv.length; i++) {
@@ -41,10 +44,12 @@ export function parseArgs(argv: string[], valued: Set<string>): ParsedArgs | str
     const name = arg.slice(2);
     if (valued.has(name)) {
       const value = argv[++i];
-      if (value === undefined) return `--${name} needs a value`;
+      if (value === undefined || value.startsWith('--')) return `--${name} needs a value`;
       flags.set(name, value);
-    } else {
+    } else if (switches.has(name)) {
       flags.set(name, true);
+    } else {
+      return `unknown flag --${name}`;
     }
   }
   return { positional, flags };
@@ -67,10 +72,13 @@ export async function run(argv: string[], io: Io): Promise<number> {
     io.err(`unknown command "${name}"\n\n${USAGE}`);
     return 2;
   }
-  const valued = new Set(['check-code', 'port']);
-  const args = parseArgs(rest, valued);
+  if (rest.includes('--help') || rest.includes('-h')) {
+    io.out(USAGE);
+    return 0;
+  }
+  const args = parseArgs(rest, new Set(command.valued), new Set(command.switches));
   if (typeof args === 'string') {
-    io.err(args);
+    io.err(`${args}\n\n${USAGE}`);
     return 2;
   }
   return command.run(args, io);
@@ -78,6 +86,8 @@ export async function run(argv: string[], io: Io): Promise<number> {
 
 register({
   name: 'validate',
+  valued: ['check-code'],
+  switches: ['json'],
   run(args, io) {
     if (args.positional.length === 0) {
       io.err(`validate needs at least one file\n\n${USAGE}`);
@@ -94,6 +104,8 @@ register({
 
 register({
   name: 'open',
+  valued: ['port'],
+  switches: ['no-open'],
   async run(args, io) {
     const [file, ...extra] = args.positional;
     if (!file || extra.length) {
