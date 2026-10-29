@@ -60,7 +60,11 @@ export function startServer({ file, port = 0, viewerDir }: ServerOptions): Promi
   });
 
   return new Promise((resolvePromise, reject) => {
-    server.once('error', reject);
+    // A failed listen (e.g. EADDRINUSE) must release the file watcher, or the process never exits.
+    server.once('error', (error) => {
+      api.close();
+      reject(error);
+    });
     // Loopback only: the viewer exposes the file's contents.
     server.listen(port, '127.0.0.1', () => {
       const address = server.address();

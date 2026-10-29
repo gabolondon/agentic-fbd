@@ -9147,7 +9147,10 @@ function startServer({ file, port = 0, viewerDir }) {
     res.end(req.method === "HEAD" ? void 0 : readFileSync3(target));
   });
   return new Promise((resolvePromise, reject) => {
-    server.once("error", reject);
+    server.once("error", (error) => {
+      api.close();
+      reject(error);
+    });
     server.listen(port, "127.0.0.1", () => {
       const address = server.address();
       const actualPort = typeof address === "object" && address ? address.port : port;
