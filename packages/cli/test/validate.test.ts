@@ -97,6 +97,39 @@ describe('agentic-fbd validate', () => {
     const stale = JSON.parse(out).issues.filter((i: { code: string }) => i.code === 'stale-code').map((i: { path: string }) => i.path);
     expect(stale).toEqual(['typeInfo/Gone']);
   });
+
+  describe('--check-code path escapes', () => {
+    /** A repo with one source file, a secret next to it, and a diagram with one code reference per entry. */
+    async function escapes(files: (root: string, outside: string) => string[]): Promise<{ at: string; code: string }[]> {
+      const { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } = await import('node:fs');
+      const { tmpdir } = await import('node:os');
+      const base = mkdtempSync(join(tmpdir(), 'lb-escape-'));
+      const repo = join(base, 'repo');
+      mkdirSync(join(repo, 'src'), { recursive: true });
+      writeFileSync(join(repo, 'src', 'ok.ts'), 'export function inside() {}');
+      writeFileSync(join(base, 'secret.txt'), 'hunter2 symbol');
+      symlinkSync(join(base, 'secret.txt'), join(repo, 'src', 'link.txt'));
+      const nodes = files(repo, join(base, 'secret.txt')).map((file, i) => ({
+        id: `n${i}`, kind: 'function', label: `N${i}`, code: { file, symbol: 'symbol' },
+      }));
+      const doc = { version: '0.1', subject: { id: 'esc', title: 'Escape', intent: 'Check code paths', mode: 'understand' }, nodes, wires: [] };
+      writeFileSync(join(base, 'esc.logic.json'), JSON.stringify(doc));
+      const { out } = await cli('validate', join(base, 'esc.logic.json'), '--check-code', repo, '--json');
+      return JSON.parse(out).issues.filter((i: { code: string }) => i.code.endsWith('-code') || i.code === 'code-outside-root')
+        .map((i: { path: string; code: string }) => ({ at: i.path, code: i.code }));
+    }
+
+    it('warns instead of reading an absolute path, a ../ path or a symlink out of the root', async () => {
+      const issues = await escapes((_root, secret) => ['../secret.txt', secret, 'src/../../secret.txt', 'src/link.txt', 'src/ok.ts']);
+      expect(issues).toEqual([
+        { at: 'n0', code: 'code-outside-root' },
+        { at: 'n1', code: 'code-outside-root' },
+        { at: 'n2', code: 'code-outside-root' },
+        { at: 'n3', code: 'code-outside-root' },
+        { at: 'n4', code: 'stale-code' },
+      ]);
+    });
+  });
 });
 
 describe('agentic-fbd validate — links between diagrams', () => {

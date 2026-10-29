@@ -152,6 +152,8 @@ These are warnings, so the exit code stays 0. Things to know:
 - Paths in `code.file` are resolved against `<repo-root>`, not against the diagram's folder.
 - Nodes and block types marked `change: "new"` are skipped. Their code does not exist yet.
 - Block types, nodes inside block bodies and `typeInfo` entries are checked too.
+- Only files inside the repo root are read. An absolute `code.file`, or one that leaves the root
+  (with `..` or through a symlink), gets a `code-outside-root` warning and is not opened.
 - The flag needs a value. `--check-code` with nothing after it, or followed by another flag such
   as `--json`, is a usage error (exit 2). Write the root right after the flag.
 
@@ -297,9 +299,10 @@ Levels:
 | `link-missing-file` | A `see` link names a diagram that is missing or unreadable in the same folder. | Fix the file name, create the diagram, or remove `see`. |
 | `link-missing-node` | A `see` link of the form `file#block` names a block that the other diagram does not have. | Fix the block id, or drop the `#block` part. |
 | `stale-code` | With `--check-code`: a `code` reference points at a file that does not exist, or at a symbol that does not appear in the file. | Update `code.file` or `code.symbol` to match the repo. For a new block, mark it `change: "new"` and the check skips it. |
+| `code-outside-root` | With `--check-code`: a `code.file` is an absolute path, or resolves outside the repo root (with `..` or through a symlink). The file is not read. | Make `code.file` a path relative to the repo root, inside it. |
 
-`link-*` warnings are reported on every `validate` run. `stale-code` only appears with
-`--check-code`.
+`link-*` warnings are reported on every `validate` run. `stale-code` and `code-outside-root` only
+appear with `--check-code`.
 
 ### Notices
 

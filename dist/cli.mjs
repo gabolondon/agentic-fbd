@@ -2982,7 +2982,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve4.call(this, root, ref);
+      let _sch = resolve5.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3009,7 +3009,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve4(root, ref) {
+    function resolve5(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3873,7 +3873,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve4(baseURI, relativeURI, options) {
+    function resolve5(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -3909,50 +3909,50 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base2, relative, options, skipNormalization) {
+    function resolveComponent(base2, relative2, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base2 = parse(serialize(base2, options), options);
-        relative = parse(serialize(relative, options), options);
+        relative2 = parse(serialize(relative2, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative.scheme) {
-        target.scheme = relative.scheme;
-        target.userinfo = relative.userinfo;
-        target.host = relative.host;
-        target.port = relative.port;
-        target.path = removeDotSegments(relative.path || "");
-        target.query = relative.query;
+      if (!options.tolerant && relative2.scheme) {
+        target.scheme = relative2.scheme;
+        target.userinfo = relative2.userinfo;
+        target.host = relative2.host;
+        target.port = relative2.port;
+        target.path = removeDotSegments(relative2.path || "");
+        target.query = relative2.query;
       } else {
-        if (relative.userinfo !== void 0 || relative.host !== void 0 || relative.port !== void 0) {
-          target.userinfo = relative.userinfo;
-          target.host = relative.host;
-          target.port = relative.port;
-          target.path = removeDotSegments(relative.path || "");
-          target.query = relative.query;
+        if (relative2.userinfo !== void 0 || relative2.host !== void 0 || relative2.port !== void 0) {
+          target.userinfo = relative2.userinfo;
+          target.host = relative2.host;
+          target.port = relative2.port;
+          target.path = removeDotSegments(relative2.path || "");
+          target.query = relative2.query;
         } else {
-          if (!relative.path) {
+          if (!relative2.path) {
             target.path = base2.path;
-            if (relative.query !== void 0) {
-              target.query = relative.query;
+            if (relative2.query !== void 0) {
+              target.query = relative2.query;
             } else {
               target.query = base2.query;
             }
           } else {
-            if (relative.path[0] === "/") {
-              target.path = removeDotSegments(relative.path);
+            if (relative2.path[0] === "/") {
+              target.path = removeDotSegments(relative2.path);
             } else {
               const baseHasAuthority = base2.userinfo !== void 0 || base2.host !== void 0 || base2.port !== void 0;
               if (baseHasAuthority && !base2.path) {
-                target.path = "/" + relative.path;
+                target.path = "/" + relative2.path;
               } else if (!base2.path) {
-                target.path = relative.path;
+                target.path = relative2.path;
               } else {
-                target.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative.path;
+                target.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative2.path;
               }
               target.path = base2.scheme === void 0 && !baseHasAuthority && target.path[0] !== "/" ? removeDotSegmentsRelative(target.path) : removeDotSegments(target.path);
             }
-            target.query = relative.query;
+            target.query = relative2.query;
           }
           target.userinfo = base2.userinfo;
           target.host = base2.host;
@@ -3960,7 +3960,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base2.scheme;
       }
-      target.fragment = relative.fragment;
+      target.fragment = relative2.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -4264,7 +4264,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize: normalize2,
-      resolve: resolve4,
+      resolve: resolve5,
       resolveComponent,
       equal,
       serialize,
@@ -7513,7 +7513,7 @@ var require__ = __commonJS({
 
 // packages/cli/src/main.ts
 import { existsSync as existsSync3, readFileSync as readFileSync4 } from "node:fs";
-import { basename as basename3, resolve as resolve3 } from "node:path";
+import { basename as basename3, resolve as resolve4 } from "node:path";
 
 // skills/agentic-fbd/references/logic.schema.json
 var logic_schema_default = {
@@ -8171,7 +8171,7 @@ function parseString(s) {
   if (IDENT.test(s)) return { k: "name", name: s };
   return { k: "unknown", raw: s };
 }
-function splitTopLevel(s, sep2) {
+function splitTopLevel(s, sep3) {
   const parts = [];
   let depth = 0;
   let quoted = false;
@@ -8182,7 +8182,7 @@ function splitTopLevel(s, sep2) {
     else if (quoted) continue;
     else if (c === "<" || c === "(") depth++;
     else if (c === ">" || c === ")") depth--;
-    else if (c === sep2 && depth === 0) {
+    else if (c === sep3 && depth === 0) {
       parts.push(s.slice(start, i));
       start = i + 1;
     }
@@ -8720,8 +8720,19 @@ function isObject2(value) {
 }
 
 // packages/cli/src/checkCode.ts
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+function isInside(root, path) {
+  const rel = relative(root, path);
+  return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+function pathInsideRoot(repoRoot, file) {
+  if (isAbsolute(file)) return null;
+  const path = resolve(repoRoot, file);
+  if (!isInside(repoRoot, path)) return null;
+  if (existsSync(path) && !isInside(realpathSync(repoRoot), realpathSync(path))) return null;
+  return path;
+}
 function checkCode(doc, repoRoot) {
   const refs = [];
   const collect = (nodes, prefix) => {
@@ -8738,11 +8749,13 @@ function checkCode(doc, repoRoot) {
   const contents = /* @__PURE__ */ new Map();
   for (const { at, code: code2 } of refs) {
     if (!contents.has(code2.file)) {
-      const path = join(repoRoot, code2.file);
-      contents.set(code2.file, existsSync(path) ? readFileSync(path, "utf8") : null);
+      const path = pathInsideRoot(repoRoot, code2.file);
+      contents.set(code2.file, path === null ? "outside" : existsSync(path) ? readFileSync(path, "utf8") : null);
     }
     const text = contents.get(code2.file);
-    if (text === null || text === void 0) {
+    if (text === "outside") {
+      issues.push({ level: "warning", code: "code-outside-root", path: at, message: `"${at}" points to ${code2.file}, which is outside the repo root, so it was not read` });
+    } else if (text === null || text === void 0) {
       issues.push({ level: "warning", code: "stale-code", path: at, message: `"${at}" points to ${code2.file}, which does not exist` });
     } else if (code2.symbol && !text.includes(code2.symbol)) {
       issues.push({
@@ -8758,7 +8771,7 @@ function checkCode(doc, repoRoot) {
 
 // packages/cli/src/checkLinks.ts
 import { readFileSync as readFileSync2 } from "node:fs";
-import { basename, dirname, join as join2 } from "node:path";
+import { basename, dirname, join } from "node:path";
 function checkLinks(doc, file) {
   const issues = [];
   const dir = dirname(file);
@@ -8766,7 +8779,7 @@ function checkLinks(doc, file) {
   const load2 = (name) => {
     if (!cache.has(name)) {
       try {
-        cache.set(name, JSON.parse(readFileSync2(join2(dir, name), "utf8")));
+        cache.set(name, JSON.parse(readFileSync2(join(dir, name), "utf8")));
       } catch {
         cache.set(name, null);
       }
@@ -8810,13 +8823,13 @@ function openBrowser(url) {
 // packages/cli/src/server.ts
 import { existsSync as existsSync2, readFileSync as readFileSync3, statSync } from "node:fs";
 import { createServer } from "node:http";
-import { dirname as dirname3, extname, join as join4, normalize, resolve as resolve2, sep } from "node:path";
+import { dirname as dirname3, extname, join as join3, normalize, resolve as resolve3, sep as sep2 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // packages/cli/src/api.ts
 import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { watch } from "node:fs";
-import { basename as basename2, dirname as dirname2, join as join3, resolve } from "node:path";
+import { basename as basename2, dirname as dirname2, join as join2, resolve as resolve2 } from "node:path";
 var DEBOUNCE_MS = 120;
 var KEEPALIVE_MS = 2e4;
 var DIAGRAM = /^[^/\\]+\.logic\.json$/;
@@ -8841,7 +8854,7 @@ var HttpError = class extends Error {
   extra;
 };
 function createDocApi(file, displayPath = file) {
-  const absolute = resolve(file);
+  const absolute = resolve2(file);
   const dir = dirname2(absolute);
   const opened = basename2(absolute);
   const clients = /* @__PURE__ */ new Set();
@@ -8902,13 +8915,13 @@ data: ${data}
           json(res, 400, { error: `not a diagram name: ${name}` });
           return true;
         }
-        const path = name === opened ? displayPath : join3(dirname2(displayPath), name);
-        void load(join3(dir, name), name, path).then((payload) => json(res, 200, payload));
+        const path = name === opened ? displayPath : join2(dirname2(displayPath), name);
+        void load(join2(dir, name), name, path).then((payload) => json(res, 200, payload));
         return true;
       }
       if (url.pathname === "/api/layout") {
         const name = url.searchParams.get("file") ?? opened;
-        write(req, res, name, ["PUT"], () => saveLayout(req, join3(dir, layoutFileName(name))));
+        write(req, res, name, ["PUT"], () => saveLayout(req, join2(dir, layoutFileName(name))));
         return true;
       }
       if (url.pathname === "/api/draft") {
@@ -8918,7 +8931,7 @@ data: ${data}
           res,
           name,
           ["PUT", "DELETE"],
-          () => req.method === "PUT" ? saveDraft(req, dir, name) : unlink(join3(dir, draftFileName(name))).catch(() => void 0)
+          () => req.method === "PUT" ? saveDraft(req, dir, name) : unlink(join2(dir, draftFileName(name))).catch(() => void 0)
         );
         return true;
       }
@@ -8964,7 +8977,7 @@ async function listDiagrams(dir, opened) {
   const drafts = new Set(all);
   const entries = await Promise.all(
     names.map(async (file) => {
-      const text = await readSafe(join3(dir, file));
+      const text = await readSafe(join2(dir, file));
       let title = file;
       let mode;
       try {
@@ -8988,27 +9001,27 @@ async function saveLayout(req, target) {
   await writeAtomic(target, formatLayout(layout));
 }
 async function saveDraft(req, dir, name) {
-  const target = join3(dir, draftFileName(name));
+  const target = join2(dir, draftFileName(name));
   const body = await readJsonBody(req, MAX_DRAFT_BYTES);
   const existing = await readDraft(target);
-  const original = existing?.original ?? await readSafe(join3(dir, name));
+  const original = existing?.original ?? await readSafe(join2(dir, name));
   if (original === null) throw new HttpError(404, `cannot read ${name}`);
   const draft = parseDraft({ original, doc: body });
   if (!draft) throw new Error("not a diagram");
   await writeAtomic(target, JSON.stringify(draft, null, 2) + "\n");
 }
 async function saveDiagram(dir, name) {
-  const draftPath = join3(dir, draftFileName(name));
+  const draftPath = join2(dir, draftFileName(name));
   const draft = await readDraft(draftPath);
   if (!draft) throw new HttpError(404, "there are no edits to save");
   const result = validate(draft.doc);
   if (!result.valid) throw new HttpError(400, "the edited diagram has errors", { issues: result.issues });
-  const target = join3(dir, name);
+  const target = join2(dir, name);
   const current = await readSafe(target);
   let review = null;
   if (current !== null && current !== draft.original) {
     review = reviewFileName(name);
-    await writeAtomic(join3(dir, review), current);
+    await writeAtomic(join2(dir, review), current);
   }
   await writeAtomic(target, JSON.stringify(draft.doc, null, 2) + "\n");
   await unlink(draftPath).catch(() => void 0);
@@ -9052,7 +9065,7 @@ function sameOrigin(req) {
   }
 }
 async function loadLayout(absolute) {
-  const text = await readSafe(join3(dirname2(absolute), layoutFileName(basename2(absolute))));
+  const text = await readSafe(join2(dirname2(absolute), layoutFileName(basename2(absolute))));
   if (text === null) return null;
   try {
     return parseLayout(JSON.parse(text));
@@ -9086,7 +9099,7 @@ async function load(absolute, file, displayPath) {
   return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues, layout, draft, review };
 }
 async function loadDraft(absolute, current) {
-  const draft = await readDraft(join3(dirname2(absolute), draftFileName(basename2(absolute))));
+  const draft = await readDraft(join2(dirname2(absolute), draftFileName(basename2(absolute))));
   if (!draft) return null;
   let original = null;
   try {
@@ -9098,7 +9111,7 @@ async function loadDraft(absolute, current) {
 }
 async function reviewOf(absolute) {
   const name = reviewFileName(basename2(absolute));
-  return await readSafe(join3(dirname2(absolute), name)) === null ? null : name;
+  return await readSafe(join2(dirname2(absolute), name)) === null ? null : name;
 }
 async function readSafe(path) {
   try {
@@ -9123,12 +9136,12 @@ var CONTENT_TYPES = {
 };
 function findViewerDir() {
   const here = dirname3(fileURLToPath(import.meta.url));
-  const candidates = [join4(here, "viewer"), resolve2(here, "../../../dist/viewer")];
-  return candidates.find((dir) => existsSync2(join4(dir, "index.html"))) ?? null;
+  const candidates = [join3(here, "viewer"), resolve3(here, "../../../dist/viewer")];
+  return candidates.find((dir) => existsSync2(join3(dir, "index.html"))) ?? null;
 }
 function startServer({ file, port = 0, viewerDir }) {
   const api = createDocApi(file);
-  const root = resolve2(viewerDir);
+  const root = resolve3(viewerDir);
   const server = createServer((req, res) => {
     if (api.handle(req, res)) return;
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -9174,9 +9187,9 @@ function staticPath(root, url) {
     return null;
   }
   if (pathname.includes("\0")) return null;
-  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const target = normalize(join4(root, relative));
-  if (target !== root && !target.startsWith(root + sep)) return null;
+  const relative2 = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const target = normalize(join3(root, relative2));
+  if (target !== root && !target.startsWith(root + sep2)) return null;
   try {
     return statSync(target).isFile() ? target : null;
   } catch {
@@ -9321,8 +9334,8 @@ function validateFile(file, repoRoot) {
   }
   const result = validateText(text);
   const issues = [...result.issues];
-  if (result.doc) issues.push(...checkLinks(result.doc, resolve3(file)));
-  if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve3(repoRoot)));
+  if (result.doc) issues.push(...checkLinks(result.doc, resolve4(file)));
+  if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve4(repoRoot)));
   return { file, valid: result.valid, issues };
 }
 function printReport(report, io) {
