@@ -166,7 +166,8 @@ not create a copy.
 The CLI is a plain Node script and needs Node 20 or later (it is built for the `node20` target).
 If `node --version` prints "command not found", install Node from
 [nodejs.org](https://nodejs.org). If it prints a version below 20, upgrade it. On an older
-version the CLI may fail with a syntax or module error instead of a clear message.
+version the CLI prints `agentic-fbd: Node 20 or later is required (found v18.19.0)` and exits with
+code 1.
 
 ### The port is in use
 

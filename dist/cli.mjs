@@ -9231,7 +9231,11 @@ var commands = /* @__PURE__ */ new Map();
 function register(command) {
   commands.set(command.name, command);
 }
-async function run(argv, io) {
+async function run(argv, io, nodeVersion = process.versions.node) {
+  if (Number(nodeVersion.split(".")[0]) < 20) {
+    io.err(`agentic-fbd: Node 20 or later is required (found v${nodeVersion})`);
+    return 1;
+  }
   const [name, ...rest] = argv;
   if (!name || name === "--help" || name === "-h" || name === "help") {
     io.out(USAGE);

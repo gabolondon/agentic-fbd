@@ -6,6 +6,9 @@
   "license": "MIT",
   "author": "Gabriel Londoño",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "packages/*",
     "site"

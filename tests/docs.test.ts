@@ -38,6 +38,15 @@ function issueCodes(): Set<string> {
 }
 
 describe('docs', () => {
+  it('the root and CLI package.json require Node 20 and no doc says there is no engines field', () => {
+    for (const path of ['package.json', 'packages/cli/package.json']) {
+      expect(JSON.parse(read(path)).engines, path).toEqual({ node: '>=20' });
+    }
+    for (const page of ['docs/cli.md', 'docs/getting-started.md', 'CONTRIBUTING.md']) {
+      expect(read(page).replace(/\s+/g, ' '), page).not.toMatch(/no `engines` field/);
+    }
+  });
+
   it('blocks.md mentions every node kind and every schema property', () => {
     const schema = JSON.parse(read('skills/agentic-fbd/references/logic.schema.json'));
     const page = read('docs/blocks.md');

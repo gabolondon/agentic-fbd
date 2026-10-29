@@ -15,8 +15,8 @@ see [Blocks](blocks.md). For what you can do in the viewer, see [Viewer](viewer.
 ## Running it
 
 The CLI is one file with no dependencies: `dist/cli.mjs`. It needs Node.js 20 or later. The
-bundle is built for Node 20, and `package.json` has no `engines` field, so older versions are not
-checked for you.
+bundle is built for Node 20, and `package.json` sets `engines` to `node >=20`. On an older
+Node the CLI prints `agentic-fbd: Node 20 or later is required (found v18.19.0)` and exits with 1.
 
 **From the installed plugin.** The file sits two folders above the skill folder, inside the
 plugin:

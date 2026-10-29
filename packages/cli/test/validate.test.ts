@@ -9,11 +9,32 @@ const invalid = join(repoRoot, 'tests/fixtures/invalid');
 const codeRepo = join(repoRoot, 'tests/fixtures/code-repo');
 
 async function cli(...argv: string[]): Promise<{ code: number; out: string; err: string }> {
+  return cliOn(process.versions.node, ...argv);
+}
+
+async function cliOn(nodeVersion: string, ...argv: string[]): Promise<{ code: number; out: string; err: string }> {
   const out: string[] = [];
   const err: string[] = [];
-  const code = await run(argv, { out: (l) => out.push(l), err: (l) => err.push(l) });
+  const code = await run(argv, { out: (l) => out.push(l), err: (l) => err.push(l) }, nodeVersion);
   return { code, out: out.join('\n'), err: err.join('\n') };
 }
+
+describe('Node version check', () => {
+  it('exits 1 with a clear message below Node 20', async () => {
+    for (const version of ['18.19.0', '19.9.0', '8.0.0']) {
+      const { code, out, err } = await cliOn(version, 'validate', join(examples, 'auth-gate.logic.json'));
+      expect(code, version).toBe(1);
+      expect(err, version).toBe(`agentic-fbd: Node 20 or later is required (found v${version})`);
+      expect(out, version).toBe('');
+    }
+  });
+
+  it('runs on Node 20 and later', async () => {
+    for (const version of ['20.0.0', '22.11.0', '100.0.0']) {
+      expect((await cliOn(version, '--help')).code, version).toBe(0);
+    }
+  });
+});
 
 describe('agentic-fbd validate', () => {
   it('exits 0 on the bundled examples', async () => {

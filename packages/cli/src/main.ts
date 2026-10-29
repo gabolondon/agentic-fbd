@@ -61,7 +61,12 @@ export function register(command: Command): void {
   commands.set(command.name, command);
 }
 
-export async function run(argv: string[], io: Io): Promise<number> {
+export async function run(argv: string[], io: Io, nodeVersion: string = process.versions.node): Promise<number> {
+  // The bundle targets node20; say so plainly instead of failing with a syntax or module error.
+  if (Number(nodeVersion.split('.')[0]) < 20) {
+    io.err(`agentic-fbd: Node 20 or later is required (found v${nodeVersion})`);
+    return 1;
+  }
   const [name, ...rest] = argv;
   if (!name || name === '--help' || name === '-h' || name === 'help') {
     io.out(USAGE);

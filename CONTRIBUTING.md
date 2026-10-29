@@ -7,8 +7,8 @@ pass, and the rules that keep the project clean to publish. For what the project
 
 ## Set up
 
-You need Node.js 20 or newer. CI builds the website on Node 22. `package.json` sets no
-`engines` field.
+You need Node.js 20 or newer (`package.json` sets `engines` to `node >=20`). CI builds the
+website on Node 22.
 
 ```bash
 git clone https://github.com/gabolondon/agentic-fbd.git
