@@ -441,7 +441,7 @@ test('copies a reference for several selected blocks', async ({ page, context })
     await page.locator('.react-flow__node[data-id="t-request"]').click({ position: { x: 20, y: 10 } });
     await page.locator('.react-flow__node[data-id="registry"]').click({ position: { x: 20, y: 10 }, modifiers: ['Shift'] });
     await expect(page.locator('.lb-panel h3')).toHaveText('2 blocks selected');
-    await page.locator('.lb-panel').getByRole('button', { name: 'Copy for agent' }).click();
+    await page.locator('.lb-panel').getByRole('button', { name: 'Copy reference for agent' }).click();
     const text = await page.evaluate(() => navigator.clipboard.readText());
     expect(text.split('\n')).toEqual([opened.file, '- "Request to an app" (id: t-request, trigger)', '- "App registry" (id: registry, group)']);
   } finally {

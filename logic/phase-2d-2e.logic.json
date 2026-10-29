@@ -603,7 +603,7 @@
       "source": "user",
       "parent": "g-edit",
       "label": "Copy IconButton for reference",
-      "desc": "The copy icon on a block or wire panel, or 'Copy for agent' with several blocks selected.",
+      "desc": "The copy icon on a block or wire panel, or 'Copy reference for agent' with several blocks selected.",
       "context": {
         "from": "Side panel header / selection panel"
       },

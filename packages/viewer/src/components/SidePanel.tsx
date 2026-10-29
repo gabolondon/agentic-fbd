@@ -441,7 +441,7 @@ function SelectionPanel({ refs, doc, filePath }: Props & { refs: ItemRef[] }) {
         ))}
       </ul>
       <button className="lb-button" onClick={() => copy(copyReference(doc, filePath, refs))}>
-        {copied ? 'Copied' : 'Copy for agent'}
+        {copied ? 'Copied' : 'Copy reference for agent'}
       </button>
       <p className="lb-muted">Copies the file and one line per block, to point the agent at them in a prompt.</p>
     </>

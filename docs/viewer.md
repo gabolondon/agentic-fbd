@@ -327,14 +327,16 @@ saved. Paste the text into Claude Code. The bar goes away after 20 seconds, or w
 another edit, so copy the request right after you save. If a review file was kept, the bar adds
 **The other version is in `<name>.review.json` for the agent to review.**
 
-The button called **Copy for agent** appears in three places, and each one copies something
+The button called **Copy for agent** appears in two places, and each one copies something
 different:
 
 | Where | What it copies |
 |---|---|
 | The **Saved** bar | The request to implement your edits, as above. |
 | The panel of an unexplored group | The request to explain that group. |
-| The panel shown when several blocks are selected | The reference to those blocks (see below). |
+
+A third way to hand something to the agent, **Copy reference for agent**, points at blocks and
+wires instead of asking for a change (see below).
 
 ### Copy reference for agent
 
@@ -344,8 +346,8 @@ change anything.
 - In the panel of a block or a wire, click the copy icon (**Copy reference for agent**) at the
   top. The icon turns into **Copied** for a moment.
 - To refer to several blocks, select them (see [the table below](#keyboard-and-mouse)). The
-  panel shows **N blocks selected** and the list. Its **Copy for agent** button copies the
-  reference for all of them.
+  panel shows **N blocks selected** and the list. Its **Copy reference for agent** button copies
+  the reference for all of them.
 
 The reference is the file path and one line per item: the block's name, its id, its kind and the
 code it maps to.
