@@ -1,7 +1,8 @@
 # agentic-fbd format reference (v0.1)
 
 One JSON file per subject. Keys are English; labels and explanations use the user's language.
-Validate with `node "<base>/../../dist/cli.mjs" validate <file>`. Schema: `logic.schema.json`.
+`$CLI` is the CLI found in SKILL.md. Check your file with `references/checklist.md`, then
+`$CLI validate <file>`. Schema: `logic.schema.json`.
 
 ## Top level
 
@@ -63,9 +64,8 @@ Common fields: `id`, `kind`, `label`, `desc`, `logic`, `parent`, `inputs`, `outp
 ### Groups and layers
 
 - Wires connect nodes directly, even across groups. The viewer computes group boundary ports.
-- Only an unexplored group (`explored: false`, no children) declares ports. To explore it, add
-  its children, rewire the wires that ended on `group.port` to the children, remove the group's
-  ports, and drop `explored`. A group must never have both children and ports.
+- Only an unexplored group (`explored: false`, no children) declares ports. A group must never
+  have both children and ports. To explore a group, see `workflow-understand.md`, step 8.
 
 ## Wires
 
@@ -171,19 +171,12 @@ Wires are checked by **name first** (nominal):
 Errors fail validation; warnings and notices don't. A warning is often exactly the risk worth
 writing down.
 
-## Layout file
+## Files the viewer writes
 
-`<subject>.layout.json`, next to the diagram, holds the positions a person set by dragging blocks
-in the viewer. The viewer writes it; never edit it. Commit it with the diagram. Blocks it doesn't
-mention are laid out automatically, so editing the diagram needs no change to it.
-
-## Draft and review files (written by the viewer)
-
-Edits made in the viewer are kept in `<subject>.draft.json` (the edited document, plus the
-diagram's text when editing started) until the user saves. If the diagram changed on disk
-meanwhile, the save keeps the user's version and puts the other one in `<subject>.review.json`.
-Never write either file. While a draft exists, don't edit the diagram. A review file is for you
-to merge into the saved diagram and then delete. Neither should be committed.
+Next to the diagram, the viewer writes `<subject>.layout.json` (positions from dragging blocks;
+commit it), `<subject>.draft.json` (unsaved edits; while it exists, don't edit the diagram) and
+`<subject>.review.json` (the other version, when a save met a changed file; merge it, then
+delete it; see `workflow-edits.md`). Never write or edit these. Never commit draft or review.
 
 ## IDs
 
