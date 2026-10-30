@@ -100,7 +100,7 @@ describe('dataBox', () => {
     const before = block(dataBox(example(), '', 'save', 'before'));
     expect(before.reads.map((i) => [i.name, i.where])).toEqual([['optionId', 'from Click option']]);
     const after = block(dataBox(example(), '', 'save', 'after'));
-    expect(after.reads.map((i) => [i.name, i.where])).toEqual([['answer', 'from Other: add vaccine']]);
+    expect(after.reads.map((i) => [i.name, i.where])).toEqual([['answer', 'from Other: add vaccine, Step: Known conditions']]);
   });
 });
 

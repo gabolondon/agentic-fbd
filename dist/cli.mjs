@@ -8402,6 +8402,7 @@ function checkIntegrity(doc) {
   const root = rootScope(doc);
   checkRootIds(doc, issues);
   checkScope(doc, root, issues);
+  checkWiring(root, issues);
   for (const [name, type] of Object.entries(blockTypes)) {
     const body = bodyScope(name, type);
     if (!body) continue;
@@ -8474,6 +8475,34 @@ function checkExplanations(doc, issues) {
   }
   if (noLogic.length) {
     issues.push({ level: "notice", code: "missing-logic", path: noLogic[0], message: `${noLogic.length} block(s) have no "logic" guide (how it works): ${list(noLogic)}` });
+  }
+}
+function wiredIds(scope, ends) {
+  const wired = /* @__PURE__ */ new Set();
+  for (const ref of ends) {
+    let cur = parseEndpoint(ref).node;
+    while (cur !== void 0 && !wired.has(cur)) {
+      wired.add(cur);
+      cur = scope.byId.get(cur)?.parent;
+    }
+  }
+  return wired;
+}
+function checkWiring(root, issues) {
+  const sources = wiredIds(root, root.wires.map((w) => w.from));
+  const targets = wiredIds(root, root.wires.map((w) => w.to));
+  const hint = "wire it, or remove it if it is not part of this flow";
+  for (const node of root.nodes) {
+    if (node.change === "removed" || node.kind === "pin") continue;
+    let message;
+    if (node.kind === "trigger") {
+      if (!sources.has(node.id)) message = `trigger "${node.id}" has no outgoing wire`;
+    } else if (node.kind === "result") {
+      if (!targets.has(node.id)) message = `result "${node.id}" has no incoming wire`;
+    } else if (!sources.has(node.id) && !targets.has(node.id)) {
+      message = `${node.kind} "${node.id}" is not connected to any wire`;
+    }
+    if (message !== void 0) issues.push({ level: "warning", code: "unwired-block", path: node.id, message, hint });
   }
 }
 function err(issues, code2, path, message, hint) {

@@ -304,6 +304,7 @@ Levels:
 | Code | What it means | How to fix it |
 |---|---|---|
 | `type-meaning` | A wire fits by shape, but the type names differ, for example a plain `number` into a named `OptionId`. | Check the two types mean the same thing. If so, use the same named type on both ends. If not, rewire. |
+| `unwired-block` | A top-level block has no wire: a trigger with no outgoing wire, a result with no incoming wire, or any other block (a group counts its children) with no wire at all. Blocks marked `change: "removed"`, pins and block type bodies are not checked. | Wire it, or remove it if it is not part of this flow. |
 | `link-self` | A `see` link points at the diagram's own file. | Link to another diagram, or remove `see`. |
 | `link-missing-file` | A `see` link names a diagram that is missing or unreadable in the same folder. | Fix the file name, create the diagram, or remove `see`. |
 | `link-missing-node` | A `see` link of the form `file#block` names a block that the other diagram does not have. | Fix the block id, or drop the `#block` part. |

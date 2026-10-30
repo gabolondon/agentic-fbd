@@ -192,7 +192,10 @@
       "parent": "wizard",
       "label": "Step: Known conditions",
       "desc": "Category → condition → Other, four levels deep",
-      "explored": false
+      "explored": false,
+      "outputs": {
+        "answer": "Answer"
+      }
     },
     {
       "id": "t-select",
@@ -368,6 +371,12 @@
       "id": "w7",
       "from": "api.ok",
       "to": "done.ok"
+    },
+    {
+      "id": "w8",
+      "from": "conditions.answer",
+      "to": "save.answer",
+      "change": "new"
     }
   ],
   "risks": [

@@ -44,6 +44,18 @@ describe('agentic-fbd validate', () => {
     expect(out).toMatch(/^ok {3}other-free-text\.logic\.json/m);
   });
 
+  it('reports no unwired-block on the bundled examples or on the logic/ diagrams', async () => {
+    const logicDir = join(repoRoot, 'logic');
+    const files = [
+      ...readdirSync(examples).map((f) => join(examples, f)),
+      ...readdirSync(logicDir).filter((f) => f.endsWith('.logic.json')).map((f) => join(logicDir, f)),
+    ];
+    expect(files.length).toBeGreaterThanOrEqual(4);
+    const { code, out } = await cli('validate', ...files);
+    expect(code).toBe(0);
+    expect(out).not.toContain('unwired-block');
+  });
+
   it('exits 1 on every invalid fixture with a readable message', async () => {
     for (const f of readdirSync(invalid)) {
       const { code, out } = await cli('validate', join(invalid, f));
@@ -203,7 +215,9 @@ describe('agentic-fbd validate — fix hints', () => {
     expect(issues.find((i) => i.message.includes('"title"'))!.hint).toBe('move it to "subject.title"');
     expect(issues.every((i) => i.hint === undefined || typeof i.hint === 'string')).toBe(true);
     // Issues that carry no hint must not have the key at all (not null, not "").
-    const none = JSON.parse((await cli('validate', join(codeRepo, 'logic/check.logic.json'), '--check-code', codeRepo, '--json')).out).issues;
+    // The fixture's blocks are deliberately unwired; unwired-block always carries a hint.
+    const all: { code: string }[] = JSON.parse((await cli('validate', join(codeRepo, 'logic/check.logic.json'), '--check-code', codeRepo, '--json')).out).issues;
+    const none = all.filter((i) => i.code !== 'unwired-block');
     expect(none.length).toBeGreaterThan(0);
     for (const issue of none) expect(Object.keys(issue)).not.toContain('hint');
   });

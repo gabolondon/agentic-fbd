@@ -23,6 +23,7 @@ export function checkIntegrity(doc: LogicDoc): Issue[] {
 
   checkRootIds(doc, issues);
   checkScope(doc, root, issues);
+  checkWiring(root, issues);
 
   for (const [name, type] of Object.entries(blockTypes)) {
     const body = bodyScope(name, type);
@@ -105,6 +106,41 @@ function checkExplanations(doc: LogicDoc, issues: Issue[]): void {
   }
   if (noLogic.length) {
     issues.push({ level: 'notice', code: 'missing-logic', path: noLogic[0]!, message: `${noLogic.length} block(s) have no "logic" guide (how it works): ${list(noLogic)}` });
+  }
+}
+
+/** Ids a wire end names, plus every ancestor group of each (a group is wired through its children). */
+function wiredIds(scope: Scope, ends: string[]): Set<string> {
+  const wired = new Set<string>();
+  for (const ref of ends) {
+    let cur: string | undefined = parseEndpoint(ref).node;
+    while (cur !== undefined && !wired.has(cur)) {
+      wired.add(cur);
+      cur = scope.byId.get(cur)?.parent;
+    }
+  }
+  return wired;
+}
+
+/**
+ * Root scope only: a block that no wire reaches is probably a forgotten connection.
+ * Blocks marked removed, pins and everything inside blockType bodies are exempt.
+ */
+function checkWiring(root: Scope, issues: Issue[]): void {
+  const sources = wiredIds(root, root.wires.map((w) => w.from));
+  const targets = wiredIds(root, root.wires.map((w) => w.to));
+  const hint = 'wire it, or remove it if it is not part of this flow';
+  for (const node of root.nodes) {
+    if (node.change === 'removed' || node.kind === 'pin') continue;
+    let message: string | undefined;
+    if (node.kind === 'trigger') {
+      if (!sources.has(node.id)) message = `trigger "${node.id}" has no outgoing wire`;
+    } else if (node.kind === 'result') {
+      if (!targets.has(node.id)) message = `result "${node.id}" has no incoming wire`;
+    } else if (!sources.has(node.id) && !targets.has(node.id)) {
+      message = `${node.kind} "${node.id}" is not connected to any wire`;
+    }
+    if (message !== undefined) issues.push({ level: 'warning', code: 'unwired-block', path: node.id, message, hint });
   }
 }
 
