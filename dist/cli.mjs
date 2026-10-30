@@ -7513,7 +7513,7 @@ var require__ = __commonJS({
 
 // packages/cli/src/main.ts
 import { existsSync as existsSync3, readFileSync as readFileSync4 } from "node:fs";
-import { basename as basename3, resolve as resolve4 } from "node:path";
+import { resolve as resolve4 } from "node:path";
 
 // skills/agentic-fbd/references/logic.schema.json
 var logic_schema_default = {
@@ -8914,6 +8914,55 @@ function openBrowser(url) {
   }
 }
 
+// packages/cli/src/report.ts
+import { basename as basename2 } from "node:path";
+var GROUP_THRESHOLD = 10;
+var EXAMPLES_PER_GROUP = 3;
+var CODE_ORDER = ["json", "read", "schema", "duplicate-id", "unknown-node", "missing-port", "unknown-port", "unwired-block"];
+var LEVEL_ORDER = ["error", "warning", "notice"];
+function formatReport(report) {
+  const count = (level) => report.issues.filter((i) => i.level === level).length;
+  const parts = [plural(count("error"), "error"), plural(count("warning"), "warning"), plural(count("notice"), "notice")];
+  const summary = parts.filter((p) => !p.startsWith("0 ")).join(", ") || "no issues";
+  const lines = [`${report.valid ? "ok  " : "FAIL"} ${basename2(report.file)}: ${summary}`];
+  if (report.issues.length <= GROUP_THRESHOLD) {
+    for (const issue of report.issues) {
+      lines.push(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
+      if (issue.hint) lines.push(`           fix: ${issue.hint}`);
+    }
+    return lines;
+  }
+  for (const group of groupIssues(report.issues)) {
+    lines.push(`  ${group.level} [${group.code}] \xD7 ${group.issues.length}`);
+    for (const issue of group.issues.slice(0, EXAMPLES_PER_GROUP)) {
+      lines.push(`    ${issue.message}`);
+      if (issue.hint) lines.push(`      fix: ${issue.hint}`);
+    }
+    const left = group.issues.length - EXAMPLES_PER_GROUP;
+    if (left > 0) lines.push(`    \u2026 ${left} more`);
+  }
+  return lines;
+}
+function groupIssues(issues) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const issue of issues) {
+    const key = `${issue.level}\0${issue.code}`;
+    const group = groups.get(key);
+    if (group) group.issues.push(issue);
+    else groups.set(key, { level: issue.level, code: issue.code, issues: [issue] });
+  }
+  const rank = (list, value) => {
+    const i = list.indexOf(value);
+    return i === -1 ? list.length : i;
+  };
+  return [...groups.values()].sort(
+    (a, b) => rank(LEVEL_ORDER, a.level) - rank(LEVEL_ORDER, b.level) || rank(CODE_ORDER, a.code) - rank(CODE_ORDER, b.code) || b.issues.length - a.issues.length
+  );
+}
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
 // packages/cli/src/server.ts
 import { existsSync as existsSync2, readFileSync as readFileSync3, statSync } from "node:fs";
 import { createServer } from "node:http";
@@ -8923,7 +8972,7 @@ import { fileURLToPath } from "node:url";
 // packages/cli/src/api.ts
 import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { watch } from "node:fs";
-import { basename as basename2, dirname as dirname2, join as join2, resolve as resolve2 } from "node:path";
+import { basename as basename3, dirname as dirname2, join as join2, resolve as resolve2 } from "node:path";
 var DEBOUNCE_MS = 120;
 var KEEPALIVE_MS = 2e4;
 var DIAGRAM = /^[^/\\]+\.logic\.json$/;
@@ -8950,7 +8999,7 @@ var HttpError = class extends Error {
 function createDocApi(file, displayPath = file) {
   const absolute = resolve2(file);
   const dir = dirname2(absolute);
-  const opened = basename2(absolute);
+  const opened = basename3(absolute);
   const clients = /* @__PURE__ */ new Set();
   let timer;
   let watcher;
@@ -9159,7 +9208,7 @@ function sameOrigin(req) {
   }
 }
 async function loadLayout(absolute) {
-  const text = await readSafe(join2(dirname2(absolute), layoutFileName(basename2(absolute))));
+  const text = await readSafe(join2(dirname2(absolute), layoutFileName(basename3(absolute))));
   if (text === null) return null;
   try {
     return parseLayout(JSON.parse(text));
@@ -9193,7 +9242,7 @@ async function load(absolute, file, displayPath) {
   return { path: displayPath, file, doc: result.doc, valid: result.valid, issues: result.issues, layout, draft, review };
 }
 async function loadDraft(absolute, current) {
-  const draft = await readDraft(join2(dirname2(absolute), draftFileName(basename2(absolute))));
+  const draft = await readDraft(join2(dirname2(absolute), draftFileName(basename3(absolute))));
   if (!draft) return null;
   let original = null;
   try {
@@ -9204,7 +9253,7 @@ async function loadDraft(absolute, current) {
   return { doc: draft.doc, original, changedOnDisk: current !== draft.original };
 }
 async function reviewOf(absolute) {
-  const name = reviewFileName(basename2(absolute));
+  const name = reviewFileName(basename3(absolute));
   return await readSafe(join2(dirname2(absolute), name)) === null ? null : name;
 }
 async function readSafe(path) {
@@ -9370,7 +9419,7 @@ ${USAGE}`);
     const asJson = args.flags.has("json");
     const reports = args.positional.map((file) => validateFile(file, typeof repo === "string" ? repo : void 0));
     if (asJson) io.out(JSON.stringify(reports.length === 1 ? reports[0] : reports, null, 2));
-    else for (const r of reports) printReport(r, io);
+    else for (const r of reports) for (const line of formatReport(r)) io.out(line);
     return reports.every((r) => r.valid) ? 0 : 1;
   }
 });
@@ -9435,19 +9484,6 @@ function validateFile(file, repoRoot) {
   if (result.doc) issues.push(...checkLinks(result.doc, resolve4(file)));
   if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve4(repoRoot)));
   return { file, valid: result.valid, issues };
-}
-function printReport(report, io) {
-  const count = (level) => report.issues.filter((i) => i.level === level).length;
-  const parts = [plural(count("error"), "error"), plural(count("warning"), "warning"), plural(count("notice"), "notice")];
-  const summary = parts.filter((p) => !p.startsWith("0 ")).join(", ") || "no issues";
-  io.out(`${report.valid ? "ok  " : "FAIL"} ${basename3(report.file)}: ${summary}`);
-  for (const issue of report.issues) {
-    io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
-    if (issue.hint) io.out(`           fix: ${issue.hint}`);
-  }
-}
-function plural(n, word) {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 // packages/cli/src/index.ts

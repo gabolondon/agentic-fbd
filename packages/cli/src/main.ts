@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { validateText, type Issue } from '@agentic-fbd/core';
 import { checkCode } from './checkCode.ts';
 import { checkLinks } from './checkLinks.ts';
 import { openBrowser } from './openBrowser.ts';
+import { formatReport } from './report.ts';
 import { findViewerDir, startServer, type RunningServer } from './server.ts';
 
 export interface Io {
@@ -102,7 +103,7 @@ register({
     const asJson = args.flags.has('json');
     const reports = args.positional.map((file) => validateFile(file, typeof repo === 'string' ? repo : undefined));
     if (asJson) io.out(JSON.stringify(reports.length === 1 ? reports[0] : reports, null, 2));
-    else for (const r of reports) printReport(r, io);
+    else for (const r of reports) for (const line of formatReport(r)) io.out(line);
     return reports.every((r) => r.valid) ? 0 : 1;
   },
 });
@@ -178,17 +179,3 @@ export function validateFile(file: string, repoRoot?: string): FileReport {
   return { file, valid: result.valid, issues };
 }
 
-function printReport(report: FileReport, io: Io): void {
-  const count = (level: string): number => report.issues.filter((i) => i.level === level).length;
-  const parts = [plural(count('error'), 'error'), plural(count('warning'), 'warning'), plural(count('notice'), 'notice')];
-  const summary = parts.filter((p) => !p.startsWith('0 ')).join(', ') || 'no issues';
-  io.out(`${report.valid ? 'ok  ' : 'FAIL'} ${basename(report.file)}: ${summary}`);
-  for (const issue of report.issues) {
-    io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
-    if (issue.hint) io.out(`           fix: ${issue.hint}`);
-  }
-}
-
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? '' : 's'}`;
-}

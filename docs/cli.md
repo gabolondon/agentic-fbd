@@ -122,6 +122,50 @@ FAIL broken.logic.json: 1 error
            fix: move it to "subject.title"
 ```
 
+### Many issues
+
+With 10 issues or fewer, `validate` prints one line per issue, as above. With more, it groups
+them by code so you fix the cause and not every line. The groups come in this order: errors
+first, then warnings, then notices. Among errors, the ones that cause others come first
+(`json`, `read`, `schema`, `duplicate-id`, `unknown-node`, `missing-port`, `unknown-port`), then
+the rest, the largest group first. Among warnings, `unwired-block` comes first. Each group shows a
+header with its count, the first three issues with their `fix:` line, and how many were left out.
+`--json` is not grouped: it always lists every issue.
+
+Here a wire ends at `pars`, a typo for `parse`, 40 times, and 30 more wires start at `parse`
+without naming a port:
+
+```text
+FAIL many-errors.logic.json: 70 errors, 2 warnings, 2 notices
+  error [unknown-node] × 40
+    wire "u1" to "pars.item": node "pars" does not exist
+      fix: did you mean "parse"? Otherwise add a node with id "pars"
+    wire "u2" to "pars.item": node "pars" does not exist
+      fix: did you mean "parse"? Otherwise add a node with id "pars"
+    wire "u3" to "pars.item": node "pars" does not exist
+      fix: did you mean "parse"? Otherwise add a node with id "pars"
+    … 37 more
+  error [missing-port] × 30
+    wire "m1" from "parse": only state nodes may be referenced without a port; use "parse.<port>"
+      fix: use "parse.<port>"; outputs of parse: value
+    wire "m2" from "parse": only state nodes may be referenced without a port; use "parse.<port>"
+      fix: use "parse.<port>"; outputs of parse: value
+    wire "m3" from "parse": only state nodes may be referenced without a port; use "parse.<port>"
+      fix: use "parse.<port>"; outputs of parse: value
+    … 27 more
+  warning [unwired-block] × 2
+    function "audit" is not connected to any wire
+      fix: wire it, or remove it if it is not part of this flow
+    result "done" has no incoming wire
+      fix: wire it, or remove it if it is not part of this flow
+  notice [missing-desc] × 1
+    5 block(s) have no "desc" (what it does): start, parse, store, audit, done
+  notice [missing-logic] × 1
+    3 block(s) have no "logic" guide (how it works): parse, store, audit
+```
+
+Fix the first group, run `validate` again, and the rest often disappears.
+
 ### Several files
 
 ```bash
