@@ -12,6 +12,7 @@ import {
 import { compat, undefinedNames } from '../types/compat.ts';
 import { parseType, typeToString } from '../types/parse.ts';
 import type { Issue } from './issues.ts';
+import { closestIds } from './similar.ts';
 
 /** Reference and consistency checks that JSON Schema cannot express (design spec §7). */
 export function checkIntegrity(doc: LogicDoc): Issue[] {
@@ -107,8 +108,8 @@ function checkExplanations(doc: LogicDoc, issues: Issue[]): void {
   }
 }
 
-function err(issues: Issue[], code: string, path: string, message: string): void {
-  issues.push({ level: 'error', code, path, message });
+function err(issues: Issue[], code: string, path: string, message: string, hint?: string): void {
+  issues.push({ level: 'error', code, path, message, ...(hint === undefined ? {} : { hint }) });
 }
 
 function checkRootIds(doc: LogicDoc, issues: Issue[]): void {
@@ -237,12 +238,18 @@ function resolveEnd(
   const end = parseEndpoint(ref);
   const node = scope.byId.get(end.node);
   if (!node) {
-    err(issues, 'unknown-node', at, `wire "${at}" ${field} "${ref}": node "${end.node}" does not exist${scope.name ? ` in ${scope.name}'s body` : ''}`);
+    // Suggest from this scope only: a body's wires cannot reach the root's nodes.
+    const close = closestIds(end.node, [...scope.byId.keys()]);
+    const add = `add a node with id "${end.node}"`;
+    const hint = close.length ? `did you mean ${close.map((id) => `"${id}"`).join(' or ')}? Otherwise ${add}` : `${add}, or fix the wire`;
+    err(issues, 'unknown-node', at, `wire "${at}" ${field} "${ref}": node "${end.node}" does not exist${scope.name ? ` in ${scope.name}'s body` : ''}`, hint);
     return null;
   }
   if (end.port === undefined) {
     if (node.kind !== 'state') {
-      err(issues, 'missing-port', at, `wire "${at}" ${field} "${ref}": only state nodes may be referenced without a port; use "${node.id}.<port>"`);
+      const known = Object.keys(portsOf(doc, node, side, withBefore));
+      const hint = known.length ? `use "${node.id}.<port>"; ${side} of ${node.id}: ${known.join(', ')}` : `declare "${side}" on ${node.id}, then use "${node.id}.<port>"`;
+      err(issues, 'missing-port', at, `wire "${at}" ${field} "${ref}": only state nodes may be referenced without a port; use "${node.id}.<port>"`, hint);
       return null;
     }
     return { type: node.valueType };
@@ -255,7 +262,8 @@ function resolveEnd(
   if (!(end.port in ports)) {
     const known = Object.keys(ports);
     const list = known.length ? known.join(', ') : 'none';
-    err(issues, 'unknown-port', at, `wire "${at}" ${field} "${ref}": "${node.id}" has no ${side === 'inputs' ? 'input' : 'output'} "${end.port}" (${side}: ${list})`);
+    const hint = known.length ? `use one of: ${known.join(', ')}` : `declare "${side}" on ${node.id}, then use "${node.id}.<port>"`;
+    err(issues, 'unknown-port', at, `wire "${at}" ${field} "${ref}": "${node.id}" has no ${side === 'inputs' ? 'input' : 'output'} "${end.port}" (${side}: ${list})`, hint);
     return null;
   }
   return { type: endpointType(doc, node, end.port, side, withBefore) };

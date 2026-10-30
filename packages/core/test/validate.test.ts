@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { validate, validateText } from '../src/index.ts';
+import { closestIds } from '../src/validate/similar.ts';
 import { baseName, examplesDir, invalidDir, listJson, readJson, repoRoot } from './helpers.ts';
 
 const explanationCodes = new Set(['missing-desc', 'missing-logic', 'missing-store', 'similar-store']);
@@ -227,5 +228,123 @@ describe('schema hints', () => {
         if ('hint' in issue) expect(issue.hint).toBeTruthy();
       }
     }
+  });
+});
+
+describe('wire hints', () => {
+  const subject = { id: 's', title: 'S', intent: 'I', mode: 'design' };
+  const fn = (id: string, ports: { inputs?: Record<string, string>; outputs?: Record<string, string> } = {}) => ({
+    id,
+    kind: 'function',
+    label: id,
+    ...ports,
+  });
+  const docWith = (nodes: unknown[], wires: unknown[], blockTypes?: unknown) => ({
+    version: '0.1',
+    subject,
+    nodes,
+    wires,
+    ...(blockTypes === undefined ? {} : { blockTypes }),
+  });
+  const issueFor = (doc: unknown, code: string) => validate(doc).issues.find((i) => i.code === code);
+
+  it('missing-port lists the ports on that side', () => {
+    const doc = docWith(
+      [fn('fetch', { outputs: { data: 'string', error: 'string' } }), fn('show', { inputs: { in: 'string' } })],
+      [{ id: 'w1', from: 'fetch', to: 'show.in' }],
+    );
+    expect(issueFor(doc, 'missing-port')!.hint).toBe('use "fetch.<port>"; outputs of fetch: data, error');
+  });
+
+  it('missing-port on a node with no ports on that side says to declare them', () => {
+    const doc = docWith([fn('fetch'), fn('show', { inputs: { in: 'string' } })], [{ id: 'w1', from: 'fetch', to: 'show.in' }]);
+    expect(issueFor(doc, 'missing-port')!.hint).toBe('declare "outputs" on fetch, then use "fetch.<port>"');
+    const toSide = docWith([fn('src', { outputs: { out: 'string' } }), fn('show')], [{ id: 'w1', from: 'src.out', to: 'show' }]);
+    expect(issueFor(toSide, 'missing-port')!.hint).toBe('declare "inputs" on show, then use "show.<port>"');
+  });
+
+  it('unknown-node suggests a close id', () => {
+    const doc = docWith(
+      [fn('used-kits', { inputs: { in: 'string' } }), fn('src', { outputs: { out: 'string' } })],
+      [{ id: 'w1', from: 'src.out', to: 'used_kit.in' }],
+    );
+    expect(issueFor(doc, 'unknown-node')!.hint).toBe('did you mean "used-kits"? Otherwise add a node with id "used_kit"');
+  });
+
+  it('unknown-node with no close id says to add the node or fix the wire', () => {
+    const doc = docWith(
+      [fn('src', { outputs: { out: 'string' } })],
+      [{ id: 'w1', from: 'src.out', to: 'used_kit.in' }],
+    );
+    expect(issueFor(doc, 'unknown-node')!.hint).toBe('add a node with id "used_kit", or fix the wire');
+  });
+
+  it('unknown-node inside a blockType body suggests ids from that body only', () => {
+    const doc = docWith(
+      [fn('used-kits')],
+      [],
+      {
+        Box: {
+          label: 'Box',
+          inputs: {},
+          outputs: {},
+          body: {
+            nodes: [fn('used-kit', { inputs: { in: 'string' } }), fn('src', { outputs: { out: 'string' } })],
+            wires: [{ id: 'w1', from: 'src.out', to: 'used_kit.in' }],
+          },
+        },
+      },
+    );
+    const hint = issueFor(doc, 'unknown-node')!.hint;
+    expect(hint).toBe('did you mean "used-kit"? Otherwise add a node with id "used_kit"');
+    expect(hint).not.toContain('"used-kits"');
+  });
+
+  it('unknown-port lists the ports', () => {
+    const doc = docWith(
+      [fn('src', { outputs: { out: 'string' } }), fn('show', { inputs: { a: 'string', b: 'string' } })],
+      [{ id: 'w1', from: 'src.out', to: 'show.c' }],
+    );
+    expect(issueFor(doc, 'unknown-port')!.hint).toBe('use one of: a, b');
+  });
+
+  it('unknown-port on a node with no ports on that side says to declare them', () => {
+    const doc = docWith([fn('src', { outputs: { out: 'string' } }), fn('show')], [{ id: 'w1', from: 'src.out', to: 'show.c' }]);
+    expect(issueFor(doc, 'unknown-port')!.hint).toBe('declare "inputs" on show, then use "show.<port>"');
+  });
+
+  it('adds no hint key to a wire issue that has none', () => {
+    const doc = docWith(
+      [fn('src', { outputs: { out: 'number' } }), fn('show', { inputs: { in: 'string' } })],
+      [{ id: 'w1', from: 'src.out', to: 'show.in' }],
+    );
+    const mismatch = issueFor(doc, 'type-mismatch')!;
+    expect(mismatch).toBeDefined();
+    expect('hint' in mismatch).toBe(false);
+  });
+});
+
+describe('closestIds', () => {
+  it('ranks a substring match as distance 1', () => {
+    expect(closestIds('kit', ['used-kits', 'zzzzzzzz'])).toEqual(['used-kits']);
+    expect(closestIds('used-kits-extra', ['used-kits'])).toEqual(['used-kits']);
+  });
+
+  it('keeps ids within max(2, floor(length / 3)) edits, nearest first', () => {
+    expect(closestIds('abcd', ['abcx', 'abxy', 'axyz'])).toEqual(['abcx', 'abxy']);
+    // length 12: the limit is 4
+    expect(closestIds('abcdefghijkl', ['abcdefghwxyz', 'abcdefgvwxyz'])).toEqual(['abcdefghwxyz']);
+    expect(closestIds('abcdefghijkl', ['abcdefghijxy', 'abcdefghwxyz', 'abcdefvwxyz'])).toEqual(['abcdefghijxy', 'abcdefghwxyz']);
+  });
+
+  it('returns at most max ids, default 3', () => {
+    const ids = ['aa1', 'aa2', 'aa3', 'aa4'];
+    expect(closestIds('aa0', ids)).toEqual(['aa1', 'aa2', 'aa3']);
+    expect(closestIds('aa0', ids, 2)).toEqual(['aa1', 'aa2']);
+  });
+
+  it('returns nothing when no id is close', () => {
+    expect(closestIds('fetch', ['render', 'save'])).toEqual([]);
+    expect(closestIds('fetch', [])).toEqual([]);
   });
 });

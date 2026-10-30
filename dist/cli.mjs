@@ -8368,6 +8368,32 @@ function check2(s, t, env, depth) {
   }
 }
 
+// packages/core/src/validate/similar.ts
+var MIN_SUBSTRING = 2;
+function distance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row.push(Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)));
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+function closestIds(target, ids, max = 3) {
+  const t = target.toLowerCase();
+  const limit = Math.max(2, Math.floor(t.length / 3));
+  const scored = [];
+  for (const id of ids) {
+    const s = id.toLowerCase();
+    const contained = Math.min(s.length, t.length) >= MIN_SUBSTRING && (s.includes(t) || t.includes(s));
+    const d = contained ? 1 : distance(t, s);
+    if (d <= limit) scored.push({ id, d });
+  }
+  return scored.sort((x, y) => x.d - y.d).slice(0, max).map((x) => x.id);
+}
+
 // packages/core/src/validate/integrity.ts
 function checkIntegrity(doc) {
   const issues = [];
@@ -8450,8 +8476,8 @@ function checkExplanations(doc, issues) {
     issues.push({ level: "notice", code: "missing-logic", path: noLogic[0], message: `${noLogic.length} block(s) have no "logic" guide (how it works): ${list(noLogic)}` });
   }
 }
-function err(issues, code2, path, message) {
-  issues.push({ level: "error", code: code2, path, message });
+function err(issues, code2, path, message, hint) {
+  issues.push({ level: "error", code: code2, path, message, ...hint === void 0 ? {} : { hint } });
 }
 function checkRootIds(doc, issues) {
   const seen = /* @__PURE__ */ new Map();
@@ -8556,12 +8582,17 @@ function resolveEnd(doc, scope, ref, side, withBefore, at, field, issues) {
   const end = parseEndpoint(ref);
   const node = scope.byId.get(end.node);
   if (!node) {
-    err(issues, "unknown-node", at, `wire "${at}" ${field} "${ref}": node "${end.node}" does not exist${scope.name ? ` in ${scope.name}'s body` : ""}`);
+    const close = closestIds(end.node, [...scope.byId.keys()]);
+    const add = `add a node with id "${end.node}"`;
+    const hint = close.length ? `did you mean ${close.map((id) => `"${id}"`).join(" or ")}? Otherwise ${add}` : `${add}, or fix the wire`;
+    err(issues, "unknown-node", at, `wire "${at}" ${field} "${ref}": node "${end.node}" does not exist${scope.name ? ` in ${scope.name}'s body` : ""}`, hint);
     return null;
   }
   if (end.port === void 0) {
     if (node.kind !== "state") {
-      err(issues, "missing-port", at, `wire "${at}" ${field} "${ref}": only state nodes may be referenced without a port; use "${node.id}.<port>"`);
+      const known = Object.keys(portsOf(doc, node, side, withBefore));
+      const hint = known.length ? `use "${node.id}.<port>"; ${side} of ${node.id}: ${known.join(", ")}` : `declare "${side}" on ${node.id}, then use "${node.id}.<port>"`;
+      err(issues, "missing-port", at, `wire "${at}" ${field} "${ref}": only state nodes may be referenced without a port; use "${node.id}.<port>"`, hint);
       return null;
     }
     return { type: node.valueType };
@@ -8574,7 +8605,8 @@ function resolveEnd(doc, scope, ref, side, withBefore, at, field, issues) {
   if (!(end.port in ports)) {
     const known = Object.keys(ports);
     const list = known.length ? known.join(", ") : "none";
-    err(issues, "unknown-port", at, `wire "${at}" ${field} "${ref}": "${node.id}" has no ${side === "inputs" ? "input" : "output"} "${end.port}" (${side}: ${list})`);
+    const hint = known.length ? `use one of: ${known.join(", ")}` : `declare "${side}" on ${node.id}, then use "${node.id}.<port>"`;
+    err(issues, "unknown-port", at, `wire "${at}" ${field} "${ref}": "${node.id}" has no ${side === "inputs" ? "input" : "output"} "${end.port}" (${side}: ${list})`, hint);
     return null;
   }
   return { type: endpointType(doc, node, end.port, side, withBefore) };
