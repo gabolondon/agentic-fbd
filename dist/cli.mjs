@@ -8082,12 +8082,16 @@ var ajv = new import__.default({ allErrors: true, strict: false });
 var check = ajv.compile(logicSchema);
 function validateSchema(doc) {
   if (check(doc)) return [];
-  return (check.errors ?? []).filter(relevant).map((e) => ({
-    level: "error",
-    code: "schema",
-    path: e.instancePath || "/",
-    message: describe(e)
-  }));
+  return (check.errors ?? []).filter(relevant).map((e) => {
+    const hint = schemaHint(e);
+    return {
+      level: "error",
+      code: "schema",
+      path: e.instancePath || "/",
+      message: describe(e),
+      ...hint === void 0 ? {} : { hint }
+    };
+  });
 }
 function relevant(e) {
   return e.keyword !== "anyOf" && e.keyword !== "if";
@@ -8103,6 +8107,35 @@ function describe(e) {
       return `${at}: must be one of ${JSON.stringify(e.params.allowedValues)}`;
     default:
       return `${at}: ${e.message ?? "is invalid"}`;
+  }
+}
+var SUBJECT_SHAPE = '"subject": { "id", "title", "intent", "mode" }';
+var TOP_LEVEL_HOME = {
+  title: 'move it to "subject.title"',
+  description: 'move it to "subject.intent"',
+  layers: 'replace it with "nodes" entries of kind "group"'
+};
+function schemaHint(e) {
+  const params = e.params;
+  if (e.instancePath === "" && e.keyword === "type") {
+    return 'the file must be one JSON object: { "version": "0.1", "subject": {...}, "nodes": [], "wires": [] }';
+  }
+  switch (e.keyword) {
+    case "additionalProperties":
+      return e.instancePath === "" ? TOP_LEVEL_HOME[params.additionalProperty] ?? "remove it" : "remove it";
+    case "required": {
+      const field = params.missingProperty;
+      if (e.instancePath !== "") return `add "${field}" to "${e.instancePath}"`;
+      if (field === "version") return 'set "version": "0.1"';
+      if (field === "subject") return `add ${SUBJECT_SHAPE}`;
+      return `add "${field}": [] at the top level`;
+    }
+    case "const":
+      return e.instancePath === "/version" ? 'set "version": "0.1"' : void 0;
+    case "type":
+      return e.instancePath === "/subject" ? `make it an object: ${SUBJECT_SHAPE}` : void 0;
+    default:
+      return void 0;
   }
 }
 
@@ -9347,7 +9380,10 @@ function printReport(report, io) {
   const parts = [plural(count("error"), "error"), plural(count("warning"), "warning"), plural(count("notice"), "notice")];
   const summary = parts.filter((p) => !p.startsWith("0 ")).join(", ") || "no issues";
   io.out(`${report.valid ? "ok  " : "FAIL"} ${basename3(report.file)}: ${summary}`);
-  for (const issue of report.issues) io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
+  for (const issue of report.issues) {
+    io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
+    if (issue.hint) io.out(`           fix: ${issue.hint}`);
+  }
 }
 function plural(n, word) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;

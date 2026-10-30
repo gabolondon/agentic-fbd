@@ -183,7 +183,10 @@ function printReport(report: FileReport, io: Io): void {
   const parts = [plural(count('error'), 'error'), plural(count('warning'), 'warning'), plural(count('notice'), 'notice')];
   const summary = parts.filter((p) => !p.startsWith('0 ')).join(', ') || 'no issues';
   io.out(`${report.valid ? 'ok  ' : 'FAIL'} ${basename(report.file)}: ${summary}`);
-  for (const issue of report.issues) io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
+  for (const issue of report.issues) {
+    io.out(`  ${issue.level.padEnd(7)} [${issue.code}] ${issue.message}`);
+    if (issue.hint) io.out(`           fix: ${issue.hint}`);
+  }
 }
 
 function plural(n: number, word: string): string {

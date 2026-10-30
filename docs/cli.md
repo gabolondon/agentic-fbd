@@ -78,7 +78,8 @@ For each file `validate` runs these checks, in this order:
 5. With `--check-code`, it checks that every `code` reference still exists in your repo.
 
 A problem is an **issue**. Each issue has a level (`error`, `warning` or `notice`), a stable
-`code`, a `path` that says where it is, and a `message`. A file is valid when it has no errors.
+`code`, a `path` that says where it is, and a `message`. Some also have a `hint`, one line that
+says what to change. A file is valid when it has no errors.
 
 If step 2 finds errors, steps 3 to 5 do not run. Fix the schema errors first. More issues can
 show up afterward.
@@ -112,7 +113,14 @@ FAIL broken.logic.json: 1 error, 1 warning
 ```
 
 The exit code is 1. Each issue line is `level [code] message`. Look the code up in the
-[issue codes](#issue-codes) table.
+[issue codes](#issue-codes) table. When an issue has a fix hint, it is printed under the issue as
+a `fix:` line:
+
+```text
+FAIL broken.logic.json: 1 error
+  error   [schema] document: unknown field "title"
+           fix: move it to "subject.title"
+```
 
 ### Several files
 
@@ -196,6 +204,7 @@ node dist/cli.mjs validate broken.logic.json --json
 | `issues[].code` | string | Stable code. Safe to match on in scripts. |
 | `issues[].path` | string | Where the problem is: a node, wire or risk id, a `blockType/id` path, a `types/Name` path, or a JSON pointer such as `/version` for schema errors. `/` means the whole file. |
 | `issues[].message` | string | Human-readable text. Do not match on it, it can change. |
+| `issues[].hint` | string, optional | One line saying what to change to fix the issue. Text mode prints it as the `fix:` line. Issues without a hint have no `hint` key. |
 
 The exit code is the same as in text mode: 0 when every file is valid, 1 otherwise.
 

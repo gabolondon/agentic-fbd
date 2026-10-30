@@ -171,3 +171,52 @@ describe('agentic-fbd validate — links between diagrams', () => {
     expect(out.match(/\[link-/g)).toHaveLength(2);
   });
 });
+
+describe('agentic-fbd validate — fix hints', () => {
+  const brokenFile = async (): Promise<string> => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(join(tmpdir(), 'lb-hints-'));
+    const doc = {
+      version: '0.1',
+      subject: { id: 's', title: 'S', intent: 'I', mode: 'design' },
+      title: 'x',
+      nodes: [{ id: 'a', kind: 'function', label: 'A', extra: 1 }],
+      wires: [],
+    };
+    writeFileSync(join(dir, 'broken.logic.json'), JSON.stringify(doc));
+    return join(dir, 'broken.logic.json');
+  };
+
+  it('prints a fix line under an issue that has a hint', async () => {
+    const { code, out } = await cli('validate', await brokenFile());
+    expect(code).toBe(1);
+    const lines = out.split('\n');
+    const at = lines.findIndex((l) => l.includes('unknown field "title"'));
+    expect(at).toBeGreaterThan(-1);
+    expect(lines[at + 1]).toBe('           fix: move it to "subject.title"');
+  });
+
+  it('adds hint to --json, and no hint key on an issue without one', async () => {
+    const { out } = await cli('validate', await brokenFile(), '--json');
+    const issues: { message: string; hint?: string }[] = JSON.parse(out).issues;
+    expect(issues.find((i) => i.message.includes('"title"'))!.hint).toBe('move it to "subject.title"');
+    expect(issues.every((i) => i.hint === undefined || typeof i.hint === 'string')).toBe(true);
+    // Issues that carry no hint must not have the key at all (not null, not "").
+    const none = JSON.parse((await cli('validate', join(codeRepo, 'logic/check.logic.json'), '--check-code', codeRepo, '--json')).out).issues;
+    expect(none.length).toBeGreaterThan(0);
+    for (const issue of none) expect(Object.keys(issue)).not.toContain('hint');
+  });
+
+  it('does not crash on JSON that is not an object', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(join(tmpdir(), 'lb-hints-'));
+    for (const text of ['[]', '"x"', 'null']) {
+      writeFileSync(join(dir, 'x.logic.json'), text);
+      const { code, out } = await cli('validate', join(dir, 'x.logic.json'));
+      expect(code, text).toBe(1);
+      expect(out, text).toContain('fix: the file must be one JSON object');
+    }
+  });
+});

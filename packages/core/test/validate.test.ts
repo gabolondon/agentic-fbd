@@ -167,3 +167,65 @@ describe('validate', () => {
     expect(similar!.message).toBe('new state "wizard" holds the same type as existing "draft"; reuse it if it holds the same data');
   });
 });
+
+describe('schema hints', () => {
+  const subject = { id: 's', title: 'S', intent: 'I', mode: 'design' };
+  const base = { version: '0.1', subject, nodes: [], wires: [] };
+  const hintFor = (doc: unknown, message: string): string | undefined =>
+    validate(doc).issues.find((i) => i.code === 'schema' && i.message.includes(message))?.hint;
+
+  it('maps unknown top-level fields to where they belong', () => {
+    expect(hintFor({ ...base, title: 'x' }, 'unknown field "title"')).toBe('move it to "subject.title"');
+    expect(hintFor({ ...base, description: 'x' }, 'unknown field "description"')).toBe('move it to "subject.intent"');
+    expect(hintFor({ ...base, layers: [] }, 'unknown field "layers"')).toBe('replace it with "nodes" entries of kind "group"');
+    expect(hintFor({ ...base, meta: {} }, 'unknown field "meta"')).toBe('remove it');
+  });
+
+  it('says remove it for an unknown field that is not top-level, even when its name has a mapping', () => {
+    const doc = { ...base, nodes: [{ id: 'a', kind: 'function', label: 'A', title: 'x' }] };
+    expect(hintFor(doc, 'unknown field "title"')).toBe('remove it');
+  });
+
+  it('hints the version', () => {
+    expect(hintFor({ ...base, version: '1.0' }, '/version')).toBe('set "version": "0.1"');
+    const { version: _version, ...noVersion } = base;
+    expect(hintFor(noVersion, 'missing required field "version"')).toBe('set "version": "0.1"');
+  });
+
+  it('hints a subject that is not an object', () => {
+    expect(hintFor({ ...base, subject: 'x' }, '/subject')).toContain('"subject": { "id", "title", "intent", "mode" }');
+  });
+
+  it('hints a missing subject, nodes and wires', () => {
+    const { subject: _subject, ...noSubject } = base;
+    expect(hintFor(noSubject, 'missing required field "subject"')).toContain('"subject": { "id", "title", "intent", "mode" }');
+    const { nodes: _nodes, ...noNodes } = base;
+    expect(hintFor(noNodes, 'missing required field "nodes"')).toBe('add "nodes": [] at the top level');
+    const { wires: _wires, ...noWires } = base;
+    expect(hintFor(noWires, 'missing required field "wires"')).toBe('add "wires": [] at the top level');
+  });
+
+  it('hints a missing field below the top level', () => {
+    const doc = { ...base, subject: { id: 's', title: 'S', intent: 'I' } };
+    expect(hintFor(doc, 'missing required field "mode"')).toBe('add "mode" to "/subject"');
+  });
+
+  it('reports a non-object root with a hint and does not throw', () => {
+    for (const root of [[], 'x', null, 3]) {
+      const result = validate(root);
+      expect(result.valid, JSON.stringify(root)).toBe(false);
+      expect(result.issues.length).toBeGreaterThan(0);
+      for (const issue of result.issues) {
+        expect(issue.hint, JSON.stringify(root)).toBe('the file must be one JSON object: { "version": "0.1", "subject": {...}, "nodes": [], "wires": [] }');
+      }
+    }
+  });
+
+  it('gives every schema issue of the invalid fixtures a hint or none, never an empty one', () => {
+    for (const file of listJson(invalidDir, 'schema-')) {
+      for (const issue of validate(readJson(file)).issues) {
+        if ('hint' in issue) expect(issue.hint).toBeTruthy();
+      }
+    }
+  });
+});
