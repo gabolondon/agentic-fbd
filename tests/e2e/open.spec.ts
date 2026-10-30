@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -122,6 +122,24 @@ test('shows validation errors and keeps the last good render', async ({ page }) 
     opened.child.kill();
   }
 });
+
+for (const shape of ['understand', 'overview'] as const) {
+  test(`new + open shows the ${shape} starter with no error banner`, async ({ page }) => {
+    const starter = join(mkdtempSync(join(tmpdir(), 'lb-e2e-new-')), 'fresh', 'starter.logic.json');
+    execFileSync(process.execPath, [cli, 'new', starter, ...(shape === 'overview' ? ['--overview'] : [])]);
+    const opened = await open(starter);
+    const errors = trackErrors(page);
+    try {
+      await page.goto(opened.url);
+      await expect(rendered(page).filter({ hasText: 'TODO: what starts this flow' })).toBeVisible();
+      await expect(rendered(page).filter({ hasText: 'TODO: what the flow produces' })).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      expect(errors).toEqual([]);
+    } finally {
+      opened.child.kill();
+    }
+  });
+}
 
 test('opens an invalid file and explains why', async ({ page }) => {
   const opened = await open(null, '{ "version": "0.1" ');

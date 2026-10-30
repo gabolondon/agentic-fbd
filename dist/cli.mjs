@@ -7512,8 +7512,8 @@ var require__ = __commonJS({
 });
 
 // packages/cli/src/main.ts
-import { existsSync as existsSync3, readFileSync as readFileSync4 } from "node:fs";
-import { resolve as resolve4 } from "node:path";
+import { existsSync as existsSync3, mkdirSync, readFileSync as readFileSync4, writeFileSync } from "node:fs";
+import { basename as basename4, dirname as dirname4, resolve as resolve4 } from "node:path";
 
 // skills/agentic-fbd/references/logic.schema.json
 var logic_schema_default = {
@@ -8902,6 +8902,98 @@ function checkLinks(doc, file) {
   return issues;
 }
 
+// packages/cli/src/starter.ts
+var PLACEHOLDER = "TODO";
+function starterDoc(shape, id = "subject") {
+  const subject = {
+    id,
+    title: `${PLACEHOLDER}: name of the feature or flow`,
+    intent: `${PLACEHOLDER}: what this diagram should help you understand or decide`,
+    mode: "understand"
+  };
+  const start = {
+    id: "start",
+    kind: "trigger",
+    label: `${PLACEHOLDER}: what starts this flow`,
+    desc: `${PLACEHOLDER}: who or what triggers it, and when`,
+    source: "user",
+    outputs: { value: "string" }
+  };
+  const done = {
+    id: "done",
+    kind: "result",
+    label: `${PLACEHOLDER}: what the flow produces`,
+    desc: `${PLACEHOLDER}: where the outcome goes or what the caller sees`,
+    inputs: { value: "string" }
+  };
+  if (shape === "understand") {
+    return {
+      version: "0.1",
+      subject,
+      nodes: [
+        start,
+        {
+          id: "step",
+          kind: "function",
+          label: `${PLACEHOLDER}: what this step does`,
+          desc: `${PLACEHOLDER}: what the step does, in one or two sentences`,
+          logic: [`${PLACEHOLDER}: first thing the step does`, `${PLACEHOLDER}: next thing the step does`],
+          inputs: { value: "string" },
+          outputs: { value: "string" }
+        },
+        done
+      ],
+      wires: [
+        { id: "w1", from: "start.value", to: "step.value" },
+        { id: "w2", from: "step.value", to: "done.value" }
+      ]
+    };
+  }
+  const system = (name, label) => ({
+    id: name,
+    kind: "group",
+    label: `${PLACEHOLDER}: ${label}`,
+    desc: `${PLACEHOLDER}: what this system or module is responsible for`,
+    explored: false,
+    inputs: { value: "string" },
+    outputs: { value: "string" }
+  });
+  return {
+    version: "0.1",
+    subject,
+    nodes: [start, system("system-a", "first system or module"), system("system-b", "second system or module"), done],
+    wires: [
+      { id: "w1", from: "start.value", to: "system-a.value" },
+      { id: "w2", from: "system-a.value", to: "system-b.value" },
+      { id: "w3", from: "system-b.value", to: "done.value" }
+    ]
+  };
+}
+
+// packages/cli/src/checkPlaceholders.ts
+function checkPlaceholders(doc) {
+  const issues = [];
+  const visit = (value, path) => {
+    if (typeof value === "string") {
+      if (value.startsWith(PLACEHOLDER)) {
+        issues.push({
+          level: "error",
+          code: "placeholder",
+          path,
+          message: `placeholder text left at ${path}: "${value}"`,
+          hint: "replace the TODO text with the real content"
+        });
+      }
+    } else if (Array.isArray(value)) {
+      value.forEach((item, i) => visit(item, `${path}/${i}`));
+    } else if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) visit(child, `${path}/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`);
+    }
+  };
+  visit(doc, "");
+  return issues;
+}
+
 // packages/cli/src/openBrowser.ts
 import { spawn } from "node:child_process";
 function openBrowser(url) {
@@ -9344,6 +9436,7 @@ function staticPath(root, url) {
 var USAGE = `agentic-fbd \u2014 logic diagrams for humans and coding agents
 
 Usage:
+  agentic-fbd new <file.logic.json> [--overview]
   agentic-fbd validate <file.logic.json>... [--check-code <repo-root>] [--json]
   agentic-fbd open <file.logic.json> [--port <n>] [--no-open]
 
@@ -9404,6 +9497,34 @@ ${USAGE}`);
   }
   return command.run(args, io);
 }
+function subjectIdFor(file) {
+  const name = basename4(file).replace(/\.logic\.json$/, "").replace(/[./\\\s]+/g, "-").replace(/^-+|-+$/g, "");
+  return name || "subject";
+}
+register({
+  name: "new",
+  valued: [],
+  switches: ["overview"],
+  run(args, io) {
+    const [file, ...extra] = args.positional;
+    if (!file || extra.length) {
+      io.err(`new needs exactly one file
+
+${USAGE}`);
+      return 2;
+    }
+    if (existsSync3(file)) {
+      io.err(`${file} already exists`);
+      return 2;
+    }
+    const doc = starterDoc(args.flags.has("overview") ? "overview" : "understand", subjectIdFor(file));
+    mkdirSync(dirname4(resolve4(file)), { recursive: true });
+    writeFileSync(file, `${JSON.stringify(doc, null, 2)}
+`);
+    io.out(`created ${file}; replace every TODO, then run validate`);
+    return 0;
+  }
+});
 register({
   name: "validate",
   valued: ["check-code"],
@@ -9481,9 +9602,10 @@ function validateFile(file, repoRoot) {
   }
   const result = validateText(text);
   const issues = [...result.issues];
+  if (result.doc) issues.push(...checkPlaceholders(result.doc));
   if (result.doc) issues.push(...checkLinks(result.doc, resolve4(file)));
   if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve4(repoRoot)));
-  return { file, valid: result.valid, issues };
+  return { file, valid: issues.every((i) => i.level !== "error"), issues };
 }
 
 // packages/cli/src/index.ts

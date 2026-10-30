@@ -1,7 +1,8 @@
 # CLI
 
-agentic-fbd ships a small command line tool with two commands:
+agentic-fbd ships a small command line tool with three commands:
 
+- `new` writes a starter diagram to fill in.
 - `validate` checks one or more diagram files and reports problems.
 - `open` starts the local viewer for a diagram.
 
@@ -42,6 +43,7 @@ Usage and exit codes are printed by `node dist/cli.mjs --help`:
 
 ```text
 Usage:
+  agentic-fbd new <file.logic.json> [--overview]
   agentic-fbd validate <file.logic.json>... [--check-code <repo-root>] [--json]
   agentic-fbd open <file.logic.json> [--port <n>] [--no-open]
 
@@ -54,9 +56,64 @@ Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage error.
 |---|---|
 | 0 | Every file is valid. Warnings and notices do not fail validation. `--help` also exits 0. |
 | 1 | At least one file has an error, a file cannot be read, or `open` could not start. |
-| 2 | Usage error: no command or an unknown command, `validate` with no file, `open` without exactly one file, a flag that needs a value and has none (the next argument starts with `--`), an unknown flag, or a bad `--port`. |
+| 2 | Usage error: no command or an unknown command, `new` without exactly one file or on a file that already exists, `validate` with no file, `open` without exactly one file, a flag that needs a value and has none (the next argument starts with `--`), an unknown flag, or a bad `--port`. |
 
 Flags that the CLI does not know are ignored without an error.
+
+## `new`
+
+```text
+node dist/cli.mjs new <file.logic.json> [--overview]
+```
+
+`new` writes a small diagram that is ready to fill in, so you start from a file that already has
+the right shape. It prints one line and exits 0:
+
+```bash
+node dist/cli.mjs new logic/checkout-flow.logic.json
+```
+
+```text
+created logic/checkout-flow.logic.json; replace every TODO, then run validate
+```
+
+The starter has a trigger, one function and a result, wired together. Every text in it starts
+with `TODO`, such as `"TODO: what starts this flow"`, so it is clear where to write. The subject
+`id` is the file name without `.logic.json` (`checkout-flow` here), and the mode is `understand`.
+The block and wire ids (`start`, `step`, `done`, `w1`, `w2`) stay as they are, and you can rename
+them.
+
+`--overview` writes the overview shape instead: a trigger, two unexplored groups named
+`system-a` and `system-b`, each with ports, and a result. Use it to map a repo as one block per
+system, then explain the ones you care about in their own diagrams.
+
+| Situation | What happens |
+|---|---|
+| The file already exists | `<file> already exists` on stderr, exit 2. The file is not touched. |
+| The parent folder does not exist | It is created, including folders above it. |
+| Not exactly one file | Usage error, exit 2. |
+
+The starter passes every check except one: `validate` reports each text that still starts with
+`TODO` as a [`placeholder`](#errors) error. So the first `validate` after `new` fails on purpose:
+
+```bash
+node dist/cli.mjs validate logic/checkout-flow.logic.json
+```
+
+```text
+FAIL checkout-flow.logic.json: 10 errors
+  error   [placeholder] placeholder text left at /subject/title: "TODO: name of the feature or flow"
+           fix: replace the TODO text with the real content
+  error   [placeholder] placeholder text left at /subject/intent: "TODO: what this diagram should help you understand or decide"
+           fix: replace the TODO text with the real content
+  error   [placeholder] placeholder text left at /nodes/0/label: "TODO: what starts this flow"
+           fix: replace the TODO text with the real content
+  ...
+```
+
+(The rest of the ten lines have the same shape.) Replace every `TODO` text and run `validate`
+again. Only `validate` checks for placeholders. `open` does not, so the viewer shows a fresh
+starter without an error banner.
 
 ## `validate`
 
@@ -76,6 +133,9 @@ For each file `validate` runs these checks, in this order:
    wire types, groups, pins, block types and explanations.
 4. It checks that every `see` link points at a diagram and a block that exist in the same folder.
 5. With `--check-code`, it checks that every `code` reference still exists in your repo.
+
+On a structurally fine file it also reports every text that still starts with `TODO` (see
+[`new`](#new)) as a `placeholder` error.
 
 A problem is an **issue**. Each issue has a level (`error`, `warning` or `notice`), a stable
 `code`, a `path` that says where it is, and a `message`. Some also have a `hint`, one line that
@@ -320,6 +380,7 @@ Levels:
 |---|---|---|
 | `read` | The file cannot be read (missing, no permission). | Check the path you passed. |
 | `json` | The file is not valid JSON. | Fix the syntax at the position in the message. A missing comma or quote is the usual cause. |
+| `placeholder` | A text anywhere in the file starts with `TODO`. It is left over from `new`. The `path` is a JSON pointer to the text. Only `validate` reports it, not the viewer. | Replace the text with the real content. |
 | `schema` | The structure breaks the JSON Schema: a missing required field, an unknown field, a wrong value, a wrong type. The `path` is a JSON pointer. | Fix the field named in the message. See [`format.md`](../skills/agentic-fbd/references/format.md) and [Blocks](blocks.md). While there are schema errors, the other checks do not run. |
 | `duplicate-id` | Two things share an id. At the top level, nodes, wires, block types and risks share one set of ids. Inside a block type body, nodes and wires share another. | Rename one of them, and update every wire or `parent` that uses the old id. |
 | `unknown-parent` | A node has `parent` (or `before.parent`) naming a node that does not exist. | Fix the id, or remove `parent`. |

@@ -1,11 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 import { validateText, type Issue } from '@agentic-fbd/core';
 import { checkCode } from './checkCode.ts';
 import { checkLinks } from './checkLinks.ts';
+import { checkPlaceholders } from './checkPlaceholders.ts';
 import { openBrowser } from './openBrowser.ts';
 import { formatReport } from './report.ts';
 import { findViewerDir, startServer, type RunningServer } from './server.ts';
+import { starterDoc } from './starter.ts';
 
 export interface Io {
   out: (line: string) => void;
@@ -15,6 +17,7 @@ export interface Io {
 const USAGE = `agentic-fbd — logic diagrams for humans and coding agents
 
 Usage:
+  agentic-fbd new <file.logic.json> [--overview]
   agentic-fbd validate <file.logic.json>... [--check-code <repo-root>] [--json]
   agentic-fbd open <file.logic.json> [--port <n>] [--no-open]
 
@@ -89,6 +92,34 @@ export async function run(argv: string[], io: Io, nodeVersion: string = process.
   }
   return command.run(args, io);
 }
+
+/** The subject id for a new file: its name without `.logic.json`, with characters an id cannot hold replaced. */
+function subjectIdFor(file: string): string {
+  const name = basename(file).replace(/\.logic\.json$/, '').replace(/[./\\\s]+/g, '-').replace(/^-+|-+$/g, '');
+  return name || 'subject';
+}
+
+register({
+  name: 'new',
+  valued: [],
+  switches: ['overview'],
+  run(args, io) {
+    const [file, ...extra] = args.positional;
+    if (!file || extra.length) {
+      io.err(`new needs exactly one file\n\n${USAGE}`);
+      return 2;
+    }
+    if (existsSync(file)) {
+      io.err(`${file} already exists`);
+      return 2;
+    }
+    const doc = starterDoc(args.flags.has('overview') ? 'overview' : 'understand', subjectIdFor(file));
+    mkdirSync(dirname(resolve(file)), { recursive: true });
+    writeFileSync(file, `${JSON.stringify(doc, null, 2)}\n`);
+    io.out(`created ${file}; replace every TODO, then run validate`);
+    return 0;
+  },
+});
 
 register({
   name: 'validate',
@@ -174,8 +205,10 @@ export function validateFile(file: string, repoRoot?: string): FileReport {
   }
   const result = validateText(text);
   const issues = [...result.issues];
+  // Placeholders are checked here and not in the viewer's load path, so the viewer shows a fresh starter without a banner.
+  if (result.doc) issues.push(...checkPlaceholders(result.doc));
   if (result.doc) issues.push(...checkLinks(result.doc, resolve(file)));
   if (repoRoot && result.doc) issues.push(...checkCode(result.doc, resolve(repoRoot)));
-  return { file, valid: result.valid, issues };
+  return { file, valid: issues.every((i) => i.level !== 'error'), issues };
 }
 
