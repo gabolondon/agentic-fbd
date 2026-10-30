@@ -25,8 +25,8 @@ Goal: explain how one existing feature, section, flow, tool or pipeline works. N
    - one `group` per system or stage, then `external` blocks and the final `result` blocks.
    - each block that is real code has `code: { "file", "symbol" }`.
    - `state` blocks with their `store`.
-   - sub-areas you will not explain now: `kind: "group"`, `explored: false`, a `desc`, and
-     declared `inputs` and `outputs` so wires can reach them.
+   - sub-areas that are not the answer to the user's question: `kind: "group"`,
+     `explored: false`, a `desc`, and declared `inputs` and `outputs` so wires can reach them.
    - `types`: names for things that mean something (`OptionId`, not just `number`). Give
      `typeInfo` (`desc`, `code`) only to types that matter, such as request and response models.
      HTTP responses are outputs named by status code (`"200"`, `"422"`).
@@ -39,6 +39,9 @@ Goal: explain how one existing feature, section, flow, tool or pipeline works. N
 7. **Risks.** Note fragile spots as `risks` (`id`, `severity`, `status`, `title`, `detail`,
    `refs` naming the blocks and wires involved). Validate again.
    Done when: exit code 0.
+   If the answer to the user's question sits inside an unexplored group (a key decision, the
+   order of checks), explore that group now with step 8 before step 9. The answer must be
+   visible as blocks, not only in a `desc`.
 8. **Deeper, one group at a time** (the user asked for it, or the step 2 file has an unexplored
    group they named). For group `G`:
    1. Read only the code of `G`.

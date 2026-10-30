@@ -11,8 +11,10 @@ and the risks, before any code is written.
    and do its steps for the area first, then come back here.
    Done when: you have a valid diagram of the area, in a file you will edit.
 2. **Set the mode.** `subject.mode` is `"design"`. `subject.focus` is the id of the group where
-   the change happens. For an idea with no existing code, create the file with
-   `$CLI new logic/<id>.logic.json`, replace every `TODO`, and set `mode` to `"design"`.
+   the change happens; if the change is on the top level, leave `focus` out. Keep the file's
+   existing risks. For an idea with no existing code, create the file with
+   `$CLI new logic/<id>.logic.json`, replace every `TODO` (keep the `subject.id` it set), and set
+   `mode` to `"design"`.
    Done when: `mode` and `focus` are set and validate exits 0.
 3. **Reuse before creating.** Before a new `state`, look for an existing store in the area that
    holds that data. Wire the new blocks to it. A truly new store needs a reason in its
