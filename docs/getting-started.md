@@ -34,7 +34,7 @@ Installed plugins run from a cached copy, so reinstall after a new version is pu
 ## Your first diagram (Understand)
 
 Pick one specific thing in a repo you know: a feature, a flow, a tool, a pipeline. The skill
-explains one subject at a time. It does not map a whole repository. Then ask in plain words:
+explains one subject at a time. Then ask in plain words:
 
 ```text
 Explain how authorization works here, with a logic diagram.
@@ -45,9 +45,12 @@ Claude does this, in order:
 1. Fixes the subject and its boundary. What is inside the diagram, and what stays outside as an
    `external` block (an API, a database, another module).
 2. Reads only the code for that subject.
-3. Writes `logic/<subject-id>.logic.json` in your repo, for example
-   `logic/authorization.logic.json`. There is one file per subject.
-4. Runs `validate` on the file and fixes every error until the command exits with 0. See
+3. Creates `logic/<subject-id>.logic.json` in your repo with `new`, for example
+   `logic/authorization.logic.json`, and fills it in. There is one file per subject. `new` writes
+   a small valid starter whose text is all marked `TODO`, so the first diagram starts from a
+   file with the right shape, not from a blank page.
+4. Runs `validate` on the file and fixes every error until the command exits with 0. Each issue
+   comes with a `fix:` line that says what to change. A `TODO` left in the file is an error. See
    [cli.md](cli.md) for what `validate` checks.
 5. Starts the viewer once, in the background, with `open`. The CLI prints a line like
    `agentic-fbd: http://127.0.0.1:52341/` and Claude gives you that URL. The port is chosen by
@@ -70,6 +73,26 @@ You can open it yourself from a clone of this repo:
 ```bash
 node dist/cli.mjs open skills/agentic-fbd/examples/auth-gate.logic.json
 ```
+
+### Start with an overview of the repo
+
+If you do not know yet which part to study, ask for the shape of the whole repo first:
+
+```text
+Give me a high-level overview of this repo as a logic diagram.
+```
+
+Claude reads the README and the manifest files, then writes one level only: one unexplored
+group per system or module (a web app, an API, a worker), the things that start work, what lives
+outside the repo, and the results. It gives you the URL and the list of systems, and it does not
+open any group on its own. Then ask for each block by name, one at a time. For example:
+
+```text
+Explain "Billing API" (billing-api) in logic/shop-overview.logic.json
+```
+
+Clicking an unexplored group in the viewer and pressing **Copy for agent** gives you this text.
+See [Overview of a repo](skill.md#overview-of-a-repo).
 
 ### Ask for changes
 
@@ -211,11 +234,14 @@ wrongly. Warnings and notices never make a file invalid. For example:
 
 ```text
 FAIL bad.logic.json: 1 error, 1 notice
-  error   [unknown-node] wire "w1" to "b.i": node "b" does not exist
+  error   [unknown-node] wire "w1" to "save.input": node "save" does not exist
+           fix: add a node with id "save", or fix the wire
   notice  [undefined-type] type "Missing" is not defined in "types"; it is treated as opaque
 ```
 
-Each line shows the level, the issue code in brackets and what is wrong. Claude fixes errors
+Each issue shows the level, the issue code in brackets and what is wrong. Many also have a
+`fix:` line that says what to change. With more than ten issues, `validate` groups them by code
+and shows the root causes first (see [cli.md](cli.md#many-issues)). Claude fixes errors
 itself and reruns `validate` before it gives you a URL, so you should rarely see one. If you
 edit a file by hand, run `validate` yourself. The meaning of every code and how to fix it is
 in [cli.md](cli.md).

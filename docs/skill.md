@@ -7,7 +7,8 @@ expect from it. The instructions Claude itself follows are in
 
 Two modes, one file format, one viewer:
 
-- **Understand:** explain how something that exists works.
+- **Understand:** explain how something that exists works. A high-level **overview** of a repo is
+  a special case of it.
 - **Design:** propose a change on top of that understanding.
 
 ## When it runs, when it offers, when it stays out
@@ -17,6 +18,7 @@ Two modes, one file format, one viewer:
 When you explicitly ask for a diagram, Claude uses the skill right away. Explicit requests are:
 
 - to explain, map, diagram or visualize how something works;
+- to give a high-level overview of a repo;
 - to design a feature or a change as a logic diagram;
 - to express your own idea as a diagram;
 - to explain one block of an existing diagram;
@@ -28,6 +30,10 @@ Map the logic of the nightly export job.
 
 ```text
 Explain how a request is authorized, with a diagram.
+```
+
+```text
+Give me a high-level overview of this repo as a logic diagram.
 ```
 
 ```text
@@ -55,10 +61,84 @@ Claude then waits. Nothing is written until you say yes.
 - Simple tasks. Claude does not offer the skill for them.
 - Anything you did not ask for or agree to. The skill never starts on its own.
 
+## How the skill is organized
+
+The skill is split into three levels, so a model reads only what the request needs:
+
+1. [`SKILL.md`](../skills/agentic-fbd/SKILL.md) is a short page, under 4 KB. It tells Claude how
+   to find the CLI, how to pick the kind of request, and a few hard rules.
+2. One workflow file per kind of request, in
+   [`skills/agentic-fbd/references/`](../skills/agentic-fbd/references/): `workflow-overview.md`,
+   `workflow-understand.md`, `workflow-design.md` and `workflow-edits.md`. Each is a numbered list
+   of small steps. Every step names the command to run when there is one, and says when the step
+   is done.
+3. The reference: [`format.md`](../skills/agentic-fbd/references/format.md) (the grammar),
+   [`checklist.md`](../skills/agentic-fbd/references/checklist.md) (yes or no checks before each
+   `validate`) and the examples.
+
+Why: a small model that gets one long page tends to skip it and write the JSON from memory. In a
+real run, a model that never read the format wrote a file of its own invention and got worse as
+it tried to fix it. With three levels, each file is short enough to be read in full, the first
+line of a workflow lists the files to read next, and `validate` backs every step with a `fix:`
+line. The same steps work for larger models too, and they do not read more than they need: a
+workflow, the files it names, and `SKILL.md` stay under 30 KB together.
+
+### Finding the CLI
+
+Claude needs the CLI to create and check a diagram, and it never writes a diagram without one.
+The CLI is at `<base>/../../dist/cli.mjs`, where `<base>` is the folder of `SKILL.md`. Some tools
+copy only the skill folder, so that path may not exist. Then Claude:
+
+1. searches a few likely folders (`~/.agentic-fbd`, `~/.claude`, `~/.config`, `/tmp`) for a copy
+   of `dist/cli.mjs` inside an `agentic-fbd` folder;
+2. if there is none, runs `git clone --depth 1 https://github.com/gabolondon/agentic-fbd.git ~/.agentic-fbd`
+   and uses `~/.agentic-fbd/dist/cli.mjs`.
+
+Both steps need a shell. The clone needs `git` and network access.
+
+### How a diagram is built
+
+Whatever the request, Claude builds the file in layers and checks each one:
+
+1. It creates the file with `new`, which writes a valid starter (see [cli.md](cli.md#new)).
+2. It replaces the starter's `TODO` text and writes the top level only: triggers, groups,
+   externals, results and their wires. Then it runs `validate` until it exits 0 with no
+   `unwired-block` warning. Each issue has a `fix:` line that says what to change.
+3. Only then does it go one level down, one group at a time, and validates after each one.
+
+## Overview of a repo
+
+Use it when you want to see the shape of a repo before you pick a part to study:
+
+```text
+Give me a high-level overview of this repo as a logic diagram.
+```
+
+Claude reads the README and the manifest files, not the source. It then writes one diagram with
+one level only:
+
+- the things that start work (a user, an HTTP call, a schedule, an agent) as triggers;
+- one **unexplored group** per system or module, such as a web app, an API, a worker or a CLI,
+  each with its folder as `ref` and with ports so the wires reach it;
+- what lives outside the repo, such as a database or a third-party API, as `external` blocks;
+- what comes out, as results.
+
+Every block is wired. Claude then tells you the systems in one line each, gives you the URL, and
+says that every block is unexplored. It stops there. It does not open any group on its own.
+
+To go deeper, ask for each block by name, one at a time:
+
+```text
+Explain "Billing API" (billing-api) in logic/shop-overview.logic.json
+```
+
+That is a normal Understand request on one group, described in the next section. The viewer's
+**Copy for agent** button on an unexplored group gives you this exact text.
+
 ## Understand
 
-Use it to explain a specific feature, section, flow, tool or pipeline. It is not a tool for
-mapping a whole repository.
+Use it to explain a specific feature, section, flow, tool or pipeline. For a whole repository,
+use the overview above and then open one group at a time.
 
 Claude follows these steps:
 
@@ -156,14 +236,15 @@ found.
   when a save sets Claude's own edits aside (see the next section). Claude never writes either.
 - Linked diagrams for a large subject are named `logic/<subject>-<system>.logic.json`.
 
-Before it writes a diagram for the first time in a session, Claude reads the full format
-reference ([`format.md`](../skills/agentic-fbd/references/format.md)) and one of the examples.
-Every field and block kind is explained in [blocks.md](blocks.md).
+Before it writes a diagram, Claude reads the workflow file for the request and the files that
+workflow lists on its first line: the checklist, the format reference
+([`format.md`](../skills/agentic-fbd/references/format.md)) and one example. Every field and
+block kind is explained in [blocks.md](blocks.md).
 
 ## The loop
 
-1. Claude writes or updates the JSON, runs `validate` until it exits with 0, starts `open` the
-   first time only, and gives you the URL.
+1. Claude writes or updates the JSON (a new file starts from `new`), runs `validate` until it
+   exits with 0, starts `open` the first time only, and gives you the URL.
 2. Claude says briefly what the diagram shows and where to look: the risks, or the focus level.
 3. You ask for changes in the chat, or paste a request copied from the viewer. Claude edits the
    JSON, validates, and says what changed. The viewer reloads by itself, so it is never

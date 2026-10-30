@@ -75,6 +75,7 @@ Installed plugins run from a cached copy, so reinstall after pulling a new versi
 
 Ask Claude Code in plain words:
 
+- "Give me a high-level overview of this repo as a logic diagram."
 - "Explain how authorization works here, with a logic diagram."
 - "Design adding an 'Other' option to the questionnaire as a logic diagram before we plan it."
 - "Go one layer deeper into the token check."
@@ -88,12 +89,12 @@ simple tasks it doesn't offer it at all.
 
 - [Getting started](docs/getting-started.md): install, a first Understand diagram, a first
   Design, committing the diagram, troubleshooting.
-- [How the skill behaves](docs/skill.md): when Claude uses it, both modes, the files it writes,
-  the edit loop with the viewer.
+- [How the skill behaves](docs/skill.md): when Claude uses it, the overview request, both modes,
+  how the skill is organized, the files it writes, the edit loop with the viewer.
 - [The viewer](docs/viewer.md): every panel and control, editing, Copy for agent, arranging by
   hand.
 - [Blocks, wires and types](docs/blocks.md): every block kind and field, with a complete example.
-- [CLI](docs/cli.md): `validate` and `open`, exit codes, and every issue code.
+- [CLI](docs/cli.md): `new`, `validate` and `open`, exit codes, and every issue code.
 
 The format is one JSON file per subject, with no coordinates; the viewer lays everything out.
 The exact grammar is in [`format.md`](skills/agentic-fbd/references/format.md), the JSON Schema

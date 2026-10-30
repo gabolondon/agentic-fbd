@@ -6,7 +6,7 @@ agentic-fbd ships a small command line tool with three commands:
 - `validate` checks one or more diagram files and reports problems.
 - `open` starts the local viewer for a diagram.
 
-Claude runs both for you when you use the plugin. You can also run them by hand, for example in
+Claude runs them for you when you use the plugin. You can also run them by hand, for example in
 CI or before you commit a diagram.
 
 For the file format itself, see
@@ -26,7 +26,9 @@ plugin:
 node "<plugin>/dist/cli.mjs" validate logic/auth-gate.logic.json
 ```
 
-`<plugin>` is the folder where Claude Code installed agentic-fbd.
+`<plugin>` is the folder where Claude Code installed agentic-fbd. When the skill cannot find
+the file there, it searches for another copy, and if none exists it clones the repo to
+`~/.agentic-fbd` and uses `~/.agentic-fbd/dist/cli.mjs`. See [skill.md](skill.md#finding-the-cli).
 
 **From a clone.** Run it from the repo root. `dist/` is committed, so you do not need to build:
 
@@ -58,7 +60,8 @@ Exit codes: 0 valid (warnings allowed), 1 invalid, 2 usage error.
 | 1 | At least one file has an error, a file cannot be read, or `open` could not start. |
 | 2 | Usage error: no command or an unknown command, `new` without exactly one file or on a file that already exists, `validate` with no file, `open` without exactly one file, a flag that needs a value and has none (the next argument starts with `--`), an unknown flag, or a bad `--port`. |
 
-Flags that the CLI does not know are ignored without an error.
+A flag the CLI does not know is a usage error, so a typo such as `--chekc-code` fails loudly
+instead of being ignored. The message is `unknown flag --chekc-code`, followed by the usage text.
 
 ## `new`
 
@@ -169,6 +172,7 @@ node dist/cli.mjs validate broken.logic.json
 ```text
 FAIL broken.logic.json: 1 error, 1 warning
   error   [unknown-port] wire "w2" from "verify.token": "verify" has no output "token" (outputs: idToken)
+           fix: use one of: idToken
   warning [link-missing-file] "provider" links to billing.logic.json, which is missing or unreadable next to this file
 ```
 
@@ -193,10 +197,10 @@ header with its count, the first three issues with their `fix:` line, and how ma
 `--json` is not grouped: it always lists every issue.
 
 Here a wire ends at `pars`, a typo for `parse`, 40 times, and 30 more wires start at `parse`
-without naming a port:
+without naming a port. One block, `audit`, has no wire at all:
 
 ```text
-FAIL many-errors.logic.json: 70 errors, 2 warnings, 2 notices
+FAIL many-errors.logic.json: 70 errors, 1 warning
   error [unknown-node] × 40
     wire "u1" to "pars.item": node "pars" does not exist
       fix: did you mean "parse"? Otherwise add a node with id "pars"
@@ -213,15 +217,9 @@ FAIL many-errors.logic.json: 70 errors, 2 warnings, 2 notices
     wire "m3" from "parse": only state nodes may be referenced without a port; use "parse.<port>"
       fix: use "parse.<port>"; outputs of parse: value
     … 27 more
-  warning [unwired-block] × 2
+  warning [unwired-block] × 1
     function "audit" is not connected to any wire
       fix: wire it, or remove it if it is not part of this flow
-    result "done" has no incoming wire
-      fix: wire it, or remove it if it is not part of this flow
-  notice [missing-desc] × 1
-    5 block(s) have no "desc" (what it does): start, parse, store, audit, done
-  notice [missing-logic] × 1
-    3 block(s) have no "logic" guide (how it works): parse, store, audit
 ```
 
 Fix the first group, run `validate` again, and the rest often disappears.
@@ -287,7 +285,8 @@ node dist/cli.mjs validate broken.logic.json --json
       "level": "error",
       "code": "unknown-port",
       "path": "w2",
-      "message": "wire \"w2\" from \"verify.token\": \"verify\" has no output \"token\" (outputs: idToken)"
+      "message": "wire \"w2\" from \"verify.token\": \"verify\" has no output \"token\" (outputs: idToken)",
+      "hint": "use one of: idToken"
     },
     {
       "level": "warning",
