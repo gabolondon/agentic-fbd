@@ -16,12 +16,13 @@ function distance(a: string, b: string): number {
 
 /**
  * Up to `max` ids that look like a misspelling of `target`, nearest first (ties keep the input
- * order). An id counts when it is within max(2, floor(target.length / 3)) edits, ignoring case;
- * one that contains the target, or is contained in it, counts as distance 1.
+ * order). An id counts when it is within max(1, floor(target.length / 3)) edits, ignoring case,
+ * so a short id needs a near match; one that contains the target, or is contained in it, counts
+ * as distance 1.
  */
 export function closestIds(target: string, ids: string[], max = 3): string[] {
   const t = target.toLowerCase();
-  const limit = Math.max(2, Math.floor(t.length / 3));
+  const limit = Math.max(1, Math.floor(t.length / 3));
   const scored: { id: string; d: number }[] = [];
   for (const id of ids) {
     const s = id.toLowerCase();

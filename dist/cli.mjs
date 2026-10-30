@@ -8383,7 +8383,7 @@ function distance(a, b) {
 }
 function closestIds(target, ids, max = 3) {
   const t = target.toLowerCase();
-  const limit = Math.max(2, Math.floor(t.length / 3));
+  const limit = Math.max(1, Math.floor(t.length / 3));
   const scored = [];
   for (const id of ids) {
     const s = id.toLowerCase();

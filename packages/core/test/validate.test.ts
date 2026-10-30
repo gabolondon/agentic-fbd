@@ -486,8 +486,10 @@ describe('closestIds', () => {
     expect(closestIds('used-kits-extra', ['used-kits'])).toEqual(['used-kits']);
   });
 
-  it('keeps ids within max(2, floor(length / 3)) edits, nearest first', () => {
-    expect(closestIds('abcd', ['abcx', 'abxy', 'axyz'])).toEqual(['abcx', 'abxy']);
+  it('keeps ids within max(1, floor(length / 3)) edits, nearest first', () => {
+    expect(closestIds('abcd', ['abcx', 'abxy', 'axyz'])).toEqual(['abcx']);
+    // a short unknown id is not matched to an unrelated short id two edits away
+    expect(closestIds('nope', ['core', 'cli'])).toEqual([]);
     // length 12: the limit is 4
     expect(closestIds('abcdefghijkl', ['abcdefghwxyz', 'abcdefgvwxyz'])).toEqual(['abcdefghwxyz']);
     expect(closestIds('abcdefghijkl', ['abcdefghijxy', 'abcdefghwxyz', 'abcdefvwxyz'])).toEqual(['abcdefghijxy', 'abcdefghwxyz']);

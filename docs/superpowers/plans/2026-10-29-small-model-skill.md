@@ -98,7 +98,7 @@ and a grouped text report. The skill splits into three levels: `SKILL.md` → `w
 
 **Interfaces:**
 - Produces: `closestIds(target: string, ids: string[], max?: number): string[]` — up to `max`
-  (default 3) ids with Levenshtein distance ≤ `max(2, floor(target.length / 3))`, nearest first;
+  (default 3) ids with Levenshtein distance ≤ `max(1, floor(target.length / 3))`, nearest first;
   substring matches count as distance 1.
 - `err(issues, code, path, message, hint?)`.
 
