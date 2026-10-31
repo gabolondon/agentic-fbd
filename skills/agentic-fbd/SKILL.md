@@ -12,13 +12,14 @@ steps in order. Do not skip any.
 ## 1. Find the tools
 
 1. `<base>` = the folder that contains this SKILL.md.
-2. The CLI is `<base>/../../dist/cli.mjs`. Check that the file exists.
-3. If it does not, run:
-   `find ~/.agentic-fbd ~/.claude ~/.config /tmp -maxdepth 6 -path '*agentic-fbd*/dist/cli.mjs' 2>/dev/null | head -1`
-4. If that prints nothing, run
+2. The CLI is `<base>/../../dist/cli.mjs`. It is good if `node <it> --help` lists `new`.
+3. If it is missing or not good, run:
+   `find ~/.agentic-fbd ~/.claude ~/.config /tmp/ -maxdepth 6 -path '*agentic-fbd*/dist/cli.mjs' 2>/dev/null`
+   and use the first path that is good.
+4. If none is good, run
    `git clone --depth 1 https://github.com/gabolondon/agentic-fbd.git ~/.agentic-fbd`
-   and use `~/.agentic-fbd/dist/cli.mjs`.
-5. Never write a diagram without a CLI.
+   (if that folder exists: `git -C ~/.agentic-fbd pull`) and use `~/.agentic-fbd/dist/cli.mjs`.
+5. Never write a diagram without a good CLI.
 
 Below, `$CLI` means `node <path to cli.mjs>` (Node 20+). Commands: `new`, `validate`, `open`.
 

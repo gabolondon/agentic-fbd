@@ -87,12 +87,15 @@ workflow, the files it names, and `SKILL.md` stay under 30 KB together.
 
 Claude needs the CLI to create and check a diagram, and it never writes a diagram without one.
 The CLI is at `<base>/../../dist/cli.mjs`, where `<base>` is the folder of `SKILL.md`. Some tools
-copy only the skill folder, so that path may not exist. Then Claude:
+copy only the skill folder, so that path may not exist. A copy only counts if it is recent enough
+for the skill: `node cli.mjs --help` must list the `new` command. When the expected path is
+missing or too old, Claude:
 
 1. searches a few likely folders (`~/.agentic-fbd`, `~/.claude`, `~/.config`, `/tmp`) for a copy
-   of `dist/cli.mjs` inside an `agentic-fbd` folder;
+   of `dist/cli.mjs` inside an `agentic-fbd` folder, and uses the first recent one;
 2. if there is none, runs `git clone --depth 1 https://github.com/gabolondon/agentic-fbd.git ~/.agentic-fbd`
-   and uses `~/.agentic-fbd/dist/cli.mjs`.
+   (or `git -C ~/.agentic-fbd pull` when that folder already exists) and uses
+   `~/.agentic-fbd/dist/cli.mjs`.
 
 Both steps need a shell. The clone needs `git` and network access.
 

@@ -23,6 +23,10 @@ describe('skill files', () => {
       expect(s).toContain(`references/workflow-${w}.md`);
     }
     expect(s).toContain('git clone --depth 1 https://github.com/gabolondon/agentic-fbd.git');
+    // /tmp is a symlink on macOS: find only descends into it with a trailing slash.
+    expect(s).toContain(' /tmp/ ');
+    // an older CLI copy (no `new`) must not be used with these instructions
+    expect(s).toContain('--help` lists `new`');
   });
 
   it('there are exactly four workflow files plus the checklist', () => {
