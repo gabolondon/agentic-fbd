@@ -12,16 +12,16 @@
   },
   "hero": {
     "intro": {
-      "title": "¿La lógica de tu app se rompió después de construirla?",
-      "subtitle": "Incluso con brainstorming o grill-me, el plan no mostró cómo se conectan de verdad los estados, los datos y las funciones."
+      "title": "Tradúcele a Claude lo que piensas. Entiende lo que te responde.",
+      "subtitle": "Una traducción en dos sentidos entre lo que tú piensas y lo que Claude te propone: diagramas de lógica que los dos leen."
     },
     "b": {
-      "title": "Tu código, como lógica.",
-      "subtitle": "Pídele a tu agente que te explique un flujo. Vuelve como un diagrama de bloques de funciones: bloques con tipos, cables y dónde vive cada dato."
+      "title": "Tu idea, en el lenguaje de Claude.",
+      "subtitle": "Bloques con tipos y cables que Claude sigue como una guía exacta, con cada dato y dónde vive."
     },
     "a": {
-      "title": "Encuentra el error antes de que sea código.",
-      "subtitle": "Un número suelto conectado a un puerto OptionId encaja por forma, pero significa otra cosa. El diagrama lo marca cuando todavía es un plan."
+      "title": "Corrige el plan antes de que sea código.",
+      "subtitle": "Ves el diseño de Claude, marcas lo que no es lo que pensabas y Claude lo ajusta. Un número suelto conectado a un puerto OptionId queda marcado cuando todavía es un plan."
     },
     "c": {
       "title": "Abre solo lo que importa.",
@@ -33,7 +33,7 @@
   },
   "statement": {
     "title": "Bloques. Cables. Tipos. Lógica que se lee.",
-    "lead": "Diagramas de lógica para ingenieros que construyen con agentes de código. No es vibe coding — o es vibe coding bien hecho.",
+    "lead": "Un lenguaje compartido entre tú y tu agente de código: dices lo que quieres, Claude lo sigue al pie de la letra y te muestra de vuelta lo que va a construir.",
     "agents": "Para cualquier agente de código (paquete solo para Claude Code).",
     "codex": "Soporte para Codex en camino."
   },

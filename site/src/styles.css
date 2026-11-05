@@ -358,6 +358,17 @@ img {
   font-size: clamp(40px, 5.2vw, 96px);
 }
 
+/* The opening line is two sentences, so it is set smaller to stay a few lines tall. */
+.hero-title.long {
+  max-width: 18ch;
+  font-size: clamp(40px, 5vw, 72px);
+}
+
+.hero.wide .hero-title.long {
+  max-width: min(18ch, 28vw);
+  font-size: clamp(40px, 3.6vw, 64px);
+}
+
 .hero-toggle {
   position: absolute;
   right: var(--gutter);

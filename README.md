@@ -2,28 +2,28 @@
 
 Website: https://afbd.gabocodes.com
 
-**Logic diagrams for humans and coding agents.** agentic-fbd lets Claude Code explain how
-your code works, or how it is about to change, as a **function block diagram**: the block
-language used to program PLCs, with typed inputs and outputs, wires, and layers you open with a
-double-click. You read the diagram in a live local viewer, catch logic flaws **before** code is
-written, and keep the diagram as living documentation.
+**Translate what you think for Claude. Understand what it answers.**
+
+agentic-fbd is a two-way translation between what you have in mind and what Claude proposes.
+Both sides meet in a **function block diagram**: the block language used to program PLCs, with
+typed inputs and outputs, wires, and layers you open with a double-click. You read it in a live
+local viewer, and Claude reads it as an exact guide.
 
 ![A design diagram: an "Other" option with free text added to a questionnaire wizard](docs/images/viewer-design.png)
 
-## Why
+## Both directions
 
-Coding agents now write much of our code. That opens three gaps:
+**From your head to Claude.** Say what you want, or correct a block, a wire or a type in the
+diagram. The diagram is a structured format in Claude's own terms, so Claude follows it to the
+letter instead of guessing what you meant from a paragraph.
 
-1. **Plans ignore the existing logic.** The code works for today's request, and then the next
-   feature brings integration bugs.
-2. **You lose the mental model.** The app runs, but extending, debugging or verifying it depends
-   on the agent.
-3. **Review collapses to input/output.** Under time pressure you check the output and move on
-   without understanding the logic in between.
+**From Claude to you.** What Claude understands about your code, or plans to build, comes back as
+a diagram you read in minutes: the blocks, the data each one reads and writes, where that data
+lives, and what a change touches. If it isn't what you had in mind, you see it at a glance and
+fix it before any code is written.
 
-Reading all the code would fix this, but it's slow. A diagram at the right level, opened layer by
-layer only where it matters, is the fast path to the same understanding. It also works the other
-way: you can express your own idea as a diagram, and Claude implements it.
+When the change ships, the diagram stays next to the code as living documentation, so the next
+person or the next agent session starts from the logic instead of rereading everything.
 
 ### A real example
 
@@ -34,7 +34,8 @@ depths of the question tree, so the bug was hard to find.
 
 In agentic-fbd, "Other" is one **reusable block** with several instances. The wire that carries
 a bare `number` into an `OptionId` port is flagged, because it fits by shape but means something
-else. The **Before / After** view shows exactly what the change touches.
+else. The **Before / After** view shows exactly what the change touches, so the plan was
+corrected before any code changed.
 
 ## Two modes
 

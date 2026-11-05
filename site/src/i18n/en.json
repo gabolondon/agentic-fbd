@@ -12,16 +12,16 @@
   },
   "hero": {
     "intro": {
-      "title": "Did your app's logic break after it was built?",
-      "subtitle": "Even with brainstorming or grill-me, the plan missed how states, data and functions really connect."
+      "title": "Translate what you think for Claude. Understand what it answers.",
+      "subtitle": "A two-way translation between what you have in mind and what Claude proposes: logic diagrams that you both read."
     },
     "b": {
-      "title": "Your code, as logic.",
-      "subtitle": "Ask your agent to explain a flow. It comes back as a function block diagram: typed blocks, wires, and where every piece of data lives."
+      "title": "Your idea, in Claude's language.",
+      "subtitle": "Typed blocks and wires that Claude follows as an exact guide, with every piece of data and where it lives."
     },
     "a": {
-      "title": "Catch the flaw before it's code.",
-      "subtitle": "A bare number wired into an OptionId port fits by shape but means something else. The diagram flags it while it's still a plan."
+      "title": "Correct the plan before it's code.",
+      "subtitle": "You see Claude's design, mark what isn't what you meant, and Claude adjusts it. A bare number wired into an OptionId port gets flagged while it's still a plan."
     },
     "c": {
       "title": "Open only what matters.",
@@ -33,7 +33,7 @@
   },
   "statement": {
     "title": "Blocks. Wires. Types. Logic you can read.",
-    "lead": "Logic diagrams for engineers who build with coding agents. Not vibe coding — or vibe coding done right.",
+    "lead": "A shared language for you and your coding agent: you say what you mean, Claude follows it to the letter, and shows you back what it will build.",
     "agents": "For any coding agent (Claude Code package only).",
     "codex": "Codex support in progress."
   },

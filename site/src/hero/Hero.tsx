@@ -26,7 +26,7 @@ export function Hero() {
       </video>
       <div className="hero-shade" />
       <div className="hero-copy">
-        <h1 key={`t-${segment}`} className="display hero-title">
+        <h1 key={`t-${segment}`} className={segment === 'intro' ? 'display hero-title long' : 'display hero-title'}>
           {t(`hero.${segment}.title`)}
         </h1>
         <p key={`s-${segment}`} className="hero-subtitle">

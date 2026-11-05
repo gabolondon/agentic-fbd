@@ -2,7 +2,7 @@
   "name": "agentic-fbd-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Logic diagrams for humans and coding agents",
+  "description": "Translate what you think for Claude, and understand what it answers, as logic diagrams",
   "license": "MIT",
   "author": "Gabriel Londoño",
   "type": "module",

@@ -1,5 +1,8 @@
 # agentic-fbd documentation
 
+agentic-fbd translates what you think for Claude, and what Claude proposes back for you, as
+function block diagrams that you both read.
+
 Read these pages in order the first time. After that, use them as a reference.
 
 | Page | What it covers |
